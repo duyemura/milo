@@ -1,0 +1,113 @@
+---
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+import Hero from "../components/Hero.astro";
+import ProgramCards from "../components/ProgramCards.astro";
+import Steps from "../components/Steps.astro";
+import Testimonials from "../components/Testimonials.astro";
+import CtaBand from "../components/CtaBand.astro";
+import Footer from "../components/Footer.astro";
+
+// Fixture content: a DIFFERENT gym than the reference (proves template, not copy)
+const gym = {
+  brand: "Iron Anchor",
+  nav: {
+    programs: ["CrossFit", "Olympic Lifting", "Open Gym"],
+    links: ["Drop In", "Schedule", "Pricing", "About Us", "Blog", "Contact"],
+    cta: "Free Intro",
+  },
+  hero: {
+    kicker: "Strength and Conditioning Gym in Austin",
+    heading: "Train hard.<br/>Recover smart.<br/>Live strong.",
+    sub: "Our coaches meet you where you are and build a plan that gets you where you want to be — no intimidation, no guesswork.",
+    ctaText: "Book Your Free Intro",
+    image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&q=80",
+  },
+  programsHeading: "Every body is unique.<br/>Find something that works for YOU",
+  programs: [
+    {
+      name: "CrossFit",
+      description:
+        "Constantly varied functional movement at high intensity. Our flagship group class blends strength work and conditioning so you never plateau — and never get bored.",
+      image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1200&q=80",
+    },
+    {
+      name: "Olympic Lifting",
+      description:
+        "Master the snatch and clean & jerk with dedicated barbell coaching. Small groups, individual attention, and programming that builds real power.",
+      image: "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=1200&q=80",
+    },
+  ],
+  programCta: "Contact Us For More Info",
+  steps: {
+    heading: "Getting started is easy",
+    items: [
+      {
+        title: "Book Your Free Intro",
+        body: "Tell us a little about yourself and your goals, then pick a time that works for you. We'll set up a free intro session so you can see what we're all about.",
+      },
+      {
+        title: "Find A Plan That Works",
+        body: "Get guidance tailored to your body and your schedule, and progress consistently. We will guide you every step of the way.",
+      },
+      {
+        title: "Build Healthy Habits",
+        body: "Getting fit is hard; staying fit is harder. We're here to ensure you build habits and systems that keep you on the right track.",
+      },
+    ],
+  },
+  testimonials: {
+    heading: "Trusted and loved by hundreds of Austin residents",
+    reviews: [
+      {
+        name: "Marisa T.",
+        source: "Google review",
+        quote:
+          "I walked in terrified of barbells and six months later I hit my first bodyweight back squat. The coaches scale everything and know exactly when to push you.",
+      },
+      {
+        name: "Derrick H.",
+        source: "Google review",
+        quote:
+          "Best gym community in Austin, hands down. People actually know your name here. The 6am crew got me through a year of training without missing a week.",
+      },
+      {
+        name: "Priya K.",
+        source: "Google review",
+        quote:
+          "The free intro sold me — no pressure, just a real conversation about my goals and a plan that fit my schedule. Two years in and I'm the strongest I've ever been.",
+      },
+    ],
+  },
+  ctaBand: {
+    heading: "Ready to become the strongest version of yourself?",
+    ctaText: "Book Your Free Intro",
+    image: "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=1400&q=80",
+  },
+  footer: {
+    tagline: "Strength and Conditioning Gym in Austin",
+    columns: [
+      { groups: [{ label: "Programs", links: ["CrossFit", "Olympic Lifting", "Open Gym"] }] },
+      {
+        groups: [
+          { label: "About", links: ["About Us", "Contact Us", "Membership Pause", "Membership Cancellation"] },
+          { label: "Legal", links: ["Terms of Use", "Privacy Policy"] },
+        ],
+      },
+    ],
+    address: "2210 S Lamar Blvd, Austin, TX 78704",
+    hours: ["Sat: 8:00 am – 12:00 pm", "Sun: 9:00 am – 12:00 pm", "Mon – Fri: 5:00 am – 8:00 pm"],
+    locations: ["South Lamar"],
+  },
+};
+---
+
+<Base title={`${gym.brand} Athletics — Austin, TX`}>
+  <Nav brand={gym.brand} programs={gym.nav.programs} links={gym.nav.links} cta={gym.nav.cta} />
+  <Hero {...gym.hero} />
+  <ProgramCards heading={gym.programsHeading} programs={gym.programs} ctaText={gym.programCta} />
+  <Steps heading={gym.steps.heading} steps={gym.steps.items} />
+  <Testimonials {...gym.testimonials} />
+  <CtaBand {...gym.ctaBand} />
+  <Footer brand={gym.brand} {...gym.footer} />
+</Base>

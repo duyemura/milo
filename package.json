@@ -1,0 +1,13 @@
+{
+  "name": "milo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "pnpm -r test",
+    "build": "pnpm -r build",
+    "milo": "node apps/cli/src/milo.ts"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

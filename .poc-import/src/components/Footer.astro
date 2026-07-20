@@ -1,0 +1,146 @@
+---
+const { brand, tagline, columns, address, hours, locations } = Astro.props;
+---
+
+<footer class="footer">
+  <div class="wrapper footer-grid">
+    <div class="footer-brand">
+      <a href="/" class="footer-logo">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M13 2 L4.5 13.5 H11 L9.5 22 L19.5 9.5 H12.5 L13 2 Z" fill="#0464fc" />
+        </svg>
+        <span>{brand}</span>
+      </a>
+      <p class="tagline">{tagline}</p>
+      <div class="socials">
+        {
+          ["twitter", "instagram", "youtube"].map((s) => (
+            <a href="#" class="social" aria-label={s}>
+              {s === "twitter" && (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M23 4.9c-.8.4-1.7.6-2.6.8a4.5 4.5 0 0 0 2-2.5c-.9.5-1.9.9-2.9 1.1a4.5 4.5 0 0 0-7.7 4.1A12.8 12.8 0 0 1 2.5 3.7a4.5 4.5 0 0 0 1.4 6 4.4 4.4 0 0 1-2-.5v.1a4.5 4.5 0 0 0 3.6 4.4 4.6 4.6 0 0 1-2 .1 4.5 4.5 0 0 0 4.2 3.1A9 9 0 0 1 1 18.7a12.7 12.7 0 0 0 6.9 2c8.3 0 12.8-6.9 12.8-12.8v-.6c.9-.6 1.6-1.4 2.3-2.4z" /></svg>
+              )}
+              {s === "instagram" && (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2.5" y="2.5" width="19" height="19" rx="5" /><circle cx="12" cy="12" r="4.5" /><circle cx="17.8" cy="6.2" r="1.2" fill="#fff" stroke="none" /></svg>
+              )}
+              {s === "youtube" && (
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="#fff"><path d="M23 7.5a3 3 0 0 0-2.1-2.2C19 4.8 12 4.8 12 4.8s-7 0-8.9.5A3 3 0 0 0 1 7.5 31 31 0 0 0 .6 12 31 31 0 0 0 1 16.5a3 3 0 0 0 2.1 2.1c1.9.6 8.9.6 8.9.6s7 0 8.9-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 23.4 12 31 31 0 0 0 23 7.5zM9.8 15.1V8.9l5.8 3.1-5.8 3.1z" /></svg>
+              )}
+            </a>
+          ))
+        }
+      </div>
+    </div>
+    {
+      columns.map((col) => (
+        <div class="footer-col">
+          {col.groups.map((g) => (
+            <div class="footer-group">
+              <h4>{g.label}</h4>
+              {g.links.map((l) => (
+                <a href="#">{l}</a>
+              ))}
+            </div>
+          ))}
+        </div>
+      ))
+    }
+    <div class="footer-col">
+      <div class="footer-group">
+        <h4>Address</h4>
+        <p>{address}</p>
+      </div>
+      <div class="footer-group">
+        <h4>Open Hours</h4>
+        {hours.map((h) => <p>{h}</p>)}
+      </div>
+      <div class="footer-group">
+        <h4>Locations</h4>
+        {locations.map((l) => <a href="#">{l}</a>)}
+      </div>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    background: var(--footer);
+    padding: 60px 0 100px;
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1.2fr;
+    gap: 60px;
+    padding-top: 60px;
+  }
+  .footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 26px;
+    font-weight: 800;
+    font-style: italic;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+  }
+  .tagline {
+    font-size: 16px;
+    color: #fafafa;
+    margin: 22px 0 26px;
+  }
+  .socials {
+    display: flex;
+    gap: 12px;
+  }
+  .social {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: #14181f;
+    display: grid;
+    place-items: center;
+  }
+  .social:hover {
+    background: var(--accent);
+  }
+  .footer-col {
+    display: flex;
+    flex-direction: column;
+    gap: 44px;
+  }
+  .footer-group {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .footer-group h4 {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #4e5b60;
+    margin: 0 0 4px;
+  }
+  .footer-group a,
+  .footer-group p {
+    font-size: 16px;
+    font-weight: 500;
+    color: #fafafa;
+    margin: 0;
+    line-height: 1.6;
+  }
+  .footer-group a:hover {
+    color: var(--accent);
+  }
+
+  @media (max-width: 900px) {
+    .footer {
+      padding: 40px 0 70px;
+    }
+    .footer-grid {
+      grid-template-columns: 1fr;
+      gap: 48px;
+      padding-top: 30px;
+    }
+  }
+</style>

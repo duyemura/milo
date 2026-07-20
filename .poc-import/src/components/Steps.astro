@@ -1,0 +1,73 @@
+---
+const { heading, steps } = Astro.props;
+---
+
+<section class="steps">
+  <div class="wrapper">
+    <h2 class="h2 steps-heading">{heading}</h2>
+    <div class="steps-grid">
+      {
+        steps.map((s, i) => (
+          <div class="step-card">
+            <div class="step-num">{String(i + 1).padStart(2, "0")}</div>
+            <h3 class="step-title">{s.title}</h3>
+            <p class="step-body">{s.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .steps {
+    padding: 140px 0 120px;
+  }
+  .steps-heading {
+    text-align: center;
+    margin-bottom: 64px;
+  }
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px;
+  }
+  .step-card {
+    background: #fff;
+    border-radius: var(--radius-card);
+    padding: 48px 40px 56px;
+    box-shadow: 0 18px 40px rgba(6, 9, 10, 0.05);
+  }
+  .step-num {
+    font-size: 44px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--accent);
+    margin-bottom: 64px;
+  }
+  .step-title {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 35px;
+    margin-bottom: 18px;
+  }
+  .step-body {
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 24px;
+    color: var(--text-soft);
+  }
+
+  @media (max-width: 900px) {
+    .steps {
+      padding: 90px 0 80px;
+    }
+    .steps-grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+    .step-num {
+      margin-bottom: 32px;
+    }
+  }
+</style>

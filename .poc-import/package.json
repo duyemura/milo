@@ -1,0 +1,12 @@
+{
+  "name": "milo-template-modern-poc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "astro": "^5.0.0"
+  }
+}
