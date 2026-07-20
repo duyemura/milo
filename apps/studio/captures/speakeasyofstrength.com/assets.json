@@ -1,0 +1,909 @@
+{
+  "images": [
+    {
+      "src": "assets/asset-000.webp",
+      "w": 360,
+      "h": 225,
+      "alt": "Speakeasy of Strength logo"
+    },
+    {
+      "src": "assets/asset-001.webp",
+      "w": 450,
+      "h": 450,
+      "alt": "best personal training at Speakeasy of Strength"
+    },
+    {
+      "src": "assets/asset-002.webp",
+      "w": 450,
+      "h": 450,
+      "alt": "best training classes at Speakeasy of Strength"
+    },
+    {
+      "src": "assets/asset-003.webp",
+      "w": 450,
+      "h": 450,
+      "alt": "start training at Speakeasy of Strength"
+    },
+    {
+      "src": "assets/asset-004.webp",
+      "w": 400,
+      "h": 400,
+      "alt": "small group personal training group"
+    },
+    {
+      "src": "assets/asset-005.webp",
+      "w": 400,
+      "h": 400,
+      "alt": "People working out with kettlebells at Speakeasy of Strength"
+    },
+    {
+      "src": "assets/asset-006.webp",
+      "w": 400,
+      "h": 400,
+      "alt": "People attending a virtual fitness class"
+    },
+    {
+      "src": "assets/asset-000.webp",
+      "w": 360,
+      "h": 225,
+      "alt": "Speakeasy of Strength logo"
+    }
+  ],
+  "fontUrls": [
+    "assets/asset-007.ttf",
+    "assets/asset-008.woff2",
+    "assets/asset-009.woff2",
+    "assets/asset-010.woff2",
+    "assets/asset-011.woff2",
+    "assets/asset-012.woff2",
+    "assets/asset-013.woff2",
+    "assets/asset-014.woff2",
+    "assets/asset-015.woff2",
+    "assets/asset-016.woff2",
+    "assets/asset-017.woff2",
+    "assets/asset-018.woff2",
+    "assets/asset-019.woff2",
+    "assets/asset-020.woff2",
+    "assets/asset-021.woff2",
+    "assets/asset-022.woff2",
+    "assets/asset-023.woff2",
+    "assets/asset-024.woff2",
+    "assets/asset-025.woff2",
+    "assets/asset-026.woff2",
+    "assets/asset-027.woff2",
+    "assets/asset-028.woff2",
+    "assets/asset-029.woff2",
+    "assets/asset-030.woff2",
+    "assets/asset-031.woff2",
+    "assets/asset-032.woff2",
+    "assets/asset-033.woff2",
+    "assets/asset-034.woff2",
+    "assets/asset-035.woff2",
+    "assets/asset-036.woff2",
+    "assets/asset-037.woff2",
+    "assets/asset-038.woff2",
+    "assets/asset-039.woff2",
+    "assets/asset-040.woff2",
+    "assets/asset-041.woff2",
+    "assets/asset-042.woff2",
+    "assets/asset-043.woff2",
+    "assets/asset-044.woff2",
+    "assets/asset-045.woff2",
+    "assets/asset-046.woff2",
+    "assets/asset-047.woff2",
+    "assets/asset-048.woff2",
+    "assets/asset-049.woff2",
+    "assets/asset-050.woff2",
+    "assets/asset-051.woff2",
+    "assets/asset-052.woff2",
+    "assets/asset-053.woff2",
+    "assets/asset-054.woff2",
+    "assets/asset-055.woff2",
+    "assets/asset-056.woff2",
+    "assets/asset-057.woff2",
+    "assets/asset-058.woff2",
+    "assets/asset-059.woff2",
+    "assets/asset-060.woff2",
+    "assets/asset-061.woff2",
+    "assets/asset-062.woff2",
+    "assets/asset-063.woff2",
+    "assets/asset-064.woff2"
+  ],
+  "faces": [
+    {
+      "family": "Nourd Light Font",
+      "weight": "normal",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/2023/08/nourd_light.ttf\") format(\"truetype\")"
+    },
+    {
+      "family": "Nourd Light Font",
+      "weight": "normal",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/2023/08/nourd_light.ttf\") format(\"truetype\")"
+    },
+    {
+      "family": "Nourd Light Font",
+      "weight": "normal",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/2023/08/nourd_light.ttf\") format(\"truetype\")"
+    },
+    {
+      "family": "Bebas Neue",
+      "weight": "400",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/bebasneue-jtusjig69ck48gw7pxoo9wdhyzbi.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Bebas Neue",
+      "weight": "400",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/bebasneue-jtusjig69ck48gw7pxoo9wlhyw.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Rock Salt",
+      "weight": "400",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/rocksalt-mwq0bhv11fwd6qsavozrt0m6.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "100",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxiayp8kv8jhgfvrjjlme0tdmpkzsq.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "100",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxiayp8kv8jhgfvrjjlme0tmmpkzsq.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "100",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxiayp8kv8jhgfvrjjlme0tcmpi.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "200",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmv1pvfteoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "200",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmv1pvgdeoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "200",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmv1pvf9eo.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "300",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm21lvfteoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "300",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm21lvgdeoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "300",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm21lvf9eo.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "400",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxigyp8kv8jhgfvrjjlucxtakpy.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "400",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxigyp8kv8jhgfvrjjlufntakpy.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "400",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxigyp8kv8jhgfvrjjluchta.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "500",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmg1hvfteoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "500",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmg1hvgdeoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "500",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmg1hvf9eo.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "600",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmr19vfteoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "600",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmr19vgdeoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "600",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmr19vf9eo.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "700",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmy15vfteoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "700",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmy15vgdeoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "700",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmy15vf9eo.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "800",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm111vfteoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "800",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm111vgdeoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "800",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm111vf9eo.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "900",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm81xvfteoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "900",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm81xvgdeoceg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "900",
+      "style": "italic",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm81xvf9eo.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "100",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxigyp8kv8jhgfvrlptucxtakpy.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "100",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxigyp8kv8jhgfvrlptufntakpy.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "100",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxigyp8kv8jhgfvrlptuchta.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "200",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlfj_z11lfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "200",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlfj_z1jlfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "200",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlfj_z1xlfq.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "300",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrldz8z11lfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "300",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrldz8z1jlfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "300",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrldz8z1xlfq.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "400",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxieyp8kv8jhgfvrjjbecmne.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "400",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxieyp8kv8jhgfvrjjnecmne.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "400",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxieyp8kv8jhgfvrjjfecg.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "500",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlgt9z11lfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "500",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlgt9z1jlfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "500",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlgt9z1xlfq.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "600",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlej6z11lfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "600",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlej6z1jlfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "600",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlej6z1xlfq.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "700",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlcz7z11lfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "700",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlcz7z1jlfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "700",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlcz7z1xlfq.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "800",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrldd4z11lfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "800",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrldd4z1jlfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "800",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrldd4z1xlfq.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "900",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlbt5z11lfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "900",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlbt5z1jlfc-k.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Poppins",
+      "weight": "900",
+      "style": "normal",
+      "src": "url(\"https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlbt5z1xlfq.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "",
+      "weight": "normal",
+      "style": "normal",
+      "src": "url(\"/wp-content/uploads/2023/08/nourd_light.ttf\") format(\"truetype\")"
+    }
+  ],
+  "loaded": [
+    {
+      "family": "Nourd Light Font",
+      "weight": "normal",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Nourd Light Font",
+      "weight": "normal",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Nourd Light Font",
+      "weight": "normal",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Bebas Neue",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Bebas Neue",
+      "weight": "400",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Rock Salt",
+      "weight": "400",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "700",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "700",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "700",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "800",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "800",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "800",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "900",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "900",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "900",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "400",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "500",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "900",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "900",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Poppins",
+      "weight": "900",
+      "style": "normal",
+      "status": "unloaded"
+    }
+  ],
+  "assetMap": {
+    "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2025/10/speakeasy_of_strength_logo_cp.webp?strip=all": "assets/asset-000.webp",
+    "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2025/10/best-personal-training-at-Speakeasy-of-Strength.webp?strip=all": "assets/asset-001.webp",
+    "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2025/10/best-training-classes-at-Speakeasy-of-Strength.webp?strip=all": "assets/asset-002.webp",
+    "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2025/10/start-training-at-Speakeasy-of-Strength.webp?strip=all": "assets/asset-003.webp",
+    "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2025/10/small-group-personal-training-group-1.webp?strip=all": "assets/asset-004.webp",
+    "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2026/05/speakeasy_of_strength_people_working_out_with_kettlebells.webp?strip=all": "assets/asset-005.webp",
+    "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2025/10/speakeasy_of_strength_virtual_classes1.webp?strip=all": "assets/asset-006.webp",
+    "https://speakeasyofstrength.com/wp-content/uploads/2023/08/nourd_light.ttf": "assets/asset-007.ttf",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/bebasneue-jtusjig69ck48gw7pxoo9wdhyzbi.woff2": "assets/asset-008.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/bebasneue-jtusjig69ck48gw7pxoo9wlhyw.woff2": "assets/asset-009.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/rocksalt-mwq0bhv11fwd6qsavozrt0m6.woff2": "assets/asset-010.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxiayp8kv8jhgfvrjjlme0tdmpkzsq.woff2": "assets/asset-011.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxiayp8kv8jhgfvrjjlme0tmmpkzsq.woff2": "assets/asset-012.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxiayp8kv8jhgfvrjjlme0tcmpi.woff2": "assets/asset-013.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmv1pvfteoceg.woff2": "assets/asset-014.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmv1pvgdeoceg.woff2": "assets/asset-015.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmv1pvf9eo.woff2": "assets/asset-016.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm21lvfteoceg.woff2": "assets/asset-017.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm21lvgdeoceg.woff2": "assets/asset-018.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm21lvf9eo.woff2": "assets/asset-019.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxigyp8kv8jhgfvrjjlucxtakpy.woff2": "assets/asset-020.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxigyp8kv8jhgfvrjjlufntakpy.woff2": "assets/asset-021.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxigyp8kv8jhgfvrjjluchta.woff2": "assets/asset-022.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmg1hvfteoceg.woff2": "assets/asset-023.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmg1hvgdeoceg.woff2": "assets/asset-024.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmg1hvf9eo.woff2": "assets/asset-025.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmr19vfteoceg.woff2": "assets/asset-026.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmr19vgdeoceg.woff2": "assets/asset-027.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmr19vf9eo.woff2": "assets/asset-028.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmy15vfteoceg.woff2": "assets/asset-029.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmy15vgdeoceg.woff2": "assets/asset-030.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlmy15vf9eo.woff2": "assets/asset-031.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm111vfteoceg.woff2": "assets/asset-032.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm111vgdeoceg.woff2": "assets/asset-033.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm111vf9eo.woff2": "assets/asset-034.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm81xvfteoceg.woff2": "assets/asset-035.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm81xvgdeoceg.woff2": "assets/asset-036.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxidyp8kv8jhgfvrjjlm81xvf9eo.woff2": "assets/asset-037.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxigyp8kv8jhgfvrlptucxtakpy.woff2": "assets/asset-038.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxigyp8kv8jhgfvrlptufntakpy.woff2": "assets/asset-039.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxigyp8kv8jhgfvrlptuchta.woff2": "assets/asset-040.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlfj_z11lfc-k.woff2": "assets/asset-041.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlfj_z1jlfc-k.woff2": "assets/asset-042.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlfj_z1xlfq.woff2": "assets/asset-043.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrldz8z11lfc-k.woff2": "assets/asset-044.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrldz8z1jlfc-k.woff2": "assets/asset-045.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrldz8z1xlfq.woff2": "assets/asset-046.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxieyp8kv8jhgfvrjjbecmne.woff2": "assets/asset-047.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxieyp8kv8jhgfvrjjnecmne.woff2": "assets/asset-048.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxieyp8kv8jhgfvrjjfecg.woff2": "assets/asset-049.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlgt9z11lfc-k.woff2": "assets/asset-050.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlgt9z1jlfc-k.woff2": "assets/asset-051.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlgt9z1xlfq.woff2": "assets/asset-052.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlej6z11lfc-k.woff2": "assets/asset-053.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlej6z1jlfc-k.woff2": "assets/asset-054.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlej6z1xlfq.woff2": "assets/asset-055.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlcz7z11lfc-k.woff2": "assets/asset-056.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlcz7z1jlfc-k.woff2": "assets/asset-057.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlcz7z1xlfq.woff2": "assets/asset-058.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrldd4z11lfc-k.woff2": "assets/asset-059.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrldd4z1jlfc-k.woff2": "assets/asset-060.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrldd4z1xlfq.woff2": "assets/asset-061.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlbt5z11lfc-k.woff2": "assets/asset-062.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlbt5z1jlfc-k.woff2": "assets/asset-063.woff2",
+    "https://speakeasyofstrength.com/wp-content/uploads/elementor/google-fonts/fonts/poppins-pxibyp8kv8jhgfvrlbt5z1xlfq.woff2": "assets/asset-064.woff2"
+  }
+}

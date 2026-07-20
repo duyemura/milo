@@ -1,65 +1,62 @@
 [
   {
-    "cls": "elementor elementor-13 elementor-location-header",
-    "tag": "HEADER",
-    "y": 0,
-    "height": 137,
-    "bg": "rgba(0, 0, 0, 0)",
-    "padding": "0px",
-    "heading": null
-  },
-  {
-    "cls": "site-main post-16 page type-page status-publish has-post-thumbnail hentry",
-    "tag": "MAIN",
+    "tag": "DIV",
+    "cls": "elementor-element elementor-element-03a7515 e-flex e-con-boxed e-con e-parent e-lazyloaded",
     "y": 137,
-    "height": 5214,
+    "height": 764,
     "bg": "rgba(0, 0, 0, 0)",
-    "padding": "0px",
-    "heading": "Awesome for Everyone.\nShame Free.\nMighty Strong."
+    "padding": "0px 20px 0px 140px",
+    "heading": "Awesome for Everyone.\nShame Free.\nMighty Strong.",
+    "childCount": 1
   },
   {
-    "cls": "elementor-section elementor-top-section elementor-element elementor-element-e8b9529 elementor-section-boxed elementor-section-height-default",
     "tag": "SECTION",
+    "cls": "elementor-section elementor-top-section elementor-element elementor-element-e8b9529 elementor-section-boxed elementor-section-height-default",
     "y": 901,
     "height": 1108,
     "bg": "rgba(0, 0, 0, 0)",
     "padding": "80px 20px",
-    "heading": "3 STEPs TO FITNESS GREATNESS WITH Speakeasy of Strength"
+    "heading": "3 STEPs TO FITNESS GREATNESS WITH Speakeasy of Strength",
+    "childCount": 1
   },
   {
-    "cls": "elementor-section elementor-inner-section elementor-element elementor-element-1bcce82 elementor-section-boxed elementor-section-height-defau",
-    "tag": "SECTION",
-    "y": 1141,
-    "height": 788,
+    "tag": "DIV",
+    "cls": "elementor-element elementor-element-0eba083 e-flex e-con-boxed e-con e-parent e-lazyloaded",
+    "y": 2009,
+    "height": 1589,
     "bg": "rgba(0, 0, 0, 0)",
-    "padding": "30px 0px 50px",
-    "heading": "Step 1"
+    "padding": "0px 20px",
+    "heading": "Programs",
+    "childCount": 1
   },
   {
-    "cls": "elementor-section elementor-top-section elementor-element elementor-element-65555c50 elementor-section-boxed elementor-section-height-defaul",
+    "tag": "DIV",
+    "cls": "elementor-element elementor-element-9ccb035 e-flex e-con-boxed e-con e-parent e-lazyloaded",
+    "y": 3598,
+    "height": 202,
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "0px 20px",
+    "heading": null,
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "elementor-element elementor-element-4955cf7 e-flex e-con-boxed e-con e-parent e-lazyloaded",
+    "y": 3800,
+    "height": 666,
+    "bg": "rgb(15, 15, 15)",
+    "padding": "0px 20px",
+    "heading": "Discover Speakeasy of Strength Locations",
+    "childCount": 1
+  },
+  {
     "tag": "SECTION",
+    "cls": "elementor-section elementor-top-section elementor-element elementor-element-65555c50 elementor-section-boxed elementor-section-height-defaul",
     "y": 4466,
     "height": 885,
     "bg": "rgba(0, 0, 0, 0)",
     "padding": "100px 20px",
-    "heading": "Stories of Glory"
-  },
-  {
-    "cls": "elementor-section elementor-inner-section elementor-element elementor-element-2e6b084f elementor-section-boxed elementor-section-height-defa",
-    "tag": "SECTION",
-    "y": 4708,
-    "height": 543,
-    "bg": "rgba(0, 0, 0, 0)",
-    "padding": "30px 0px 0px",
-    "heading": "Joshua Robinson"
-  },
-  {
-    "cls": "elementor elementor-82 elementor-location-footer",
-    "tag": "FOOTER",
-    "y": 5351,
-    "height": 346,
-    "bg": "rgba(0, 0, 0, 0)",
-    "padding": "0px",
-    "heading": null
+    "heading": "Stories of Glory",
+    "childCount": 1
   }
 ]

@@ -1,101 +1,122 @@
 [
   {
-    "cls": "collection-list-wrapper w-dyn-list",
     "tag": "DIV",
+    "cls": "navbar w-nav",
+    "y": 0,
+    "height": 80,
+    "bg": "rgb(255, 255, 255)",
+    "padding": "0px",
+    "heading": null,
+    "childCount": 3
+  },
+  {
+    "tag": "DIV",
+    "cls": "collection-list-wrapper w-dyn-list",
     "y": 80,
     "height": 1025,
     "bg": "rgba(0, 0, 0, 0)",
     "padding": "0px",
-    "heading": "Strength and Conditioning Gym in Manhattan"
+    "heading": "Strength and Conditioning Gym in Manhattan",
+    "childCount": 1
   },
   {
-    "cls": "hero-cards-grid",
     "tag": "DIV",
+    "cls": "hero-cards-grid",
     "y": 955,
     "height": 352,
     "bg": "rgba(0, 0, 0, 0)",
     "padding": "0px",
-    "heading": "Feel Supported"
+    "heading": "Feel Supported",
+    "childCount": 1
   },
   {
-    "cls": "programs-section",
     "tag": "DIV",
+    "cls": "programs-section",
     "y": 1307,
     "height": 2046,
     "bg": "rgba(0, 0, 0, 0)",
     "padding": "200px 0px 0px",
-    "heading": "Every body is unique. Find something that works for YOU"
+    "heading": "Every body is unique. Find something that works for YOU",
+    "childCount": 1
   },
   {
-    "cls": "steps-section",
     "tag": "DIV",
+    "cls": "steps-section",
     "y": 3353,
     "height": 660,
     "bg": "rgba(0, 0, 0, 0)",
     "padding": "40px 0px 120px",
-    "heading": "Getting started is easy"
+    "heading": "Getting started is easy",
+    "childCount": 1
   },
   {
-    "cls": "testimonial-section",
     "tag": "DIV",
+    "cls": "testimonial-section",
     "y": 4013,
     "height": 965,
     "bg": "rgba(0, 0, 0, 0)",
     "padding": "100px 0px 160px",
-    "heading": "Trusted and Loved By Hundreds of Manhattan Residents"
+    "heading": "Trusted and Loved By Hundreds of Manhattan Residents",
+    "childCount": 2
   },
   {
-    "cls": "amenitiies-section",
     "tag": "DIV",
+    "cls": "amenitiies-section",
     "y": 4978,
     "height": 1123,
     "bg": "rgb(0, 11, 39)",
     "padding": "120px 0px 130px",
-    "heading": "Everything you need to crush your fitness goals"
+    "heading": "Everything you need to crush your fitness goals",
+    "childCount": 1
   },
   {
-    "cls": "community-section",
     "tag": "DIV",
+    "cls": "community-section",
     "y": 6101,
     "height": 710,
     "bg": "rgba(0, 0, 0, 0)",
     "padding": "100px 0px 150px",
-    "heading": "A Community That Will Keep You Going"
+    "heading": "A Community That Will Keep You Going",
+    "childCount": 1
   },
   {
-    "cls": "location-section",
     "tag": "DIV",
+    "cls": "location-section",
     "y": 6811,
     "height": 822,
     "bg": "rgb(255, 255, 255)",
     "padding": "100px 0px 130px",
-    "heading": "Located just off the Brooklyn Bridge in Brooklyn Heights"
+    "heading": "Located just off the Brooklyn Bridge in Brooklyn Heights",
+    "childCount": 1
   },
   {
-    "cls": "faqs-section",
     "tag": "DIV",
+    "cls": "faqs-section",
     "y": 7633,
     "height": 1519,
     "bg": "rgba(0, 0, 0, 0)",
     "padding": "120px 0px 140px",
-    "heading": "Questions? We have the answers!"
+    "heading": "Questions? We have the answers!",
+    "childCount": 1
   },
   {
-    "cls": "final-offer-collection w-dyn-list",
     "tag": "DIV",
+    "cls": "final-offer-collection w-dyn-list",
     "y": 9152,
     "height": 548,
     "bg": "rgba(0, 0, 0, 0)",
     "padding": "0px",
-    "heading": "Your fitness journey doesn't have to feel long. We're here to make it a lot more fun!"
+    "heading": "Your fitness journey doesn't have to feel long. We're here to make it a lot more fun!",
+    "childCount": 1
   },
   {
-    "cls": "footer-section",
     "tag": "DIV",
+    "cls": "footer-section",
     "y": 9700,
     "height": 738,
     "bg": "rgb(0, 4, 13)",
     "padding": "60px 0px 100px",
-    "heading": null
+    "heading": null,
+    "childCount": 2
   }
 ]

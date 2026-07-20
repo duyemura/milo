@@ -1,0 +1,934 @@
+{
+  "images": [
+    {
+      "src": "assets/asset-000.png",
+      "w": 273,
+      "h": 80,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "assets/asset-001.png",
+      "w": 1440,
+      "h": 960,
+      "alt": "Images"
+    },
+    {
+      "src": "assets/asset-002.jpg",
+      "w": 480,
+      "h": 720,
+      "alt": "Images"
+    },
+    {
+      "src": "assets/asset-003.jpg",
+      "w": 1440,
+      "h": 960,
+      "alt": "Main Programs"
+    },
+    {
+      "src": "assets/asset-004.jpg",
+      "w": 1440,
+      "h": 720,
+      "alt": "Main Programs"
+    },
+    {
+      "src": "assets/asset-005.jpg",
+      "w": 1439,
+      "h": 959,
+      "alt": "Main Programs"
+    },
+    {
+      "src": "assets/asset-006.jpg",
+      "w": 307,
+      "h": 461,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "assets/asset-007.jpeg",
+      "w": 300,
+      "h": 405,
+      "alt": "Final Offer"
+    },
+    {
+      "src": "assets/asset-008.png",
+      "w": 271,
+      "h": 79,
+      "alt": "Beta Gym"
+    }
+  ],
+  "fontUrls": [
+    "data:application/x-font-ttf;charset=utf-8;base64,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",
+    "assets/asset-009.otf",
+    "assets/asset-010.otf",
+    "assets/asset-011.otf",
+    "assets/asset-012.otf",
+    "assets/asset-013.otf",
+    "assets/asset-014.otf",
+    "assets/asset-015.otf",
+    "assets/asset-016.otf",
+    "assets/asset-017.otf",
+    "assets/asset-018.otf",
+    "assets/asset-019.otf",
+    "assets/asset-020.otf",
+    "assets/asset-021.otf",
+    "assets/asset-022.otf",
+    "assets/asset-023.otf"
+  ],
+  "faces": [
+    {
+      "family": "webflow-icons",
+      "weight": "400",
+      "style": "normal",
+      "src": "url(\"data:application/x-font-ttf;charset=utf-8;base64,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\") format(\"truetype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "500",
+      "style": "normal",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a35f07b074c3b_500-Silka-Medium.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "100",
+      "style": "italic",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a3599f5074c36_Silka-100-ThinItalic.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "100",
+      "style": "normal",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a353da9074c2f_Silka-100-Thin.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "400",
+      "style": "italic",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a350160074c1e_Silka-400-RegularItalic.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "600",
+      "style": "italic",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a350330074c20_Silka-600-SemiBoldItalic.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "200",
+      "style": "normal",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a351c97074c10_Silka-200-ExtraLight.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "600",
+      "style": "normal",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a357fbe074c22_Silka-600-SemiBold.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "300",
+      "style": "italic",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a354b5c074c26_Silka-300-LightItalic.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "500",
+      "style": "italic",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a3536b5074c18_Silka-500-MediumItalic.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "700",
+      "style": "italic",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a35459f074c12_Silka-700-BoldItalic.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "200",
+      "style": "italic",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a3512d3074c16_Silka-200-ExtraLightItalic.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "900",
+      "style": "normal",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a3556f3074c11_Silka-900-Black.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "400",
+      "style": "normal",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a357223074c0f_Silka-400-Regular.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "700",
+      "style": "normal",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a35403b074c17_Silka-700-Bold.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "Silka",
+      "weight": "300",
+      "style": "normal",
+      "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a351841074c14_Silka-300-Light.otf\") format(\"opentype\")"
+    }
+  ],
+  "loaded": [
+    {
+      "family": "webflow-icons",
+      "weight": "400",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "500",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "700",
+      "style": "italic",
+      "status": "loaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "900",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "400",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "700",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Silka",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Barlow",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "italic",
+      "status": "loaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "FontAwesome",
+      "weight": "normal",
+      "style": "normal",
+      "status": "loaded"
+    }
+  ],
+  "assetMap": {
+    "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/63cb03d58f67aa6812af8383_Beta%20Gym%20Navbar.png": "assets/asset-000.png",
+    "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/64086ce7b78d3f0900fdd620_Untitled%20design%20(2).png": "assets/asset-001.png",
+    "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/63ce2e8f2960e9a122454347_Homepage%20at%20Beta%20Gym%20Modern%20in%20Manhattan.jpg": "assets/asset-002.jpg",
+    "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/6407d4e86253ab1fc4052053_gabin-vallet-J154nEkpzlQ-unsplash-p-1600.jpg": "assets/asset-003.jpg",
+    "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/63ce24d71a2c8435a88b4325_Personal%20Training%20at%20Beta%20Gym%20Modern%20in%20Manhattan%20(1).jpg": "assets/asset-004.jpg",
+    "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/6407d45e3058f15c9b76cc3f_sunday-ii-sunday-ZeTmQgm2N3k-unsplash.jpg": "assets/asset-005.jpg",
+    "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/63ce2c0a8a1d4b999b2ecde2_Community%20at%20Beta%20Gym%20Modern%20in%20Manhattan.jpg": "assets/asset-006.jpg",
+    "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/63caaac34d6a35863a074f12_Final%20Offer.jpeg": "assets/asset-007.jpeg",
+    "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/63cb03d72a1decb6e3cbf582_Beta%20Gym%20Footer-p-500.png": "assets/asset-008.png",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a35f07b074c3b_500-Silka-Medium.otf": "assets/asset-009.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a3599f5074c36_Silka-100-ThinItalic.otf": "assets/asset-010.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a353da9074c2f_Silka-100-Thin.otf": "assets/asset-011.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a350160074c1e_Silka-400-RegularItalic.otf": "assets/asset-012.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a350330074c20_Silka-600-SemiBoldItalic.otf": "assets/asset-013.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a351c97074c10_Silka-200-ExtraLight.otf": "assets/asset-014.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a357fbe074c22_Silka-600-SemiBold.otf": "assets/asset-015.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a354b5c074c26_Silka-300-LightItalic.otf": "assets/asset-016.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a3536b5074c18_Silka-500-MediumItalic.otf": "assets/asset-017.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a35459f074c12_Silka-700-BoldItalic.otf": "assets/asset-018.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a3512d3074c16_Silka-200-ExtraLightItalic.otf": "assets/asset-019.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a3556f3074c11_Silka-900-Black.otf": "assets/asset-020.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a357223074c0f_Silka-400-Regular.otf": "assets/asset-021.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a35403b074c17_Silka-700-Bold.otf": "assets/asset-022.otf",
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a351841074c14_Silka-300-Light.otf": "assets/asset-023.otf"
+  }
+}

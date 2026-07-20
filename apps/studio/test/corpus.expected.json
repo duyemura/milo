@@ -1,0 +1,5 @@
+{
+  "beanburito.github.io": { "minSections": 8, "maxSections": 14, "noMonster": true },
+  "pushpress-site-modern.webflow.io": { "minSections": 8, "maxSections": 14, "noMonster": true },
+  "speakeasyofstrength.com": { "minSections": 5, "maxSections": 14, "noMonster": true, "fontFamilies": ["Bebas Neue"] }
+}

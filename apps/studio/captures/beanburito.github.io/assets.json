@@ -1,0 +1,777 @@
+{
+  "images": [
+    {
+      "src": "assets/asset-000.webp",
+      "w": 210,
+      "h": 53,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "assets/asset-001.webp",
+      "w": 210,
+      "h": 53,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "assets/asset-002.webp",
+      "w": 1440,
+      "h": 720,
+      "alt": "Header Image"
+    },
+    {
+      "src": "assets/asset-002.webp",
+      "w": 1440,
+      "h": 720,
+      "alt": "Header Image"
+    },
+    {
+      "src": "assets/asset-003.webp",
+      "w": 480,
+      "h": 720,
+      "alt": "Header Image"
+    },
+    {
+      "src": "assets/asset-004.webp",
+      "w": 480,
+      "h": 720,
+      "alt": "Fundamentals in Claymont and New York"
+    },
+    {
+      "src": "assets/asset-005.webp",
+      "w": 480,
+      "h": 720,
+      "alt": "CrossFit Classes in Claymont"
+    },
+    {
+      "src": "assets/asset-006.webp",
+      "w": 480,
+      "h": 720,
+      "alt": "Nutrition Coaching in New York"
+    },
+    {
+      "src": "assets/asset-007.webp",
+      "w": 1000,
+      "h": 1500,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "assets/asset-000.webp",
+      "w": 210,
+      "h": 53,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "assets/asset-001.webp",
+      "w": 210,
+      "h": 53,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "assets/asset-008.svg",
+      "w": 118,
+      "h": 12,
+      "alt": "Made in Webflow"
+    }
+  ],
+  "fontUrls": [
+    "data:application/x-font-ttf;charset=utf-8;base64,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",
+    "https://beanburito.github.io/69e26e65ff0cd2b2ef05af7d_Outfit-ExtraLight.woff2",
+    "https://beanburito.github.io/69e26e65ff0cd2b2ef05af7b_Outfit-Light.woff2",
+    "https://beanburito.github.io/69e26e65ff0cd2b2ef05af7f_Outfit-Medium.woff2",
+    "https://beanburito.github.io/69e26e65ff0cd2b2ef05af80_Outfit-Black.woff2",
+    "https://beanburito.github.io/69e26e65ff0cd2b2ef05af7c_Outfit-Bold.woff2",
+    "https://beanburito.github.io/69e26e65ff0cd2b2ef05af90_Outfit-ExtraBold.woff2",
+    "https://beanburito.github.io/69e26e65ff0cd2b2ef05af81_Outfit-Thin.woff2",
+    "https://beanburito.github.io/69e26e65ff0cd2b2ef05af7e_Outfit-SemiBold.woff2",
+    "https://beanburito.github.io/69e26e65ff0cd2b2ef05af82_Outfit-Regular.woff2",
+    "https://beanburito.github.io/69e26e65ff0cd2b2ef05af57_Inter-Regular.ttf",
+    "https://beanburito.github.io/69e26e65ff0cd2b2ef05af5a_Inter-ExtraBold.ttf"
+  ],
+  "faces": [
+    {
+      "family": "webflow-icons",
+      "weight": "400",
+      "style": "normal",
+      "src": "url(\"data:application/x-font-ttf;charset=utf-8;base64,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\") format(\"truetype\")"
+    },
+    {
+      "family": "Outfit",
+      "weight": "200",
+      "style": "normal",
+      "src": "url(\"../69e26e65ff0cd2b2ef05af7d_Outfit-ExtraLight.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Outfit",
+      "weight": "300",
+      "style": "normal",
+      "src": "url(\"../69e26e65ff0cd2b2ef05af7b_Outfit-Light.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Outfit",
+      "weight": "500",
+      "style": "normal",
+      "src": "url(\"../69e26e65ff0cd2b2ef05af7f_Outfit-Medium.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Outfit",
+      "weight": "900",
+      "style": "normal",
+      "src": "url(\"../69e26e65ff0cd2b2ef05af80_Outfit-Black.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Outfit",
+      "weight": "700",
+      "style": "normal",
+      "src": "url(\"../69e26e65ff0cd2b2ef05af7c_Outfit-Bold.woff2\") format(\"woff2\"), url(\"../69e26e65ff0cd2b2ef05af90_Outfit-ExtraBold.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Outfit",
+      "weight": "100",
+      "style": "normal",
+      "src": "url(\"../69e26e65ff0cd2b2ef05af81_Outfit-Thin.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Outfit",
+      "weight": "600",
+      "style": "normal",
+      "src": "url(\"../69e26e65ff0cd2b2ef05af7e_Outfit-SemiBold.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Outfit",
+      "weight": "400",
+      "style": "normal",
+      "src": "url(\"../69e26e65ff0cd2b2ef05af82_Outfit-Regular.woff2\") format(\"woff2\")"
+    },
+    {
+      "family": "Inter",
+      "weight": "400",
+      "style": "normal",
+      "src": "url(\"../69e26e65ff0cd2b2ef05af57_Inter-Regular.ttf\") format(\"truetype\")"
+    },
+    {
+      "family": "Inter",
+      "weight": "800",
+      "style": "normal",
+      "src": "url(\"../69e26e65ff0cd2b2ef05af5a_Inter-ExtraBold.ttf\") format(\"truetype\")"
+    }
+  ],
+  "loaded": [
+    {
+      "family": "webflow-icons",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Outfit",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Outfit",
+      "weight": "300",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Outfit",
+      "weight": "500",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Outfit",
+      "weight": "900",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Outfit",
+      "weight": "700",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Outfit",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Outfit",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Outfit",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Inter",
+      "weight": "400",
+      "style": "normal",
+      "status": "loaded"
+    },
+    {
+      "family": "Inter",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "italic",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "100",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "200",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "300",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "400",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "500",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "600",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "700",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "800",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "normal",
+      "status": "unloaded"
+    },
+    {
+      "family": "Montserrat",
+      "weight": "900",
+      "style": "normal",
+      "status": "unloaded"
+    }
+  ],
+  "assetMap": {
+    "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b02f_logo-black.webp": "assets/asset-000.webp",
+    "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b080_69ca9b17efd1f025b8de0fb0_logo%20(1).webp": "assets/asset-001.webp",
+    "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b09a_Demo%20Site%20Homepage.webp": "assets/asset-002.webp",
+    "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b099_Demo%20Site%20Mobile%20Homepage.webp": "assets/asset-003.webp",
+    "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b094_Demo%20Site%20Fundamentals.webp": "assets/asset-004.webp",
+    "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b095_Demo%20Site%20Strength%20Class.webp": "assets/asset-005.webp",
+    "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b096_Demo%20Site%20Nutrition.webp": "assets/asset-006.webp",
+    "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b09e_Community.webp": "assets/asset-007.webp",
+    "https://d3e54v103j8qbb.cloudfront.net/img/webflow-badge-text-d2.c82cec3b78.svg": "assets/asset-008.svg"
+  }
+}
