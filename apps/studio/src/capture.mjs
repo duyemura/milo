@@ -23,6 +23,9 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
+import { segmentPage } from "./segment.mjs";
+import { resolveFonts, fontFileUrls } from "./fonts.mjs";
+import { collectAssetUrls, rewriteRefs, downloadAssets } from "./assets.mjs";
 
 const args = process.argv.slice(2);
 const get = (flag) => {
@@ -103,32 +106,11 @@ const styles = await page.evaluate(() => {
 });
 fs.writeFileSync(`${OUT}/styles.json`, JSON.stringify(styles, null, 2));
 
-const sections = await page.evaluate(() => {
-  // Top-level visual sections: direct-ish children of body/main with real height.
-  const roots = [...document.querySelectorAll("body > *, body > * > section, main > *, .w-container > section, section")];
-  const seen = new Set();
-  const out = [];
-  for (const el of roots) {
-    const r = el.getBoundingClientRect();
-    const h = Math.round(r.height);
-    if (h < 120) continue;
-    const key = `${Math.round(r.y + window.scrollY)}-${h}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const cs = getComputedStyle(el);
-    out.push({
-      cls: el.className?.toString().slice(0, 140),
-      tag: el.tagName,
-      y: Math.round(r.y + window.scrollY),
-      height: h,
-      bg: cs.backgroundColor,
-      padding: cs.padding,
-      heading: el.querySelector("h1,h2,h3")?.textContent?.trim().slice(0, 100) ?? null,
-    });
-  }
-  return out.sort((a, b) => a.y - b.y).slice(0, 40);
-});
+const sections = await page.evaluate(segmentPage);
 fs.writeFileSync(`${OUT}/sections.json`, JSON.stringify(sections, null, 2));
+
+const fontInfo = await page.evaluate(resolveFonts);
+const fontUrls = fontFileUrls(fontInfo.faces, url);
 
 const totalH = await page.evaluate(() => document.body.scrollHeight);
 let idx = 0;
@@ -171,6 +153,11 @@ if (burger) {
   await m.screenshot({ path: `${OUT}/m-menu.png` });
 }
 await m.close();
+
+const preBundle = { images: styles.images, fontUrls, faces: fontInfo.faces, loaded: fontInfo.loaded };
+const assetMap = await downloadAssets(collectAssetUrls(preBundle), `${OUT}/assets`);
+const bundle = rewriteRefs(preBundle, assetMap);
+fs.writeFileSync(`${OUT}/assets.json`, JSON.stringify({ ...bundle, assetMap }, null, 2));
 
 fs.writeFileSync(
   `${OUT}/meta.json`,
