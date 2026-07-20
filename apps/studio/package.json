@@ -4,9 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "capture": "node src/capture.mjs"
+    "capture": "node src/capture.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "playwright": "^1.49.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0"
   }
 }
