@@ -1,0 +1,29 @@
+{
+  "name": "modern",
+  "description": "Bold Montserrat-900 design with electric blue accent on off-white; navy feature bands. Built from the pushpress-site-modern.webflow.io reference in a Template Studio session.",
+  "tokens": {
+    "fontDisplay": "Montserrat",
+    "bg": "#fafafa",
+    "text": "#06090a",
+    "radiusButton": "10px",
+    "radiusCard": "12px"
+  },
+  "components": [
+    "hero",
+    "program-cards",
+    "coach-grid",
+    "schedule",
+    "testimonials",
+    "faq",
+    "cta-band",
+    "location-map",
+    "contact-form",
+    "lead-form",
+    "pricing",
+    "feature-grid",
+    "content-block",
+    "media-block",
+    "stats-band",
+    "logo-strip"
+  ]
+}

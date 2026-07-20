@@ -1,0 +1,39 @@
+---
+const { heading, body } = Astro.props;
+const paragraphs = body.split(/\n\n+/);
+---
+
+<section class="content-block">
+  <div class="wrapper content-wrap">
+    {heading && <h2 class="h2 content-heading" set:html={heading} />}
+    {paragraphs.map((p) => <p class="content-body">{p}</p>)}
+  </div>
+</section>
+
+<style>
+  .content-block {
+    padding: 180px 0 80px;
+  }
+  .content-wrap {
+    max-width: 820px;
+  }
+  .content-heading {
+    margin-bottom: 28px;
+  }
+  .content-body {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 30px;
+    color: var(--text-soft);
+    max-width: 68ch;
+  }
+  .content-body + .content-body {
+    margin-top: 20px;
+  }
+
+  @media (max-width: 900px) {
+    .content-block {
+      padding: 130px 0 60px;
+    }
+  }
+</style>

@@ -1,0 +1,60 @@
+---
+const { stats } = Astro.props;
+---
+
+<section class="stats-band">
+  <div class="wrapper stats-grid" style={`--cols: ${Math.min(stats.length, 4)}`}>
+    {
+      stats.map((s) => (
+        <div class="stat">
+          <span class="stat-value">{s.value}</span>
+          <span class="stat-label">{s.label}</span>
+        </div>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .stats-band {
+    background: var(--navy);
+    padding: 90px 0;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), 1fr);
+    gap: 40px;
+    text-align: center;
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .stat-value {
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 1;
+    color: #fff;
+  }
+  .stat-label {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  @media (max-width: 900px) {
+    .stats-band {
+      padding: 60px 0;
+    }
+    .stats-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 36px;
+    }
+    .stat-value {
+      font-size: 40px;
+    }
+  }
+</style>

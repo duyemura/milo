@@ -1,0 +1,139 @@
+---
+const { heading, plans } = Astro.props;
+---
+
+<section class="pricing">
+  <div class="wrapper">
+    {heading && <h2 class="h2 pricing-heading" set:html={heading} />}
+    <div class="plans" style={`--cols: ${Math.min(plans.length, 3)}`}>
+      {
+        plans.map((p) => (
+          <div class={`plan ${p.featured ? "featured" : ""}`}>
+            {p.featured && <span class="badge">Most popular</span>}
+            <h3 class="plan-name">{p.name}</h3>
+            <div class="plan-price">
+              <span class="price">{p.price}</span>
+              {p.period && <span class="period">{p.period}</span>}
+            </div>
+            {p.features.length > 0 && (
+              <ul>
+                {p.features.map((f) => (
+                  <li>
+                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M2.5 8.5 L6 12 L13.5 4.5" stroke="var(--accent)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {p.cta && (
+              <a href={p.cta.href} class="btn plan-btn">
+                {p.cta.label}
+              </a>
+            )}
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .pricing {
+    padding: 180px 0 120px;
+  }
+  .pricing-heading {
+    text-align: center;
+    margin-bottom: 72px;
+  }
+  .plans {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), 1fr);
+    gap: 32px;
+    align-items: stretch;
+  }
+  .plan {
+    position: relative;
+    background: #fff;
+    border-radius: var(--radius-card);
+    box-shadow: 0 18px 40px rgba(6, 9, 10, 0.05);
+    padding: 44px 36px 44px;
+    display: flex;
+    flex-direction: column;
+  }
+  .plan.featured {
+    border: 2px solid var(--accent);
+    transform: translateY(-10px);
+  }
+  .badge {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .plan-name {
+    font-size: 20px;
+    font-weight: 800;
+    text-transform: capitalize;
+    margin-bottom: 14px;
+  }
+  .plan-price {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+  .price {
+    font-size: 52px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .period {
+    font-size: 15px;
+    color: var(--muted);
+  }
+  ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+  }
+  li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15.5px;
+    color: var(--text-soft);
+  }
+  li svg {
+    flex-shrink: 0;
+  }
+  .plan-btn {
+    justify-content: center;
+    margin-top: 32px;
+  }
+
+  @media (max-width: 900px) {
+    .pricing {
+      padding: 130px 0 80px;
+    }
+    .plans {
+      grid-template-columns: 1fr;
+      gap: 28px;
+    }
+    .plan.featured {
+      transform: none;
+    }
+  }
+</style>
