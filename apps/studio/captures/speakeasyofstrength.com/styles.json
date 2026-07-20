@@ -1,0 +1,554 @@
+{
+  "body": {
+    "text": "<iframe src=\"https://www.googletagmanager.com/ns.html?id=GTM-57F3PZHB\"\nheight=\"0",
+    "tag": "BODY",
+    "cls": "home wp-singular page-template-default page page-id-16 wp-custom-logo wp-embed-responsive wp-theme-hello-elementor wp-ch",
+    "font-family": "\"Nourd Light Font\", sans-serif",
+    "font-size": "20px",
+    "font-weight": "300",
+    "line-height": "32px",
+    "letter-spacing": "normal",
+    "text-transform": "none",
+    "color": "rgb(51, 51, 51)",
+    "background-color": "rgb(255, 255, 255)"
+  },
+  "h1": {
+    "text": "Awesome for Everyone.\nShame Free.\nMighty Strong.",
+    "tag": "H1",
+    "cls": "elementor-heading-title elementor-size-default",
+    "font-family": "\"Bebas Neue\", sans-serif",
+    "font-size": "80px",
+    "font-weight": "500",
+    "line-height": "82px",
+    "letter-spacing": "normal",
+    "text-transform": "none",
+    "color": "rgb(255, 255, 255)"
+  },
+  "h2s": [
+    {
+      "text": "3 STEPs TO FITNESS GREATNESS WITH Speakeasy of Strength",
+      "tag": "H2",
+      "cls": "elementor-heading-title elementor-size-default",
+      "font-family": "\"Bebas Neue\", sans-serif",
+      "font-size": "68px",
+      "font-weight": "500",
+      "line-height": "70px",
+      "letter-spacing": "-1.2px",
+      "text-transform": "none",
+      "color": "rgb(15, 15, 15)"
+    },
+    {
+      "text": "Programs",
+      "tag": "H2",
+      "cls": "elementor-heading-title elementor-size-default",
+      "font-family": "\"Bebas Neue\", sans-serif",
+      "font-size": "280px",
+      "font-weight": "500",
+      "line-height": "70px",
+      "letter-spacing": "-1.2px",
+      "text-transform": "none",
+      "color": "rgb(15, 15, 15)"
+    },
+    {
+      "text": "Discover Speakeasy of Strength Locations",
+      "tag": "H2",
+      "cls": "elementor-heading-title elementor-size-default",
+      "font-family": "\"Bebas Neue\", sans-serif",
+      "font-size": "68px",
+      "font-weight": "500",
+      "line-height": "70px",
+      "letter-spacing": "-1.2px",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Stories of Glory",
+      "tag": "H2",
+      "cls": "elementor-heading-title elementor-size-default",
+      "font-family": "\"Bebas Neue\", sans-serif",
+      "font-size": "68px",
+      "font-weight": "500",
+      "line-height": "70px",
+      "letter-spacing": "-1.2px",
+      "text-transform": "none",
+      "color": "rgb(15, 15, 15)"
+    }
+  ],
+  "h3s": [
+    {
+      "text": "Step 1",
+      "tag": "H3",
+      "cls": "elementor-heading-title elementor-size-default",
+      "font-family": "\"Rock Salt\", sans-serif",
+      "font-size": "60px",
+      "font-weight": "400",
+      "line-height": "70px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Step 2",
+      "tag": "H3",
+      "cls": "elementor-heading-title elementor-size-default",
+      "font-family": "\"Rock Salt\", sans-serif",
+      "font-size": "60px",
+      "font-weight": "400",
+      "line-height": "70px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Step 3",
+      "tag": "H3",
+      "cls": "elementor-heading-title elementor-size-default",
+      "font-family": "\"Rock Salt\", sans-serif",
+      "font-size": "60px",
+      "font-weight": "400",
+      "line-height": "70px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Joshua Robinson",
+      "tag": "H3",
+      "cls": "elementor-cta__title elementor-cta__content-item elementor-content-item",
+      "font-family": "\"Rock Salt\", sans-serif",
+      "font-size": "40px",
+      "font-weight": "400",
+      "line-height": "70px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Lisa Whalen",
+      "tag": "H3",
+      "cls": "elementor-cta__title elementor-cta__content-item elementor-content-item",
+      "font-family": "\"Rock Salt\", sans-serif",
+      "font-size": "40px",
+      "font-weight": "400",
+      "line-height": "70px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)"
+    }
+  ],
+  "paragraphs": [
+    {
+      "text": "Talk with a coach about your fitness dreams and get into our trial.",
+      "tag": "P",
+      "cls": "",
+      "font-family": "\"Nourd Light Font\", sans-serif",
+      "font-size": "18px",
+      "font-weight": "300",
+      "line-height": "30px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "We’ll make an exact plan for your goals and preferences.",
+      "tag": "P",
+      "cls": "",
+      "font-family": "\"Nourd Light Font\", sans-serif",
+      "font-size": "18px",
+      "font-weight": "300",
+      "line-height": "30px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Available at both Clubhouses",
+      "tag": "P",
+      "cls": "elementor-heading-title elementor-size-default",
+      "font-family": "\"Nourd Light Font\", sans-serif",
+      "font-size": "16px",
+      "font-weight": "300",
+      "line-height": "26px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(236, 0, 140)"
+    },
+    {
+      "text": "Available exclusively at Hell's Kitchen Clubhouse",
+      "tag": "P",
+      "cls": "elementor-heading-title elementor-size-default",
+      "font-family": "\"Nourd Light Font\", sans-serif",
+      "font-size": "16px",
+      "font-weight": "300",
+      "line-height": "26px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(236, 0, 140)"
+    },
+    {
+      "text": "Available wherever you have wifi!",
+      "tag": "P",
+      "cls": "elementor-heading-title elementor-size-default",
+      "font-family": "\"Nourd Light Font\", sans-serif",
+      "font-size": "16px",
+      "font-weight": "300",
+      "line-height": "26px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(236, 0, 140)"
+    },
+    {
+      "text": "01",
+      "tag": "P",
+      "cls": "elementor-heading-title elementor-size-default",
+      "font-family": "\"Rock Salt\", sans-serif",
+      "font-size": "50px",
+      "font-weight": "300",
+      "line-height": "60px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)"
+    }
+  ],
+  "buttons": [
+    {
+      "text": "",
+      "tag": "DIV",
+      "cls": "elementor-menu-toggle",
+      "font-family": "\"Nourd Light Font\", sans-serif",
+      "font-size": "22px",
+      "font-weight": "300",
+      "line-height": "32px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(181, 223, 13)",
+      "background-color": "rgba(0, 0, 0, 0.05)",
+      "border-radius": "3px",
+      "padding": "5.5px",
+      "margin": "0px 0px 0px auto",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Explore Our Locations",
+      "tag": "A",
+      "cls": "elementor-button elementor-button-link elementor-size-sm",
+      "font-family": "Poppins, sans-serif",
+      "font-size": "18px",
+      "font-weight": "500",
+      "line-height": "18px",
+      "letter-spacing": "1.08px",
+      "text-transform": "uppercase",
+      "color": "rgb(115, 10, 141)",
+      "background-color": "rgb(181, 223, 13)",
+      "border-radius": "3px",
+      "padding": "20px 37px",
+      "margin": "0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Find more programs in Brooklyn",
+      "tag": "A",
+      "cls": "elementor-button elementor-button-link elementor-size-sm",
+      "font-family": "Poppins, sans-serif",
+      "font-size": "18px",
+      "font-weight": "500",
+      "line-height": "18px",
+      "letter-spacing": "1.08px",
+      "text-transform": "uppercase",
+      "color": "rgb(115, 10, 141)",
+      "background-color": "rgba(255, 255, 255, 0)",
+      "border-radius": "0px",
+      "padding": "0px",
+      "margin": "0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Find more programs in Hell’s Kitchen",
+      "tag": "A",
+      "cls": "elementor-button elementor-button-link elementor-size-sm",
+      "font-family": "Poppins, sans-serif",
+      "font-size": "18px",
+      "font-weight": "500",
+      "line-height": "18px",
+      "letter-spacing": "1.08px",
+      "text-transform": "uppercase",
+      "color": "rgb(115, 10, 141)",
+      "background-color": "rgba(255, 255, 255, 0)",
+      "border-radius": "0px",
+      "padding": "0px",
+      "margin": "0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Explore Brooklyn Gym →",
+      "tag": "A",
+      "cls": "elementor-button elementor-button-link elementor-size-sm",
+      "font-family": "Poppins, sans-serif",
+      "font-size": "18px",
+      "font-weight": "500",
+      "line-height": "18px",
+      "letter-spacing": "1.08px",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)",
+      "background-color": "rgba(255, 255, 255, 0)",
+      "border-radius": "0px",
+      "padding": "0px",
+      "margin": "0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Explore Hell’s Kitchen Gym →",
+      "tag": "A",
+      "cls": "elementor-button elementor-button-link elementor-size-sm",
+      "font-family": "Poppins, sans-serif",
+      "font-size": "18px",
+      "font-weight": "500",
+      "line-height": "18px",
+      "letter-spacing": "1.08px",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)",
+      "background-color": "rgba(255, 255, 255, 0)",
+      "border-radius": "0px",
+      "padding": "0px",
+      "margin": "0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Member Dashboard",
+      "tag": "A",
+      "cls": "elementor-button elementor-button-link elementor-size-sm",
+      "font-family": "Poppins, sans-serif",
+      "font-size": "18px",
+      "font-weight": "400",
+      "line-height": "18px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)",
+      "background-color": "rgb(236, 0, 140)",
+      "border-radius": "3px",
+      "padding": "13px 20px",
+      "margin": "0px",
+      "box-shadow": "none"
+    }
+  ],
+  "cssVars": {
+    "--direction-multiplier": "1",
+    "--page-title-display": "none"
+  },
+  "fonts": [
+    "https://speakeasyofstrength.com/wp-content/cache/perfmatters/speakeasyofstrength.com/css/front.used.css?ver=1780049568",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "https://speakeasyofstrength.com/wp-content/plugins/elementor/assets/lib/animations/styles/fadeIn.min.css?ver=4.0.9",
+    "",
+    "",
+    ""
+  ],
+  "images": [
+    {
+      "src": "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2025/10/speakeasy_of_strength_logo_cp.webp?strip=all",
+      "w": 360,
+      "h": 225,
+      "alt": "Speakeasy of Strength logo"
+    },
+    {
+      "src": "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2025/10/best-personal-training-at-Speakeasy-of-Strength.webp?strip=all",
+      "w": 450,
+      "h": 450,
+      "alt": "best personal training at Speakeasy of Strength"
+    },
+    {
+      "src": "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2025/10/best-training-classes-at-Speakeasy-of-Strength.webp?strip=all",
+      "w": 450,
+      "h": 450,
+      "alt": "best training classes at Speakeasy of Strength"
+    },
+    {
+      "src": "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2025/10/start-training-at-Speakeasy-of-Strength.webp?strip=all",
+      "w": 450,
+      "h": 450,
+      "alt": "start training at Speakeasy of Strength"
+    },
+    {
+      "src": "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2025/10/small-group-personal-training-group-1.webp?strip=all",
+      "w": 400,
+      "h": 400,
+      "alt": "small group personal training group"
+    },
+    {
+      "src": "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2026/05/speakeasy_of_strength_people_working_out_with_kettlebells.webp?strip=all",
+      "w": 400,
+      "h": 400,
+      "alt": "People working out with kettlebells at Speakeasy of Strength"
+    },
+    {
+      "src": "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2025/10/speakeasy_of_strength_virtual_classes1.webp?strip=all",
+      "w": 400,
+      "h": 400,
+      "alt": "People attending a virtual fitness class"
+    },
+    {
+      "src": "https://ecgigdkovvn.exactdn.com/wp-content/uploads/2025/10/speakeasy_of_strength_logo_cp.webp?strip=all",
+      "w": 360,
+      "h": 225,
+      "alt": "Speakeasy of Strength logo"
+    }
+  ],
+  "navLinks": [
+    {
+      "text": "",
+      "href": "https://speakeasyofstrength.com",
+      "visible": true
+    },
+    {
+      "text": "Testimonials",
+      "href": "https://speakeasyofstrength.com/testimonials/",
+      "visible": true
+    },
+    {
+      "text": "About",
+      "href": "https://speakeasyofstrength.com/about/",
+      "visible": true
+    },
+    {
+      "text": "Locations",
+      "href": "https://speakeasyofstrength.com/locations/",
+      "visible": true
+    },
+    {
+      "text": "Brooklyn",
+      "href": "https://speakeasyofstrength.com/locations/gym-in-brooklyn-new-york/",
+      "visible": true
+    },
+    {
+      "text": "Hell’s Kitchen",
+      "href": "https://speakeasyofstrength.com/locations/gym-in-hells-kitchen-new-york/",
+      "visible": true
+    },
+    {
+      "text": "Programs",
+      "href": "#",
+      "visible": true
+    },
+    {
+      "text": "Programs in Brooklyn",
+      "href": "https://speakeasyofstrength.com/programs-in-brooklyn-new-york/",
+      "visible": true
+    },
+    {
+      "text": "Small Group Personal Training",
+      "href": "https://speakeasyofstrength.com/programs-in-brooklyn-new-york/small-group-personal-training/",
+      "visible": true
+    },
+    {
+      "text": "Programs in Hell’s Kitchen",
+      "href": "https://speakeasyofstrength.com/programs-in-hells-kitchen-new-york/",
+      "visible": true
+    },
+    {
+      "text": "Small Group Personal Training",
+      "href": "https://speakeasyofstrength.com/programs-in-hells-kitchen-new-york/small-group-personal-training/",
+      "visible": true
+    },
+    {
+      "text": "Group Fitness Classes",
+      "href": "https://speakeasyofstrength.com/programs-in-hells-kitchen-new-york/group-fitness-classes/",
+      "visible": true
+    },
+    {
+      "text": "Virtual Classes",
+      "href": "https://speakeasyofstrength.com/virtual-classes/",
+      "visible": true
+    },
+    {
+      "text": "Blog",
+      "href": "https://speakeasyofstrength.com/blog/",
+      "visible": true
+    },
+    {
+      "text": "Testimonials",
+      "href": "https://speakeasyofstrength.com/testimonials/",
+      "visible": true
+    },
+    {
+      "text": "About",
+      "href": "https://speakeasyofstrength.com/about/",
+      "visible": true
+    },
+    {
+      "text": "Locations",
+      "href": "https://speakeasyofstrength.com/locations/",
+      "visible": true
+    },
+    {
+      "text": "Brooklyn",
+      "href": "https://speakeasyofstrength.com/locations/gym-in-brooklyn-new-york/",
+      "visible": true
+    },
+    {
+      "text": "Hell’s Kitchen",
+      "href": "https://speakeasyofstrength.com/locations/gym-in-hells-kitchen-new-york/",
+      "visible": true
+    },
+    {
+      "text": "Programs",
+      "href": "#",
+      "visible": true
+    },
+    {
+      "text": "Programs in Brooklyn",
+      "href": "https://speakeasyofstrength.com/programs-in-brooklyn-new-york/",
+      "visible": true
+    },
+    {
+      "text": "Small Group Personal Training",
+      "href": "https://speakeasyofstrength.com/programs-in-brooklyn-new-york/small-group-personal-training/",
+      "visible": true
+    },
+    {
+      "text": "Programs in Hell’s Kitchen",
+      "href": "https://speakeasyofstrength.com/programs-in-hells-kitchen-new-york/",
+      "visible": true
+    },
+    {
+      "text": "Small Group Personal Training",
+      "href": "https://speakeasyofstrength.com/programs-in-hells-kitchen-new-york/small-group-personal-training/",
+      "visible": true
+    },
+    {
+      "text": "Group Fitness Classes",
+      "href": "https://speakeasyofstrength.com/programs-in-hells-kitchen-new-york/group-fitness-classes/",
+      "visible": true
+    },
+    {
+      "text": "Virtual Classes",
+      "href": "https://speakeasyofstrength.com/virtual-classes/",
+      "visible": true
+    },
+    {
+      "text": "Blog",
+      "href": "https://speakeasyofstrength.com/blog/",
+      "visible": true
+    },
+    {
+      "text": "Privacy Policy",
+      "href": "https://speakeasyofstrength.com/privacy-policy/",
+      "visible": true
+    },
+    {
+      "text": "Terms of Use",
+      "href": "https://speakeasyofstrength.com/terms-of-use/",
+      "visible": true
+    },
+    {
+      "text": "Privacy Policy",
+      "href": "https://speakeasyofstrength.com/privacy-policy/",
+      "visible": true
+    }
+  ]
+}

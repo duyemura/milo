@@ -1,0 +1,609 @@
+{
+  "body": {
+    "text": "ProgramsGet StartedDrop-InBootcampPersonal TrainingStrength and StretchDrop InSc",
+    "tag": "BODY",
+    "cls": "",
+    "font-family": "Silka, sans-serif",
+    "font-size": "14px",
+    "font-weight": "400",
+    "line-height": "20px",
+    "letter-spacing": "normal",
+    "text-transform": "none",
+    "color": "rgb(6, 9, 10)",
+    "background-color": "rgb(250, 250, 250)"
+  },
+  "h1": {
+    "text": "Strength and Conditioning Gym in Manhattan",
+    "tag": "H1",
+    "cls": "seo-h1",
+    "font-family": "Silka, sans-serif",
+    "font-size": "14px",
+    "font-weight": "500",
+    "line-height": "20px",
+    "letter-spacing": "2px",
+    "text-transform": "uppercase",
+    "color": "rgba(255, 255, 255, 0.6)"
+  },
+  "h2s": [
+    {
+      "text": "Find the fitness plan that fits your busy lifestyle",
+      "tag": "H2",
+      "cls": "hero-h1",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "49px",
+      "font-weight": "900",
+      "line-height": "64px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Every body is unique. Find something that works for YOU",
+      "tag": "H2",
+      "cls": "heading-10",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "44px",
+      "font-weight": "900",
+      "line-height": "57.2px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(6, 9, 10)"
+    },
+    {
+      "text": "Getting started is easy",
+      "tag": "H2",
+      "cls": "heading-18",
+      "font-family": "Silka, sans-serif",
+      "font-size": "44px",
+      "font-weight": "900",
+      "line-height": "57.2px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(6, 9, 10)"
+    },
+    {
+      "text": "Trusted and Loved By Hundreds of Manhattan Residents",
+      "tag": "H2",
+      "cls": "",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "44px",
+      "font-weight": "900",
+      "line-height": "57.2px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(6, 9, 10)"
+    },
+    {
+      "text": "Everything you need to crush your fitness goals",
+      "tag": "H2",
+      "cls": "white-heading-2",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "44px",
+      "font-weight": "900",
+      "line-height": "57.2px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "A Community That Will Keep You Going",
+      "tag": "H2",
+      "cls": "heading-11",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "44px",
+      "font-weight": "900",
+      "line-height": "57.2px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(6, 9, 10)"
+    },
+    {
+      "text": "Located just off the Brooklyn Bridge in Brooklyn Heights",
+      "tag": "H2",
+      "cls": "location-section-heading",
+      "font-family": "Silka, sans-serif",
+      "font-size": "35px",
+      "font-weight": "900",
+      "line-height": "45.5px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(6, 9, 10)"
+    },
+    {
+      "text": "Questions? We have the answers!",
+      "tag": "H2",
+      "cls": "heading-26",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "44px",
+      "font-weight": "900",
+      "line-height": "57.2px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(6, 9, 10)"
+    }
+  ],
+  "h3s": [
+    {
+      "text": "Feel Supported",
+      "tag": "H3",
+      "cls": "hero-card-title",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "28px",
+      "font-weight": "700",
+      "line-height": "35px",
+      "letter-spacing": "-2%",
+      "text-transform": "none",
+      "color": "rgb(6, 9, 10)"
+    },
+    {
+      "text": "Have Fun Working Out",
+      "tag": "H3",
+      "cls": "hero-card-title",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "28px",
+      "font-weight": "700",
+      "line-height": "35px",
+      "letter-spacing": "-2%",
+      "text-transform": "none",
+      "color": "rgb(6, 9, 10)"
+    },
+    {
+      "text": "Varied Workouts",
+      "tag": "H3",
+      "cls": "hero-card-title",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "28px",
+      "font-weight": "700",
+      "line-height": "35px",
+      "letter-spacing": "-2%",
+      "text-transform": "none",
+      "color": "rgb(6, 9, 10)"
+    },
+    {
+      "text": "Bootcamp",
+      "tag": "H3",
+      "cls": "program-name",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "38px",
+      "font-weight": "900",
+      "line-height": "49.4px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(6, 9, 10)"
+    },
+    {
+      "text": "Personal Training",
+      "tag": "H3",
+      "cls": "program-name",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "38px",
+      "font-weight": "900",
+      "line-height": "49.4px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(6, 9, 10)"
+    },
+    {
+      "text": "Strength and Stretch",
+      "tag": "H3",
+      "cls": "program-name",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "38px",
+      "font-weight": "900",
+      "line-height": "49.4px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(6, 9, 10)"
+    },
+    {
+      "text": "",
+      "tag": "H3",
+      "cls": "program-name w-dyn-bind-empty",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "38px",
+      "font-weight": "900",
+      "line-height": "49.4px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(6, 9, 10)"
+    },
+    {
+      "text": "Come visit us",
+      "tag": "H3",
+      "cls": "contact-details-title",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "38px",
+      "font-weight": "900",
+      "line-height": "49.4px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(6, 9, 10)"
+    }
+  ],
+  "paragraphs": [
+    {
+      "text": "Free Intro",
+      "tag": "P",
+      "cls": "custom",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "15px",
+      "font-weight": "500",
+      "line-height": "22.5px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Joining a gym shouldn't be intimidating. We will help you feel comfortable getti",
+      "tag": "P",
+      "cls": "",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "18px",
+      "font-weight": "500",
+      "line-height": "27px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgba(6, 9, 10, 0.8)"
+    },
+    {
+      "text": "Working out at the gym isn't easy. But getting there shouldn't be hard. Beta Gym",
+      "tag": "P",
+      "cls": "",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "18px",
+      "font-weight": "500",
+      "line-height": "27px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgba(6, 9, 10, 0.8)"
+    },
+    {
+      "text": "‍",
+      "tag": "P",
+      "cls": "",
+      "font-family": "Silka, sans-serif",
+      "font-size": "18px",
+      "font-weight": "500",
+      "line-height": "27px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgba(6, 9, 10, 0.8)"
+    },
+    {
+      "text": "Schedule your free trial with us by filling out the contact form with all of you",
+      "tag": "P",
+      "cls": "faq-answer",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "16px",
+      "font-weight": "500",
+      "line-height": "24px",
+      "letter-spacing": "-1%",
+      "text-transform": "none",
+      "color": "rgb(6, 9, 10)"
+    },
+    {
+      "text": "Results take time, but if you’re consistent, they will come. If you are a beginn",
+      "tag": "P",
+      "cls": "faq-answer",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "16px",
+      "font-weight": "500",
+      "line-height": "24px",
+      "letter-spacing": "-1%",
+      "text-transform": "none",
+      "color": "rgb(6, 9, 10)"
+    }
+  ],
+  "buttons": [
+    {
+      "text": "",
+      "tag": "DIV",
+      "cls": "menu-button w-nav-button",
+      "font-family": "Silka, sans-serif",
+      "font-size": "24px",
+      "font-weight": "400",
+      "line-height": "20px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(6, 9, 10)",
+      "background-color": "rgba(0, 0, 0, 0)",
+      "border-radius": "0px",
+      "padding": "18px",
+      "margin": "0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Programs",
+      "tag": "DIV",
+      "cls": "dropdown-toggle w-dropdown-toggle",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "16px",
+      "font-weight": "500",
+      "line-height": "20px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(34, 34, 34)",
+      "background-color": "rgba(0, 0, 0, 0)",
+      "border-radius": "0px",
+      "padding": "20px 40px 20px 25px",
+      "margin": "0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Contact us For More Info",
+      "tag": "A",
+      "cls": "program-button w-condition-invisible w-button",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "18px",
+      "font-weight": "700",
+      "line-height": "20px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(255, 255, 255)",
+      "background-color": "rgb(4, 100, 252)",
+      "border-radius": "10px",
+      "padding": "24px 32px",
+      "margin": "40px 0px 0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "",
+      "tag": "A",
+      "cls": "program-button w-dyn-bind-empty w-button",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "18px",
+      "font-weight": "700",
+      "line-height": "20px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(255, 255, 255)",
+      "background-color": "rgb(4, 100, 252)",
+      "border-radius": "10px",
+      "padding": "24px 32px",
+      "margin": "40px 0px 0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Contact us For More Info",
+      "tag": "A",
+      "cls": "program-button w-button",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "18px",
+      "font-weight": "700",
+      "line-height": "20px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(255, 255, 255)",
+      "background-color": "rgb(4, 100, 252)",
+      "border-radius": "10px",
+      "padding": "24px 32px",
+      "margin": "40px 0px 0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Contact us For More Info",
+      "tag": "A",
+      "cls": "program-button w-condition-invisible w-button",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "18px",
+      "font-weight": "700",
+      "line-height": "20px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(255, 255, 255)",
+      "background-color": "rgb(4, 100, 252)",
+      "border-radius": "10px",
+      "padding": "24px 32px",
+      "margin": "40px 0px 0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "",
+      "tag": "DIV",
+      "cls": "progarm-left-arrow w-slider-arrow-left",
+      "font-family": "Silka, sans-serif",
+      "font-size": "40px",
+      "font-weight": "400",
+      "line-height": "20px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)",
+      "background-color": "rgb(250, 250, 250)",
+      "border-radius": "50%",
+      "padding": "0px",
+      "margin": "auto auto auto -33px",
+      "box-shadow": "rgba(0, 0, 0, 0.2) 0px 5px 100px 0px"
+    },
+    {
+      "text": "",
+      "tag": "DIV",
+      "cls": "program-right-arrow w-slider-arrow-right",
+      "font-family": "Silka, sans-serif",
+      "font-size": "40px",
+      "font-weight": "400",
+      "line-height": "20px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)",
+      "background-color": "rgb(250, 250, 250)",
+      "border-radius": "50%",
+      "padding": "0px",
+      "margin": "auto -33px auto auto",
+      "box-shadow": "rgba(0, 0, 0, 0.2) 0px 5px 100px 0px"
+    },
+    {
+      "text": "",
+      "tag": "DIV",
+      "cls": "w-slider-dot w-active",
+      "font-family": "Silka, sans-serif",
+      "font-size": "14px",
+      "font-weight": "400",
+      "line-height": "20px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(6, 9, 10)",
+      "background-color": "rgb(255, 255, 255)",
+      "border-radius": "100%",
+      "padding": "0px",
+      "margin": "0px 3px 7px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Get your first class for free",
+      "tag": "A",
+      "cls": "program-button w-button",
+      "font-family": "Montserrat, sans-serif",
+      "font-size": "18px",
+      "font-weight": "700",
+      "line-height": "20px",
+      "letter-spacing": "normal",
+      "text-transform": "capitalize",
+      "color": "rgb(255, 255, 255)",
+      "background-color": "rgb(4, 100, 252)",
+      "border-radius": "10px",
+      "padding": "24px 32px",
+      "margin": "40px 0px 0px",
+      "box-shadow": "none"
+    }
+  ],
+  "cssVars": {
+    "--text-colour": "#06090a",
+    "--white": "white",
+    "--crimson": "#df2f4e",
+    "--white-text-colour": "#fafafa",
+    "--gainsboro": "#e7e7e7",
+    "--midnight-blue": "#0b1634",
+    "--black": "#000b27",
+    "--dim-grey": "#4e5b60"
+  },
+  "fonts": [
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/css/pushpress-site-modern.shared.cb137d268.min.css",
+    "https://fonts.googleapis.com/",
+    "https://fonts.gstatic.com/",
+    "https://fonts.googleapis.com/css?family=Montserrat:100,100italic,200,200italic,300,300italic,400,400italic,500,500italic,600,600italic,700,700italic,800,800italic,900,900italic%7CBarlow:300,400,500,600,700",
+    "https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css"
+  ],
+  "images": [
+    {
+      "src": "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/63cb03d58f67aa6812af8383_Beta%20Gym%20Navbar.png",
+      "w": 273,
+      "h": 80,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/64086ce7b78d3f0900fdd620_Untitled%20design%20(2).png",
+      "w": 1440,
+      "h": 960,
+      "alt": "Images"
+    },
+    {
+      "src": "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/63ce2e8f2960e9a122454347_Homepage%20at%20Beta%20Gym%20Modern%20in%20Manhattan.jpg",
+      "w": 480,
+      "h": 720,
+      "alt": "Images"
+    },
+    {
+      "src": "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/6407d4e86253ab1fc4052053_gabin-vallet-J154nEkpzlQ-unsplash-p-1600.jpg",
+      "w": 1440,
+      "h": 960,
+      "alt": "Main Programs"
+    },
+    {
+      "src": "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/63ce24d71a2c8435a88b4325_Personal%20Training%20at%20Beta%20Gym%20Modern%20in%20Manhattan%20(1).jpg",
+      "w": 1440,
+      "h": 720,
+      "alt": "Main Programs"
+    },
+    {
+      "src": "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/6407d45e3058f15c9b76cc3f_sunday-ii-sunday-ZeTmQgm2N3k-unsplash.jpg",
+      "w": 1439,
+      "h": 959,
+      "alt": "Main Programs"
+    },
+    {
+      "src": "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/63ce2c0a8a1d4b999b2ecde2_Community%20at%20Beta%20Gym%20Modern%20in%20Manhattan.jpg",
+      "w": 307,
+      "h": 461,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/63caaac34d6a35863a074f12_Final%20Offer.jpeg",
+      "w": 300,
+      "h": 405,
+      "alt": "Final Offer"
+    },
+    {
+      "src": "https://cdn.prod.website-files.com/63caaac34d6a3583a0074c0d/63cb03d72a1decb6e3cbf582_Beta%20Gym%20Footer-p-500.png",
+      "w": 271,
+      "h": 79,
+      "alt": "Beta Gym"
+    }
+  ],
+  "navLinks": [
+    {
+      "text": "",
+      "href": "/",
+      "visible": true
+    },
+    {
+      "text": "Get Started",
+      "href": "/programs/get-started",
+      "visible": false
+    },
+    {
+      "text": "Drop-In",
+      "href": "/programs/drop-in",
+      "visible": false
+    },
+    {
+      "text": "Bootcamp",
+      "href": "/programs/bootcamp",
+      "visible": true
+    },
+    {
+      "text": "Personal Training",
+      "href": "/programs/personal-training",
+      "visible": true
+    },
+    {
+      "text": "Strength and Stretch",
+      "href": "/programs/strength-and-stretch",
+      "visible": true
+    },
+    {
+      "text": "Drop In",
+      "href": "/programs/drop-in",
+      "visible": true
+    },
+    {
+      "text": "Schedule",
+      "href": "/schedule",
+      "visible": true
+    },
+    {
+      "text": "Pricing",
+      "href": "/plans-and-cost",
+      "visible": true
+    },
+    {
+      "text": "About Us",
+      "href": "/about",
+      "visible": true
+    },
+    {
+      "text": "Blog",
+      "href": "/blog",
+      "visible": true
+    },
+    {
+      "text": "Contact",
+      "href": "/contact",
+      "visible": true
+    },
+    {
+      "text": "+",
+      "href": "#",
+      "visible": true
+    }
+  ]
+}

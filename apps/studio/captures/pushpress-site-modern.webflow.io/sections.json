@@ -1,0 +1,101 @@
+[
+  {
+    "cls": "collection-list-wrapper w-dyn-list",
+    "tag": "DIV",
+    "y": 80,
+    "height": 1025,
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "0px",
+    "heading": "Strength and Conditioning Gym in Manhattan"
+  },
+  {
+    "cls": "hero-cards-grid",
+    "tag": "DIV",
+    "y": 955,
+    "height": 352,
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "0px",
+    "heading": "Feel Supported"
+  },
+  {
+    "cls": "programs-section",
+    "tag": "DIV",
+    "y": 1307,
+    "height": 2046,
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "200px 0px 0px",
+    "heading": "Every body is unique. Find something that works for YOU"
+  },
+  {
+    "cls": "steps-section",
+    "tag": "DIV",
+    "y": 3353,
+    "height": 660,
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "40px 0px 120px",
+    "heading": "Getting started is easy"
+  },
+  {
+    "cls": "testimonial-section",
+    "tag": "DIV",
+    "y": 4013,
+    "height": 965,
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "100px 0px 160px",
+    "heading": "Trusted and Loved By Hundreds of Manhattan Residents"
+  },
+  {
+    "cls": "amenitiies-section",
+    "tag": "DIV",
+    "y": 4978,
+    "height": 1123,
+    "bg": "rgb(0, 11, 39)",
+    "padding": "120px 0px 130px",
+    "heading": "Everything you need to crush your fitness goals"
+  },
+  {
+    "cls": "community-section",
+    "tag": "DIV",
+    "y": 6101,
+    "height": 710,
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "100px 0px 150px",
+    "heading": "A Community That Will Keep You Going"
+  },
+  {
+    "cls": "location-section",
+    "tag": "DIV",
+    "y": 6811,
+    "height": 822,
+    "bg": "rgb(255, 255, 255)",
+    "padding": "100px 0px 130px",
+    "heading": "Located just off the Brooklyn Bridge in Brooklyn Heights"
+  },
+  {
+    "cls": "faqs-section",
+    "tag": "DIV",
+    "y": 7633,
+    "height": 1519,
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "120px 0px 140px",
+    "heading": "Questions? We have the answers!"
+  },
+  {
+    "cls": "final-offer-collection w-dyn-list",
+    "tag": "DIV",
+    "y": 9152,
+    "height": 548,
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "0px",
+    "heading": "Your fitness journey doesn't have to feel long. We're here to make it a lot more fun!"
+  },
+  {
+    "cls": "footer-section",
+    "tag": "DIV",
+    "y": 9700,
+    "height": 738,
+    "bg": "rgb(0, 4, 13)",
+    "padding": "60px 0px 100px",
+    "heading": null
+  }
+]
