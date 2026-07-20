@@ -1,0 +1,708 @@
+{
+  "body": {
+    "text": "Skip to main content\nbody {\n\tfont-size: 1.1111111111111112vw;\n}\n\n@media screen a",
+    "tag": "BODY",
+    "cls": "overflow-visible",
+    "font-family": "Outfit, Arial, sans-serif",
+    "font-size": "16px",
+    "font-weight": "300",
+    "line-height": "20.8px",
+    "letter-spacing": "normal",
+    "text-transform": "none",
+    "color": "rgb(255, 255, 255)",
+    "background-color": "rgb(0, 0, 0)"
+  },
+  "h1": {
+    "text": "CrossFit Gym in New York",
+    "tag": "H1",
+    "cls": "subheading",
+    "font-family": "Outfit, Arial, sans-serif",
+    "font-size": "14px",
+    "font-weight": "500",
+    "line-height": "14px",
+    "letter-spacing": "-0.28px",
+    "text-transform": "uppercase",
+    "color": "rgb(255, 255, 255)"
+  },
+  "h2s": [
+    {
+      "text": "Your First SessionIs on Us",
+      "tag": "H2",
+      "cls": "main-heading",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "80px",
+      "font-weight": "900",
+      "line-height": "80px",
+      "letter-spacing": "-1.6px",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Reach new heights",
+      "tag": "H2",
+      "cls": "heading-2",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "34px",
+      "font-weight": "900",
+      "line-height": "34px",
+      "letter-spacing": "-0.68px",
+      "text-transform": "uppercase",
+      "color": "rgb(0, 0, 0)"
+    },
+    {
+      "text": "Easy workout scheduling",
+      "tag": "H2",
+      "cls": "heading-2",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "34px",
+      "font-weight": "900",
+      "line-height": "34px",
+      "letter-spacing": "-0.68px",
+      "text-transform": "uppercase",
+      "color": "rgb(0, 0, 0)"
+    },
+    {
+      "text": "Guidance tailored toward your fitness goals",
+      "tag": "H2",
+      "cls": "heading-2",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "34px",
+      "font-weight": "900",
+      "line-height": "34px",
+      "letter-spacing": "-0.68px",
+      "text-transform": "uppercase",
+      "color": "rgb(0, 0, 0)"
+    },
+    {
+      "text": "EVERY BODY IS UNIQUE.",
+      "tag": "H2",
+      "cls": "h2-section h2-left",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "26px",
+      "font-weight": "900",
+      "line-height": "28.6px",
+      "letter-spacing": "-0.52px",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Getting Started Is Easy",
+      "tag": "H2",
+      "cls": "",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "42px",
+      "font-weight": "900",
+      "line-height": "42px",
+      "letter-spacing": "-0.84px",
+      "text-transform": "uppercase",
+      "color": "rgb(0, 0, 0)"
+    },
+    {
+      "text": "Everything You Need To Crush Your Fitness Goals",
+      "tag": "H2",
+      "cls": "h2-section",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "42px",
+      "font-weight": "900",
+      "line-height": "46.2px",
+      "letter-spacing": "-0.84px",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "A community that will keep you going",
+      "tag": "H2",
+      "cls": "fc-white",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "42px",
+      "font-weight": "900",
+      "line-height": "42px",
+      "letter-spacing": "-0.84px",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)"
+    }
+  ],
+  "h3s": [
+    {
+      "text": "Fundamentals",
+      "tag": "H3",
+      "cls": "fc-white",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "22px",
+      "font-weight": "900",
+      "line-height": "24.2px",
+      "letter-spacing": "-0.44px",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Try our Strength Classes",
+      "tag": "H3",
+      "cls": "fc-white",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "22px",
+      "font-weight": "900",
+      "line-height": "24.2px",
+      "letter-spacing": "-0.44px",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Try our Nutrition Coaching",
+      "tag": "H3",
+      "cls": "fc-white",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "22px",
+      "font-weight": "900",
+      "line-height": "24.2px",
+      "letter-spacing": "-0.44px",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "BOOK YOUR FREE INTRO",
+      "tag": "H3",
+      "cls": "",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "22px",
+      "font-weight": "900",
+      "line-height": "24.2px",
+      "letter-spacing": "-0.44px",
+      "text-transform": "uppercase",
+      "color": "rgb(0, 0, 0)"
+    },
+    {
+      "text": "MEET YOUR COACH",
+      "tag": "H3",
+      "cls": "",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "22px",
+      "font-weight": "900",
+      "line-height": "24.2px",
+      "letter-spacing": "-0.44px",
+      "text-transform": "uppercase",
+      "color": "rgb(0, 0, 0)"
+    },
+    {
+      "text": "START TRAINING",
+      "tag": "H3",
+      "cls": "",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "22px",
+      "font-weight": "900",
+      "line-height": "24.2px",
+      "letter-spacing": "-0.44px",
+      "text-transform": "uppercase",
+      "color": "rgb(0, 0, 0)"
+    },
+    {
+      "text": "Class Reservations",
+      "tag": "H3",
+      "cls": "h3-membership-benefit",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "32px",
+      "font-weight": "900",
+      "line-height": "38.4px",
+      "letter-spacing": "-0.64px",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Fitness Program for Over Age 65",
+      "tag": "H3",
+      "cls": "h3-membership-benefit",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "32px",
+      "font-weight": "900",
+      "line-height": "38.4px",
+      "letter-spacing": "-0.64px",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)"
+    }
+  ],
+  "paragraphs": [
+    {
+      "text": "Free Intro",
+      "tag": "P",
+      "cls": "paragraph-cta",
+      "font-family": "Outfit, sans-serif",
+      "font-size": "12.25px",
+      "font-weight": "900",
+      "line-height": "17.15px",
+      "letter-spacing": "normal",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Book a free 1-on-1 intro with a coach.\nWe will assess your goals, walk you throu",
+      "tag": "P",
+      "cls": "paragraph-hero homepage-header",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "20px",
+      "font-weight": "500",
+      "line-height": "30px",
+      "letter-spacing": "0.8px",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Book Your Free Intro",
+      "tag": "P",
+      "cls": "paragraph-cta",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "14px",
+      "font-weight": "900",
+      "line-height": "19.6px",
+      "letter-spacing": "normal",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "Book Your Free Intro",
+      "tag": "P",
+      "cls": "paragraph-cta",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "14px",
+      "font-weight": "900",
+      "line-height": "19.6px",
+      "letter-spacing": "normal",
+      "text-transform": "uppercase",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "text": "No matter where you start your fitness journey, you will be pushed to become a b",
+      "tag": "P",
+      "cls": "",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "16px",
+      "font-weight": "300",
+      "line-height": "22.4px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(0, 0, 0)"
+    },
+    {
+      "text": "We make it easy for anyone with a hectic life to find time to workout.",
+      "tag": "P",
+      "cls": "",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "16px",
+      "font-weight": "300",
+      "line-height": "22.4px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(0, 0, 0)"
+    }
+  ],
+  "buttons": [
+    {
+      "text": "Programs",
+      "tag": "DIV",
+      "cls": "nd-toggle",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "16px",
+      "font-weight": "300",
+      "line-height": "20.8px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(0, 0, 0)",
+      "background-color": "rgba(0, 0, 0, 0)",
+      "border-radius": "0px",
+      "padding": "0px",
+      "margin": "0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Pricing",
+      "tag": "DIV",
+      "cls": "nd-toggle",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "16px",
+      "font-weight": "300",
+      "line-height": "20.8px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(0, 0, 0)",
+      "background-color": "rgba(0, 0, 0, 0)",
+      "border-radius": "0px",
+      "padding": "0px",
+      "margin": "0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Free Intro",
+      "tag": "DIV",
+      "cls": "hero-cta w-embed",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "16px",
+      "font-weight": "300",
+      "line-height": "20.8px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(0, 0, 0)",
+      "background-color": "rgba(0, 0, 0, 0)",
+      "border-radius": "0px",
+      "padding": "0px",
+      "margin": "0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Preferences",
+      "tag": "A",
+      "cls": "fs-cc-banner_text-link",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "16px",
+      "font-weight": "400",
+      "line-height": "20.8px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(0, 99, 255)",
+      "background-color": "rgba(0, 0, 0, 0)",
+      "border-radius": "0px",
+      "padding": "0px",
+      "margin": "0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Deny",
+      "tag": "A",
+      "cls": "fs-cc-banner_button fs-cc-button-alt w-inline-block",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "16px",
+      "font-weight": "500",
+      "line-height": "20.8px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(0, 99, 255)",
+      "background-color": "rgb(255, 255, 255)",
+      "border-radius": "0px",
+      "padding": "10px 20px",
+      "margin": "0px 0px 0px 8px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "Accept",
+      "tag": "A",
+      "cls": "fs-cc-banner_button w-inline-block",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "16px",
+      "font-weight": "500",
+      "line-height": "20.8px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(255, 255, 255)",
+      "background-color": "rgb(0, 99, 255)",
+      "border-radius": "0px",
+      "padding": "10px 20px",
+      "margin": "0px 0px 0px 8px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "",
+      "tag": "DIV",
+      "cls": "fs-cc-banner_close",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "16px",
+      "font-weight": "300",
+      "line-height": "20.8px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(0, 0, 0)",
+      "background-color": "rgb(255, 255, 255)",
+      "border-radius": "500px",
+      "padding": "10px",
+      "margin": "0px 0px 0px 12px",
+      "box-shadow": "rgba(0, 0, 0, 0.1) 1px 1px 12px 0px"
+    },
+    {
+      "text": "",
+      "tag": "DIV",
+      "cls": "fs-cc-manager_button",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "16px",
+      "font-weight": "300",
+      "line-height": "20.8px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(51, 51, 51)",
+      "background-color": "rgb(255, 255, 255)",
+      "border-radius": "500px",
+      "padding": "10px",
+      "margin": "0px",
+      "box-shadow": "none"
+    },
+    {
+      "text": "",
+      "tag": "DIV",
+      "cls": "fs-cc-prefs_close",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "20px",
+      "font-weight": "300",
+      "line-height": "26px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(17, 78, 11)",
+      "background-color": "rgb(245, 246, 255)",
+      "border-radius": "100%",
+      "padding": "10px",
+      "margin": "0px",
+      "box-shadow": "rgba(51, 51, 51, 0.1) -1px 1px 12px 0px"
+    },
+    {
+      "text": "Reject all cookies",
+      "tag": "A",
+      "cls": "fs-cc-prefs_button fs-cc-button-alt w-inline-block",
+      "font-family": "Outfit, Arial, sans-serif",
+      "font-size": "15px",
+      "font-weight": "700",
+      "line-height": "19.5px",
+      "letter-spacing": "normal",
+      "text-transform": "none",
+      "color": "rgb(0, 99, 255)",
+      "background-color": "rgb(255, 255, 255)",
+      "border-radius": "0px",
+      "padding": "10px 20px",
+      "margin": "0px 8px 0px 0px",
+      "box-shadow": "none"
+    }
+  ],
+  "cssVars": {
+    "--black": "black",
+    "--white": "white",
+    "--blue-violet-2": "#7c28e6",
+    "--blue-violet": "#6528e6",
+    "--accessible-components--dark-grey": "#9b9b9b"
+  },
+  "fonts": [
+    "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af0d/css/free-intro-session-self-book-in-person.shared.bc9b62437.min.css",
+    "https://fonts.googleapis.com/",
+    "https://fonts.gstatic.com/",
+    "https://fonts.googleapis.com/css?family=Montserrat:100,100italic,200,200italic,300,300italic,400,400italic,500,500italic,600,600italic,700,700italic,800,800italic,900,900italic"
+  ],
+  "images": [
+    {
+      "src": "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b02f_logo-black.webp",
+      "w": 210,
+      "h": 53,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b080_69ca9b17efd1f025b8de0fb0_logo%20(1).webp",
+      "w": 210,
+      "h": 53,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b09a_Demo%20Site%20Homepage.webp",
+      "w": 1440,
+      "h": 720,
+      "alt": "Header Image"
+    },
+    {
+      "src": "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b09a_Demo%20Site%20Homepage.webp",
+      "w": 1440,
+      "h": 720,
+      "alt": "Header Image"
+    },
+    {
+      "src": "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b099_Demo%20Site%20Mobile%20Homepage.webp",
+      "w": 480,
+      "h": 720,
+      "alt": "Header Image"
+    },
+    {
+      "src": "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b094_Demo%20Site%20Fundamentals.webp",
+      "w": 480,
+      "h": 720,
+      "alt": "Fundamentals in Claymont and New York"
+    },
+    {
+      "src": "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b095_Demo%20Site%20Strength%20Class.webp",
+      "w": 480,
+      "h": 720,
+      "alt": "CrossFit Classes in Claymont"
+    },
+    {
+      "src": "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b096_Demo%20Site%20Nutrition.webp",
+      "w": 480,
+      "h": 720,
+      "alt": "Nutrition Coaching in New York"
+    },
+    {
+      "src": "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b09e_Community.webp",
+      "w": 1000,
+      "h": 1500,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b02f_logo-black.webp",
+      "w": 210,
+      "h": 53,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b080_69ca9b17efd1f025b8de0fb0_logo%20(1).webp",
+      "w": 210,
+      "h": 53,
+      "alt": "Beta Gym"
+    },
+    {
+      "src": "https://d3e54v103j8qbb.cloudfront.net/img/webflow-badge-text-d2.c82cec3b78.svg",
+      "w": 118,
+      "h": 12,
+      "alt": "Made in Webflow"
+    }
+  ],
+  "navLinks": [
+    {
+      "text": "* {\n  scrollbar-width: thin;\n  scrollbar-color: #1e1d1d #fff",
+      "href": "index.html",
+      "visible": true
+    },
+    {
+      "text": "Strength Classes",
+      "href": "programs/strength-classes.html",
+      "visible": true
+    },
+    {
+      "text": "Personal Training",
+      "href": "programs/personal-training.html",
+      "visible": true
+    },
+    {
+      "text": "Open Gym",
+      "href": "programs/open-gym.html",
+      "visible": true
+    },
+    {
+      "text": "Nutrition Coaching",
+      "href": "programs/nutrition.html",
+      "visible": true
+    },
+    {
+      "text": "Drop-In",
+      "href": "programs/drop-in.html",
+      "visible": true
+    },
+    {
+      "text": "Schedule",
+      "href": "schedule.html",
+      "visible": true
+    },
+    {
+      "text": "Request pricing",
+      "href": "membership-pricing-request.html",
+      "visible": true
+    },
+    {
+      "text": "Membership options",
+      "href": "membership-options.html",
+      "visible": true
+    },
+    {
+      "text": "About us",
+      "href": "about.html",
+      "visible": true
+    },
+    {
+      "text": "Blogs",
+      "href": "blog.html",
+      "visible": true
+    },
+    {
+      "text": "Blog",
+      "href": "blog.html",
+      "visible": false
+    },
+    {
+      "text": "Contact",
+      "href": "contact.html",
+      "visible": true
+    },
+    {
+      "text": "HSA/FSA",
+      "href": "index.html#",
+      "visible": false
+    },
+    {
+      "text": "HSA/FSA",
+      "href": "hsa-fsa.html",
+      "visible": true
+    },
+    {
+      "text": "Appointments",
+      "href": "index.html#",
+      "visible": false
+    },
+    {
+      "text": "Appointments",
+      "href": "https://free-intro-session-self-book-in-person.webflow.io/appointments",
+      "visible": true
+    },
+    {
+      "text": "Privacy Policy",
+      "href": "index.html#",
+      "visible": false
+    },
+    {
+      "text": "Privacy Policy",
+      "href": "privacy-policy.html",
+      "visible": true
+    },
+    {
+      "text": "Terms of Use",
+      "href": "index.html#",
+      "visible": false
+    },
+    {
+      "text": "Terms of Use",
+      "href": "terms-of-use.html",
+      "visible": true
+    },
+    {
+      "text": "Coach Bio Request",
+      "href": "index.html#",
+      "visible": false
+    },
+    {
+      "text": "Coach Bio Request",
+      "href": "coach-bio-request.html",
+      "visible": true
+    },
+    {
+      "text": "Membership Pricing Request",
+      "href": "index.html#",
+      "visible": false
+    },
+    {
+      "text": "Membership Pricing Request",
+      "href": "membership-pricing-request.html",
+      "visible": true
+    },
+    {
+      "text": "Membership Cancellation Request",
+      "href": "index.html#",
+      "visible": false
+    },
+    {
+      "text": "Membership Cancellation Request",
+      "href": "membership-cancellation-request.html",
+      "visible": true
+    },
+    {
+      "text": "Membership Pause Request",
+      "href": "index.html#",
+      "visible": false
+    },
+    {
+      "text": "Membership Pause Request",
+      "href": "membership-pause-request.html",
+      "visible": true
+    },
+    {
+      "text": "Coaches",
+      "href": "index.html#",
+      "visible": false
+    }
+  ]
+}

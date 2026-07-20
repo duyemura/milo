@@ -1,0 +1,63 @@
+---
+const { heading, cta } = Astro.props;
+---
+
+<section class="cta-band">
+  <svg class="arrows" viewBox="0 0 400 300" aria-hidden="true">
+    <g fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="2">
+      <path d="M40 210 L120 130 L120 170 L200 90" />
+      <path d="M200 90 L200 140 M200 90 L150 90" />
+      <path d="M240 260 L320 180 L320 220 L390 150" />
+      <path d="M390 150 L390 195 M390 150 L345 150" />
+    </g>
+  </svg>
+  <div class="wrapper cta-inner">
+    <h2 class="h2 cta-heading" set:html={heading} />
+    <p class="cta-sub">Fill out the form and a coach will reach out to schedule your free intro session.</p>
+    <a href={cta.href} class="btn"><span class="btn-label">{cta.label}</span></a>
+  </div>
+</section>
+
+<style>
+  .cta-band {
+    position: relative;
+    background: var(--accent);
+    padding: 130px 0 140px;
+    clip-path: polygon(0 8%, 100% 0, 100% 92%, 0 100%);
+    overflow: hidden;
+  }
+  .arrows {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 46%;
+    opacity: 0.9;
+  }
+  .cta-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 1240px;
+  }
+  .cta-heading {
+    max-width: 620px;
+    margin-bottom: 20px;
+  }
+  .cta-sub {
+    font-size: 17px;
+    font-weight: 300;
+    margin-bottom: 44px;
+    max-width: 52ch;
+  }
+
+  @media (max-width: 900px) {
+    .cta-band {
+      padding: 90px 0 100px;
+      clip-path: polygon(0 4%, 100% 0, 100% 96%, 0 100%);
+    }
+    .cta-band .btn {
+      display: block;
+      text-align: center;
+    }
+  }
+</style>

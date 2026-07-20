@@ -1,0 +1,30 @@
+{
+  "name": "blackout",
+  "description": "Black-ground brutalist design: Outfit 900 uppercase headings with tight tracking, skewed parallelogram buttons, blue/black checkerboard tiles, diagonal-clipped blue CTA bands. Built from the beanburito.github.io free-intro reference in Template Studio session #2.",
+  "tokens": {
+    "fontDisplay": "Outfit",
+    "bg": "#000000",
+    "text": "#ffffff",
+    "radiusButton": "0",
+    "radiusCard": "0",
+    "buttonSkew": "-10deg"
+  },
+  "components": [
+    "hero",
+    "program-cards",
+    "coach-grid",
+    "schedule",
+    "testimonials",
+    "faq",
+    "cta-band",
+    "location-map",
+    "contact-form",
+    "lead-form",
+    "pricing",
+    "feature-grid",
+    "content-block",
+    "media-block",
+    "stats-band",
+    "logo-strip"
+  ]
+}

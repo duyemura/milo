@@ -1,0 +1,181 @@
+---
+const { variant = "default", heading, items } = Astro.props;
+
+const ICONS: Record<string, string> = {
+  support:
+    '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 26 C10 22 8 18 10 14 C12 10 17 10 19 13 L24 19 L29 13 C31 10 36 10 38 14 C40 18 38 22 34 26 L24 36 Z"/></svg>',
+  fun: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 24 C6 28 6 34 10 38 C14 42 20 42 24 38 L38 24 C42 20 42 14 38 10 C34 6 28 6 24 10 Z"/><path d="M30 8 L34 4 M36 14 L42 12"/></svg>',
+  varied:
+    '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="18" width="6" height="12"/><rect x="36" y="18" width="6" height="12"/><rect x="12" y="14" width="6" height="20"/><rect x="30" y="14" width="6" height="20"/><path d="M18 24 H30"/></svg>',
+  barbell:
+    '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="18" width="6" height="12"/><rect x="38" y="18" width="6" height="12"/><rect x="10" y="14" width="6" height="20"/><rect x="32" y="14" width="6" height="20"/><path d="M16 24 H32"/></svg>',
+  clock:
+    '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="24" cy="24" r="18"/><path d="M24 14 V24 L31 28"/></svg>',
+  mobility:
+    '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="10" r="4"/><path d="M24 14 V26 M24 18 L14 24 M24 18 L34 24 M24 26 L16 40 M24 26 L32 40"/></svg>',
+  locker:
+    '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="10" y="6" width="28" height="36"/><path d="M24 6 V42 M16 14 H20 M28 14 H32"/></svg>',
+  default:
+    '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="18" width="6" height="12"/><rect x="36" y="18" width="6" height="12"/><path d="M12 24 H36"/></svg>',
+};
+const iconFor = (name?: string) => ICONS[name ?? "default"] ?? ICONS.default;
+---
+
+{
+  variant === "dark" ? (
+    <section class="fg-dark">
+      <div class="wrapper">
+        {heading && <h2 class="h2 fg-dark-heading">{heading}</h2>}
+        <div class="tiles" style={`--cols: ${Math.min(items.length, 3)}`}>
+          {items.map((item, i) => (
+            <div class={`tile ${i % 2 === 1 ? "tile-blue" : ""}`}>
+              <div class="tile-icon" set:html={iconFor(item.icon)} />
+              <h3 class="tile-title">{item.title}</h3>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  ) : (
+    <section class="fg-light">
+      <div class="wrapper">
+        {heading && <h2 class="h2 fg-light-heading">{heading}</h2>}
+        <div class="cols" style={`--cols: ${Math.min(items.length, 3)}`}>
+          {items.map((item, i) => (
+            <div class="col-item">
+              {variant === "numbered" ? (
+                <div class="col-num">{String(i + 1).padStart(2, "0")}</div>
+              ) : (
+                <div class="col-icon" set:html={iconFor(item.icon)} />
+              )}
+              <h3 class="col-title">{item.title}</h3>
+              {item.body && <p class="col-body">{item.body}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+<style>
+  /* light band (white) — default / numbered / cards */
+  .fg-light {
+    background: var(--paper);
+    color: var(--ink);
+    padding: 120px 0;
+  }
+  .fg-light-heading {
+    text-align: center;
+    margin-bottom: 72px;
+  }
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), 1fr);
+    gap: 64px;
+  }
+  .col-icon {
+    width: 56px;
+    height: 56px;
+    color: var(--accent);
+    margin-bottom: 28px;
+  }
+  .col-icon :global(svg) {
+    width: 100%;
+    height: 100%;
+  }
+  .col-num {
+    font-size: 64px;
+    font-weight: 900;
+    font-style: italic;
+    line-height: 1;
+    color: var(--accent);
+    margin-bottom: 28px;
+  }
+  .col-title {
+    font-size: 30px;
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    max-width: 12ch;
+  }
+  .col-body {
+    font-size: 16px;
+    font-weight: 300;
+    line-height: 25px;
+    color: var(--ink-dim);
+    max-width: 40ch;
+  }
+
+  /* dark checkerboard tiles — the signature amenities look */
+  .fg-dark {
+    background: var(--ink);
+    padding: 120px 0 160px;
+  }
+  .fg-dark-heading {
+    text-align: center;
+    max-width: 700px;
+    margin: 0 auto 80px;
+  }
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), 1fr);
+  }
+  .tile {
+    aspect-ratio: 1 / 0.92;
+    background: var(--ink);
+    color: #fff;
+    padding: 40px 36px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .tile-blue {
+    background: var(--accent);
+  }
+  .tile-icon {
+    width: 52px;
+    height: 52px;
+  }
+  .tile-icon :global(svg) {
+    width: 100%;
+    height: 100%;
+  }
+  .tile-title {
+    font-size: 32px;
+    font-weight: 900;
+    font-style: italic;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    max-width: 14ch;
+  }
+
+  @media (max-width: 900px) {
+    .fg-light {
+      padding: 80px 0;
+    }
+    .cols {
+      grid-template-columns: 1fr;
+      gap: 44px;
+    }
+    .fg-light-heading {
+      margin-bottom: 48px;
+    }
+    .tiles {
+      grid-template-columns: 1fr 1fr;
+    }
+    .tile {
+      padding: 24px 20px;
+    }
+    .tile-title {
+      font-size: 20px;
+    }
+    .tile-icon {
+      width: 36px;
+      height: 36px;
+    }
+  }
+</style>

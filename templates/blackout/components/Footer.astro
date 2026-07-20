@@ -1,0 +1,107 @@
+---
+const { brand, footer } = Astro.props;
+---
+
+<footer class="footer">
+  <div class="wrapper footer-grid">
+    <div class="footer-brand">
+      <a href="/" class="footer-logo">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M13 2 L4.5 13.5 H11 L9.5 22 L19.5 9.5 H12.5 L13 2 Z" fill="var(--accent)" />
+        </svg>
+        <span>{brand.name}</span>
+      </a>
+      {footer.tagline && <p class="tagline">{footer.tagline}</p>}
+    </div>
+    {
+      footer.groups.map((g) => (
+        <div class="footer-group">
+          <h4>{g.label}</h4>
+          {g.links.map((l) => (
+            <a href={l.href}>{l.label}</a>
+          ))}
+        </div>
+      ))
+    }
+    <div class="footer-group">
+      {footer.address && <h4>Address</h4>}
+      {footer.address && <p>{footer.address}</p>}
+      {
+        footer.hours.length > 0 && (
+          <>
+            <h4 class="mt">Open Hours</h4>
+            {footer.hours.map((h) => (
+              <p>{h}</p>
+            ))}
+          </>
+        )
+      }
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    background: var(--ink);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 80px 0 90px;
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 1.4fr repeat(3, 1fr) 1.2fr;
+    gap: 48px;
+  }
+  .footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 20px;
+    font-weight: 900;
+    font-style: italic;
+    text-transform: uppercase;
+    color: #fff;
+  }
+  .tagline {
+    font-size: 14px;
+    font-weight: 300;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 18px;
+    max-width: 26ch;
+  }
+  .footer-group {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .footer-group h4 {
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 6px;
+  }
+  .footer-group h4.mt {
+    margin-top: 18px;
+  }
+  .footer-group a,
+  .footer-group p {
+    font-size: 15px;
+    font-weight: 300;
+    color: #fff;
+    line-height: 1.6;
+  }
+  .footer-group a:hover {
+    color: var(--accent);
+  }
+
+  @media (max-width: 900px) {
+    .footer {
+      padding: 60px 0 70px;
+    }
+    .footer-grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+  }
+</style>

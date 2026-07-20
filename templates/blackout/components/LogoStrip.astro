@@ -1,0 +1,51 @@
+---
+const { heading, logos } = Astro.props;
+---
+
+<section class="logo-strip">
+  <div class="wrapper">
+    {heading && <p class="strip-heading">{heading}</p>}
+    <div class="logos">
+      {logos.map((l) => <img src={l.src} alt={l.alt} loading="lazy" />)}
+    </div>
+  </div>
+</section>
+
+<style>
+  .logo-strip {
+    background: var(--ink);
+    padding: 60px 0 90px;
+  }
+  .strip-heading {
+    font-size: 12.5px;
+    font-weight: 900;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 34px;
+  }
+  .logos {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 56px;
+  }
+  .logos img {
+    height: 52px;
+    width: auto;
+    filter: grayscale(1) invert(0.1) brightness(1.6);
+    opacity: 0.7;
+  }
+  .logos img:hover {
+    opacity: 1;
+  }
+
+  @media (max-width: 900px) {
+    .logos {
+      gap: 32px;
+    }
+    .logos img {
+      height: 40px;
+    }
+  }
+</style>

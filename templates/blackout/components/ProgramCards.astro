@@ -1,0 +1,97 @@
+---
+const { heading, programs, ctaLabel } = Astro.props;
+---
+
+<section class="programs">
+  <div class="wrapper">
+    {
+      heading && (
+        <div class="programs-head">
+          <h2 class="h2 programs-heading" set:html={heading} />
+          <p class="programs-sub">Find a fitness routine that works for you</p>
+        </div>
+      )
+    }
+    <div class="program-grid" style={`--cols: ${Math.min(programs.length, 3)}`}>
+      {
+        programs.map((p) => (
+          <article class="program-card">
+            {p.image && <img src={p.image} alt={p.name} loading="eager" />}
+            <h3 class="program-name">{p.name}</h3>
+            <p class="program-desc">{p.description}</p>
+            <a href={p.href ?? "#"} class="program-link">
+              {ctaLabel} →
+            </a>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .programs {
+    background: var(--ink);
+    padding: 100px 0 120px;
+  }
+  .programs-head {
+    max-width: 420px;
+    margin-bottom: 64px;
+  }
+  .programs-heading {
+    font-size: 30px;
+    margin-bottom: 14px;
+  }
+  .programs-sub {
+    font-size: 17px;
+    font-weight: 300;
+    color: var(--text-dim);
+  }
+  .program-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), 1fr);
+    gap: 48px;
+  }
+  .program-card img {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    margin-bottom: 28px;
+  }
+  .program-name {
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .program-desc {
+    font-size: 15.5px;
+    font-weight: 300;
+    line-height: 24px;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+  }
+  .program-link {
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 4px;
+  }
+  .program-link:hover {
+    color: var(--accent);
+  }
+
+  @media (max-width: 900px) {
+    .programs {
+      padding: 70px 0 80px;
+    }
+    .program-grid {
+      grid-template-columns: 1fr;
+      gap: 52px;
+    }
+  }
+</style>

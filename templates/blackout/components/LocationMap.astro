@@ -1,0 +1,109 @@
+---
+const { heading, address, mapEmbedUrl, hours, phone, cta } = Astro.props;
+---
+
+<section class="location">
+  <div class="wrapper location-grid">
+    <div class="location-info">
+      {heading && <h2 class="h2 location-heading" set:html={heading} />}
+      <p class="location-address">{address}</p>
+      {
+        hours.length > 0 && (
+          <div class="location-hours">
+            {hours.map((h) => (
+              <p>{h}</p>
+            ))}
+          </div>
+        )
+      }
+      {phone && <p class="location-phone">{phone}</p>}
+      {cta && <a href={cta.href} class="btn btn-blue"><span class="btn-label">{cta.label}</span></a>}
+    </div>
+    <div class="location-map">
+      {
+        mapEmbedUrl ? (
+          <iframe src={mapEmbedUrl} loading="lazy" title={`Map: ${address}`} />
+        ) : (
+          <div class="map-ph">
+            <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 21 C12 21 5 14.5 5 9.5 A7 7 0 0 1 19 9.5 C19 14.5 12 21 12 21 Z" />
+              <circle cx="12" cy="9.5" r="2.6" />
+            </svg>
+            <p>{address}</p>
+          </div>
+        )
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .location {
+    background: var(--ink);
+    padding: 120px 0 130px;
+  }
+  .location-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr;
+    gap: 80px;
+    align-items: center;
+  }
+  .location-heading {
+    margin-bottom: 26px;
+  }
+  .location-address {
+    font-size: 19px;
+    font-weight: 700;
+    margin-bottom: 18px;
+  }
+  .location-hours p {
+    font-size: 15.5px;
+    font-weight: 300;
+    color: var(--text-dim);
+    line-height: 1.9;
+  }
+  .location-phone {
+    font-size: 16px;
+    font-weight: 700;
+    margin-top: 14px;
+  }
+  .location-info .btn {
+    margin-top: 38px;
+  }
+  .location-map iframe,
+  .map-ph {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border: 0;
+  }
+  .map-ph {
+    background: #0d0d0d;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 16px;
+    text-align: center;
+    padding: 24px;
+  }
+  .map-ph p {
+    font-size: 14.5px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
+    max-width: 30ch;
+  }
+
+  @media (max-width: 900px) {
+    .location {
+      padding: 80px 0 90px;
+    }
+    .location-grid {
+      grid-template-columns: 1fr;
+      gap: 36px;
+    }
+    .location-info .btn {
+      display: block;
+      text-align: center;
+    }
+  }
+</style>

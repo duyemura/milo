@@ -1,0 +1,111 @@
+---
+const { heading, coaches } = Astro.props;
+---
+
+<section class="coaches">
+  <div class="wrapper">
+    {heading && <h2 class="h2 coaches-heading" set:html={heading} />}
+    <div class="coach-grid" style={`--cols: ${Math.min(coaches.length, 3)}`}>
+      {
+        coaches.map((c) => (
+          <figure class="coach">
+            {c.photo ? <img src={c.photo} alt={c.name} loading="eager" /> : <div class="coach-ph">{c.name.charAt(0)}</div>}
+            <figcaption>
+              <h3>{c.name}</h3>
+              {c.role && <p class="coach-role">{c.role}</p>}
+              {c.bio && <p class="coach-bio">{c.bio}</p>}
+              {c.certs.length > 0 && (
+                <div class="coach-certs">
+                  {c.certs.map((cert) => (
+                    <span>{cert}</span>
+                  ))}
+                </div>
+              )}
+            </figcaption>
+          </figure>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .coaches {
+    background: var(--ink);
+    padding: 100px 0 130px;
+  }
+  .coaches-heading {
+    margin-bottom: 64px;
+    max-width: 640px;
+  }
+  .coach-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), 1fr);
+    gap: 48px;
+  }
+  .coach {
+    margin: 0;
+  }
+  .coach img,
+  .coach-ph {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    filter: grayscale(0.25) contrast(1.05);
+    margin-bottom: 24px;
+  }
+  .coach-ph {
+    display: grid;
+    place-items: center;
+    font-size: 80px;
+    font-weight: 900;
+    background: #0d0d0d;
+    color: var(--accent);
+  }
+  figcaption h3 {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .coach-role {
+    font-size: 12.5px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .coach-bio {
+    font-size: 15px;
+    font-weight: 300;
+    line-height: 24px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+  .coach-certs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .coach-certs span {
+    font-size: 11.5px;
+    font-weight: 900;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border: 1px solid var(--accent);
+    color: #fff;
+  }
+
+  @media (max-width: 900px) {
+    .coaches {
+      padding: 70px 0 90px;
+    }
+    .coach-grid {
+      grid-template-columns: 1fr;
+      gap: 52px;
+    }
+  }
+</style>

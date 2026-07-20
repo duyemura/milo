@@ -1,0 +1,80 @@
+---
+const { kicker, heading, sub, cta, image } = Astro.props;
+---
+
+<section class="hero" style={`background-image: url('${image}')`}>
+  <div class="overlay"></div>
+  <div class="wrapper hero-content">
+    {kicker && <h1 class="kicker-label hero-kicker">{kicker}</h1>}
+    <h2 class="hero-heading" set:html={heading} />
+    {sub && <p class="hero-sub">{sub}</p>}
+    {
+      cta && (
+        <a href={cta.href} class="btn hero-btn">
+          <span class="btn-label">{cta.label} →</span>
+        </a>
+      )
+    }
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    padding: 130px 0 150px;
+    background-size: cover;
+    background-position: center 30%;
+  }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.55) 55%, rgba(0, 0, 0, 0.3) 100%);
+  }
+  .hero-content {
+    position: relative;
+    z-index: 1;
+  }
+  .hero-kicker {
+    margin-bottom: 22px;
+    font-weight: 500;
+  }
+  .hero-heading {
+    font-size: 76px;
+    font-weight: 900;
+    line-height: 0.98;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    max-width: 760px;
+    margin-bottom: 28px;
+  }
+  .hero-sub {
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 30px;
+    letter-spacing: 0.04em;
+    max-width: 560px;
+    margin-bottom: 40px;
+  }
+  .hero-btn {
+    margin-left: 8px;
+  }
+
+  @media (max-width: 900px) {
+    .hero {
+      padding: 90px 0 100px;
+    }
+    .hero-heading {
+      font-size: 42px;
+    }
+    .hero-sub {
+      font-size: 17px;
+      line-height: 26px;
+    }
+    .hero-btn {
+      display: block;
+      text-align: center;
+      margin-left: 6px;
+      margin-right: 6px;
+    }
+  }
+</style>

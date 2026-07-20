@@ -1,4 +1,5 @@
 import modern from "@templates/modern/registry.ts";
+import blackout from "@templates/blackout/registry.ts";
 
 /**
  * Template registry. Adding a template = adding its registry import here.
@@ -6,6 +7,7 @@ import modern from "@templates/modern/registry.ts";
  */
 const TEMPLATES: Record<string, typeof modern> = {
   modern,
+  blackout,
 };
 
 export function getTemplate(name: string) {

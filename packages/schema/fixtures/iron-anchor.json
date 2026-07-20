@@ -186,7 +186,7 @@
           "heading": "Coaches who know your name and your goals",
           "coaches": [
             { "name": "Alex Rivera", "role": "Head Coach & Owner", "bio": "CrossFit since 2012. Believes consistency beats intensity, but loves both.", "photo": "https://images.unsplash.com/photo-1567013127542-490d757e51fc?w=800&q=80", "certs": ["CF-L3", "USAW L2"] },
-            { "name": "Jordan Blake", "role": "Olympic Lifting Coach", "bio": "Competitive weightlifter turned teacher. Will fix your snatch and your confidence.", "photo": "https://images.unsplash.com/photo-1594381898411-846e39d39d0a?w=800&q=80", "certs": ["USAW L2"] },
+            { "name": "Jordan Blake", "role": "Olympic Lifting Coach", "bio": "Competitive weightlifter turned teacher. Will fix your snatch and your confidence.", "photo": "https://images.unsplash.com/photo-1571731956672-f2b94d7dd0cb?w=800&q=80", "certs": ["USAW L2"] },
             { "name": "Sam Okafor", "role": "Coach", "bio": "The 6am crew's favorite human. Powerlifting background, endless patience.", "photo": "https://images.unsplash.com/photo-1548690312-e3b507d8c110?w=800&q=80", "certs": ["CF-L2", "PN1"] }
           ]
         },
