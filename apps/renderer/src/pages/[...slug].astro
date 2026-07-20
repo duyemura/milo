@@ -12,7 +12,7 @@ export async function getStaticPaths() {
 
 const { page } = Astro.props;
 const content = loadContent();
-const template = getTemplate(activeTemplate());
+const template = await getTemplate(activeTemplate());
 const { Base, Nav, Footer } = template;
 
 const sections = page.sections.map((section) => ({
