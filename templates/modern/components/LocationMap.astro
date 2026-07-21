@@ -66,7 +66,11 @@ const ldJson = JSON.stringify(ld).replace(/<\/script>/gi, "<\\/script>");
             style="border:0;width:100%;height:100%;"
           ></iframe>
         )
-        : <p class="location-map__address-fallback">{address}</p>
+        : (
+          <div class="location-map__map-placeholder">
+            <span class="location-map__map-placeholder-text">Map</span>
+          </div>
+        )
       }
     </div>
   </div>
@@ -75,7 +79,6 @@ const ldJson = JSON.stringify(ld).replace(/<\/script>/gi, "<\\/script>");
 
 <style>
   .location-map {
-    padding: var(--space-lg);
     color: var(--color-text);
     background: var(--color-surface);
   }
@@ -110,7 +113,10 @@ const ldJson = JSON.stringify(ld).replace(/<\/script>/gi, "<\\/script>");
 
   .location-map__address {
     font-style: normal;
+    font-family: "Montserrat Variable", var(--font-display), sans-serif;
+    font-weight: 700;
     color: var(--color-text);
+    font-size: 1rem;
   }
 
   .location-map__hours {
@@ -120,11 +126,15 @@ const ldJson = JSON.stringify(ld).replace(/<\/script>/gi, "<\\/script>");
     color: var(--color-muted);
     display: flex;
     flex-direction: column;
-    gap: var(--space-sm);
+    gap: var(--space-xs);
+    font-size: 0.9375rem;
   }
 
   .location-map__phone a {
-    color: var(--color-primary);
+    font-size: 1.25rem;
+    font-family: "Montserrat Variable", var(--font-display), sans-serif;
+    font-weight: 700;
+    color: var(--color-accent);
     text-decoration: none;
   }
 
@@ -134,29 +144,42 @@ const ldJson = JSON.stringify(ld).replace(/<\/script>/gi, "<\\/script>");
 
   .location-map__cta {
     display: inline-block;
-    padding: var(--space-sm) var(--space-md);
-    background-color: var(--color-accent);
+    padding: var(--space-sm) var(--space-lg);
+    background: var(--color-accent);
     color: var(--color-surface);
     border-radius: var(--radius-button);
     text-decoration: none;
-    font-weight: 600;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
     align-self: flex-start;
+    transition: opacity 0.2s ease, transform 0.2s ease;
   }
 
   .location-map__cta:hover {
     opacity: 0.9;
+    transform: translateY(-1px);
   }
 
   .location-map__map {
     background-color: var(--color-surface);
     border-radius: var(--radius-card);
     overflow: hidden;
-    min-height: 18rem;
+    min-height: 20rem;
   }
 
-  .location-map__address-fallback {
-    padding: var(--space-md);
+  .location-map__map-placeholder {
+    min-height: 20rem;
+    background: var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .location-map__map-placeholder-text {
     color: var(--color-muted);
-    margin: 0;
+    font-size: 0.875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 </style>
