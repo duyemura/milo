@@ -11,7 +11,7 @@ const src = readFileSync(
 );
 const styleBlock = src.slice(src.indexOf("<style"));
 
-test("LocationMap renders address, hours, and LocalBusiness JSON-LD", async () => {
+test("LocationMap renders address, hours, phone, and CTA", async () => {
   const container = await AstroContainer.create();
   const html = await container.renderToString(LocationMap, {
     props: {
@@ -25,12 +25,8 @@ test("LocationMap renders address, hours, and LocalBusiness JSON-LD", async () =
   expect(html).toContain("1234 Anchor St");
   expect(html).toContain("Mon–Fri: 5am–9pm");
   expect(html).toContain("(303) 555-0100");
-  // LocalBusiness JSON-LD
-  const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
-  expect(m).not.toBeNull();
-  const ld = JSON.parse(m![1]);
-  expect(ld["@type"]).toBe("LocalBusiness");
-  expect(ld.telephone).toBe("(303) 555-0100");
+  // LocalBusiness JSON-LD lives at page level (@graph in renderer) — not in this component
+  expect(html).not.toContain('"LocalBusiness"');
   // token check — source style block must use custom properties only
   expect(styleBlock).toMatch(/var\(--color-/);
   expect(styleBlock).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
@@ -75,7 +71,7 @@ test("LocationMap renders CTA link when provided", async () => {
   expect(html).toContain("https://maps.google.com/?q=1+Main+St");
 });
 
-test("LocationMap JSON-LD includes openingHours array", async () => {
+test("LocationMap renders hours list (openingHours in @graph is at page level, not component level)", async () => {
   const container = await AstroContainer.create();
   const html = await container.renderToString(LocationMap, {
     props: {
@@ -83,8 +79,7 @@ test("LocationMap JSON-LD includes openingHours array", async () => {
       hours: ["Mon–Fri: 6am–8pm", "Sat: 8am–4pm"],
     },
   });
-  const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
-  expect(m).not.toBeNull();
-  const ld = JSON.parse(m![1]);
-  expect(ld.openingHours).toEqual(["Mon–Fri: 6am–8pm", "Sat: 8am–4pm"]);
+  expect(html).toContain("Mon–Fri: 6am–8pm");
+  expect(html).toContain("Sat: 8am–4pm");
+  expect(html).not.toContain('"LocalBusiness"');
 });

@@ -6,7 +6,6 @@ interface Props {
   hours?: string[];
   phone?: string;
   cta?: { label: string; href: string };
-  gymName?: string;
 }
 
 const {
@@ -16,22 +15,7 @@ const {
   hours = [],
   phone,
   cta,
-  gymName,
 } = Astro.props;
-
-const ld: Record<string, unknown> = {
-  "@context": "https://schema.org",
-  "@type": "LocalBusiness",
-  ...(gymName ? { name: gymName } : {}),
-  address: {
-    "@type": "PostalAddress",
-    streetAddress: address,
-  },
-  openingHours: hours,
-};
-if (phone) ld.telephone = phone;
-
-const ldJson = JSON.stringify(ld).replace(/<\/script>/gi, "<\\/script>");
 ---
 
 <section class="location-map">
@@ -77,7 +61,6 @@ const ldJson = JSON.stringify(ld).replace(/<\/script>/gi, "<\\/script>");
       }
     </div>
   </div>
-  <script type="application/ld+json" set:html={ldJson}></script>
 </section>
 
 <style>
