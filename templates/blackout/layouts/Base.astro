@@ -1,0 +1,43 @@
+---
+// Template owns: fonts, typography, HTML shell.
+// All SEO meta tags + JSON-LD come from the renderer via <slot name="head" />.
+import "@fontsource/oswald/700.css";
+interface Props { tokenCss: string }
+const { tokenCss } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <slot name="head" />
+    <style set:html={tokenCss}></style>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        font-size: 1rem;
+        line-height: 1.6;
+        color: var(--color-on-primary);
+        background: var(--color-primary);
+        -webkit-font-smoothing: antialiased;
+      }
+      h1, h2, h3, h4, h5, h6 {
+        font-family: "Oswald", system-ui, sans-serif;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        line-height: 1.1;
+        margin: 0;
+        color: var(--color-on-primary);
+      }
+      p { margin: 0; }
+      img { max-width: 100%; height: auto; display: block; }
+      a { color: var(--color-accent); }
+      section { padding: var(--space-xl) var(--space-lg); }
+      @media (max-width: 48rem) { section { padding: var(--space-lg) var(--space-md); } }
+    </style>
+  </head>
+  <body><slot /></body>
+</html>

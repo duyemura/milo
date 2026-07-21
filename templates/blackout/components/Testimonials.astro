@@ -1,0 +1,98 @@
+---
+interface Review {
+  name: string;
+  quote: string;
+  source?: string;
+  rating: number;
+}
+interface Props {
+  heading: string;
+  reviews: Review[];
+}
+const { heading, reviews } = Astro.props;
+
+function stars(rating: number) {
+  const filled = Math.min(5, Math.max(0, Math.round(rating)));
+  return "★".repeat(filled) + "☆".repeat(5 - filled);
+}
+---
+<section class="testimonials">
+  <h2 class="testimonials__heading">{heading}</h2>
+  <ul class="testimonials__grid">
+    {reviews.map((review) => (
+      <li class="testimonials__card">
+        <p class="testimonials__quote">{review.quote}</p>
+        <footer class="testimonials__footer">
+          <span class="testimonials__stars" aria-label={`${review.rating} out of 5 stars`}>{stars(review.rating)}</span>
+          <span class="testimonials__name">{review.name}</span>
+          {review.source && <span class="testimonials__source">{review.source}</span>}
+        </footer>
+      </li>
+    ))}
+  </ul>
+</section>
+<style>
+  .testimonials__heading {
+    text-align: center;
+    margin-bottom: var(--space-md);
+    color: var(--color-on-primary);
+  }
+
+  .testimonials__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-md);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .testimonials__card {
+    background: var(--color-primary);
+    border-top: 4px solid var(--color-accent);
+    border-radius: 0;
+    padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .testimonials__quote {
+    color: var(--color-on-primary);
+    margin: 0;
+    flex: 1;
+    font-style: italic;
+    font-size: 1.0625rem;
+  }
+
+  .testimonials__footer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    border-top: 1px solid var(--color-on-primary);
+    opacity: 1;
+    padding-top: var(--space-sm);
+  }
+
+  .testimonials__stars {
+    color: var(--color-accent);
+    font-size: 1.125rem;
+    letter-spacing: 0.05em;
+  }
+
+  .testimonials__name {
+    font-family: "Oswald", system-ui, sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-on-primary);
+  }
+
+  .testimonials__source {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: var(--color-on-primary);
+    opacity: 0.5;
+    align-self: flex-start;
+  }
+</style>

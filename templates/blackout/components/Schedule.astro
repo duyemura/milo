@@ -1,0 +1,97 @@
+---
+interface Slot { time: string; name: string }
+interface Day { day: string; slots: Slot[] }
+interface Props { heading?: string; days: Day[] }
+const { heading, days } = Astro.props;
+---
+<section class="schedule">
+  {heading && <h2 class="schedule__heading">{heading}</h2>}
+  <div class="schedule__scroll-wrapper">
+    <div class="schedule__grid" style={`grid-template-columns: repeat(${days.length}, minmax(8rem, 1fr));`}>
+      {days.map((d) => (
+        <div class="schedule__col">
+          <div class="schedule__day-label">{d.day}</div>
+          {d.slots.length === 0 ? (
+            <div class="schedule__rest">Rest day</div>
+          ) : (
+            d.slots.map((slot) => (
+              <div class="schedule__slot">
+                <span class="schedule__time">{slot.time}</span>
+                <span class="schedule__name">{slot.name}</span>
+              </div>
+            ))
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+<style>
+  .schedule__heading {
+    margin-bottom: var(--space-md);
+    color: var(--color-on-primary);
+  }
+
+  .schedule__scroll-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .schedule__grid {
+    display: grid;
+    gap: var(--space-sm);
+    min-width: max-content;
+  }
+
+  .schedule__col {
+    background: var(--color-primary);
+    border-top: 4px solid var(--color-accent);
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  .schedule__day-label {
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    font-family: "Oswald", system-ui, sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: var(--space-sm) var(--space-md);
+    text-align: center;
+  }
+
+  .schedule__rest {
+    padding: var(--space-md);
+    text-align: center;
+    color: var(--color-on-primary);
+    opacity: 0.4;
+    font-style: italic;
+  }
+
+  .schedule__slot {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--color-on-primary);
+    opacity: 1;
+  }
+
+  .schedule__slot:last-child {
+    border-bottom: none;
+  }
+
+  .schedule__time {
+    font-size: 0.75rem;
+    color: var(--color-on-primary);
+    opacity: 0.5;
+  }
+
+  .schedule__name {
+    font-family: "Oswald", system-ui, sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-on-primary);
+  }
+</style>

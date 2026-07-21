@@ -1,0 +1,106 @@
+---
+interface Program {
+  slug: string;
+  name: string;
+  description: string;
+  image?: string;
+  href?: string;
+}
+interface Props {
+  heading?: string;
+  ctaLabel?: string;
+  programs: Program[];
+}
+const { heading, ctaLabel = "Contact Us For More Info", programs } = Astro.props;
+---
+<section class="program-cards">
+  {heading && <h2 class="program-cards__heading">{heading}</h2>}
+  <ul class="program-cards__grid">
+    {programs.map((p) => (
+      <li class="program-card">
+        {p.image && (
+          <img class="program-card__image" src={p.image} alt={p.name} loading="lazy" />
+        )}
+        <div class="program-card__body">
+          <h3 class="program-card__name">{p.name}</h3>
+          <p class="program-card__description">{p.description}</p>
+          {p.href ? (
+            <a class="program-card__cta" href={p.href}>{ctaLabel} →</a>
+          ) : (
+            <span class="program-card__cta program-card__cta--no-link">{ctaLabel}</span>
+          )}
+        </div>
+      </li>
+    ))}
+  </ul>
+</section>
+<style>
+  .program-cards__heading {
+    margin-bottom: var(--space-md);
+    color: var(--color-on-primary);
+  }
+
+  .program-cards__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-md);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .program-card {
+    background: var(--color-primary);
+    border-top: 4px solid var(--color-accent);
+    border-radius: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .program-card__image {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    display: block;
+  }
+
+  .program-card__body {
+    padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: var(--space-sm);
+  }
+
+  .program-card__name {
+    font-family: "Oswald", system-ui, sans-serif;
+    font-size: 1.125rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-on-primary);
+    margin: 0;
+  }
+
+  .program-card__description {
+    color: var(--color-on-primary);
+    opacity: 0.8;
+    margin: 0;
+    flex: 1;
+  }
+
+  .program-card__cta {
+    display: inline-block;
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 600;
+    align-self: flex-start;
+  }
+
+  .program-card__cta--no-link {
+    color: var(--color-on-primary);
+    opacity: 0.5;
+    cursor: default;
+  }
+</style>

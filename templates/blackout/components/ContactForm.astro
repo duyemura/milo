@@ -1,0 +1,143 @@
+---
+interface Field {
+  name: string;
+  label: string;
+  kind: "text" | "email" | "tel" | "textarea" | "select";
+  required: boolean;
+  options?: string[];
+}
+interface Props {
+  heading?: string;
+  sub?: string;
+  fields: Field[];
+  submitLabel?: string;
+}
+const {
+  heading,
+  sub,
+  fields,
+  submitLabel = "Send message",
+} = Astro.props;
+---
+<section class="contact-form-section">
+  <div class="contact-form-inner">
+    {heading && <h2 class="contact-form-heading">{heading}</h2>}
+    {sub && <p class="contact-form-sub">{sub}</p>}
+    <form class="contact-form" method="post" action="#">
+      {fields.map((field) => (
+        <div class="form-field">
+          <label for={field.name}>{field.label}</label>
+          {field.kind === "textarea" ? (
+            <textarea
+              id={field.name}
+              name={field.name}
+              required={field.required || undefined}
+            ></textarea>
+          ) : field.kind === "select" ? (
+            <select
+              id={field.name}
+              name={field.name}
+              required={field.required || undefined}
+            >
+              {field.options?.map((opt) => (
+                <option value={opt}>{opt}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              id={field.name}
+              type={field.kind}
+              name={field.name}
+              required={field.required || undefined}
+            />
+          )}
+        </div>
+      ))}
+      <button type="submit" class="submit-btn">{submitLabel}</button>
+    </form>
+  </div>
+</section>
+<style>
+  .contact-form-section {
+    padding: var(--space-xl) var(--space-md);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+  }
+  .contact-form-inner {
+    max-width: 40rem;
+    margin: 0 auto;
+  }
+  .contact-form-heading {
+    font-family: Oswald, sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--space-sm);
+    color: var(--color-on-primary);
+  }
+  .contact-form-sub {
+    font-size: 1rem;
+    margin-bottom: var(--space-lg);
+    color: var(--color-on-primary);
+    opacity: 0.75;
+  }
+  .contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+  .form-field label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-on-primary);
+    opacity: 0.7;
+  }
+  .form-field input,
+  .form-field textarea,
+  .form-field select {
+    padding: var(--space-sm) var(--space-md);
+    border: 1px solid var(--color-accent);
+    border-radius: 0;
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    font-size: 1rem;
+    width: 100%;
+    box-sizing: border-box;
+    outline: none;
+  }
+  .form-field input:focus,
+  .form-field textarea:focus,
+  .form-field select:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-accent);
+  }
+  .form-field textarea {
+    min-height: 8rem;
+    resize: vertical;
+  }
+  .submit-btn {
+    padding: var(--space-sm) var(--space-lg);
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    border: none;
+    border-radius: 0;
+    font-family: Oswald, sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    width: 100%;
+  }
+  .submit-btn:hover {
+    opacity: 0.9;
+  }
+</style>

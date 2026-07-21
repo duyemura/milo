@@ -1,0 +1,57 @@
+---
+interface Props { heading?: string; items: { q: string; a: string }[] }
+const { heading = "Frequently asked questions", items } = Astro.props;
+---
+<section class="faq">
+  <h2 class="faq__heading">{heading}</h2>
+  <dl class="faq__list">
+    {items.map((it) => (
+      <div class="faq__qa">
+        <dt class="faq__question">{it.q}</dt>
+        <dd class="faq__answer">{it.a}</dd>
+      </div>
+    ))}
+  </dl>
+</section>
+<style>
+  .faq {
+    background: var(--color-primary);
+  }
+
+  .faq__heading {
+    color: var(--color-on-primary);
+    margin-bottom: var(--space-lg);
+  }
+
+  .faq__list {
+    margin: 0;
+    padding: 0;
+  }
+
+  .faq__qa {
+    border-bottom: 1px solid var(--color-on-primary);
+    opacity: 1;
+    padding: var(--space-md) 0;
+  }
+
+  .faq__qa:last-child {
+    border-bottom: none;
+  }
+
+  .faq__question {
+    font-family: "Oswald", system-ui, sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-accent);
+    margin-bottom: var(--space-sm);
+  }
+
+  .faq__answer {
+    margin: var(--space-sm) 0 0;
+    color: var(--color-on-primary);
+    opacity: 0.8;
+    font-size: 0.9375rem;
+    line-height: 1.65;
+  }
+</style>
