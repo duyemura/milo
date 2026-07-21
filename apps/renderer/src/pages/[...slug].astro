@@ -3,8 +3,22 @@ import Base from "../../../../templates/modern/layouts/Base.astro";
 import Hero from "../../../../templates/modern/components/Hero.astro";
 import Faq from "../../../../templates/modern/components/Faq.astro";
 import Cta from "../../../../templates/modern/components/Cta.astro";
+import ProgramCards from "../../../../templates/modern/components/ProgramCards.astro";
+import CoachGrid from "../../../../templates/modern/components/CoachGrid.astro";
+import Schedule from "../../../../templates/modern/components/Schedule.astro";
+import LocationMap from "../../../../templates/modern/components/LocationMap.astro";
+import StatsBand from "../../../../templates/modern/components/StatsBand.astro";
+import Testimonials from "../../../../templates/modern/components/Testimonials.astro";
+import Pricing from "../../../../templates/modern/components/Pricing.astro";
+import FeatureGrid from "../../../../templates/modern/components/FeatureGrid.astro";
+import ContentBlock from "../../../../templates/modern/components/ContentBlock.astro";
+import MediaBlock from "../../../../templates/modern/components/MediaBlock.astro";
+import ContactForm from "../../../../templates/modern/components/ContactForm.astro";
+import LeadForm from "../../../../templates/modern/components/LeadForm.astro";
+import LogoStrip from "../../../../templates/modern/components/LogoStrip.astro";
 import { loadDocuments } from "../lib/load.ts";
 import { tokensToCss } from "@milo/schema";
+
 export function getStaticPaths() {
   const gymJson = process.env.GYM_JSON;
   if (!gymJson) throw new Error("renderer: GYM_JSON env var is required");
@@ -18,12 +32,31 @@ export function getStaticPaths() {
 const { page, docs } = Astro.props;
 const tokenCss = tokensToCss(docs.brand);
 const canonical = `https://example.com/${page.slug === "index" ? "" : page.slug}`;
+
+const COMPONENTS: Record<string, unknown> = {
+  hero: Hero,
+  faq: Faq,
+  "cta-band": Cta,
+  "program-cards": ProgramCards,
+  "coach-grid": CoachGrid,
+  schedule: Schedule,
+  "location-map": LocationMap,
+  "stats-band": StatsBand,
+  testimonials: Testimonials,
+  pricing: Pricing,
+  "feature-grid": FeatureGrid,
+  "content-block": ContentBlock,
+  "media-block": MediaBlock,
+  "contact-form": ContactForm,
+  "lead-form": LeadForm,
+  "logo-strip": LogoStrip,
+};
 ---
 <Base title={page.title} description={page.meta.description} canonical={canonical} tokenCss={tokenCss}>
   {page.sections.map((s) => {
-    if (s.section === "hero") return <Hero {...(s.content as any)} />;
-    if (s.section === "faq") return <Faq {...(s.content as any)} />;
-    if (s.section === "cta-band") return <Cta {...(s.content as any)} />;
-    throw new Error(`renderer: no component for section "${s.section}"`);
+    const Cmp = COMPONENTS[s.section];
+    if (!Cmp) throw new Error(`renderer: no component for section "${s.section}"`);
+    const C = Cmp as any;
+    return <C {...(s.content as any)} />;
   })}
 </Base>

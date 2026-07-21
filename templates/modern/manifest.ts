@@ -2,10 +2,22 @@ export const manifest = {
   id: "modern",
   name: "Modern",
   designLanguage: "Bold Montserrat display, electric-blue accent, soft-shadow cards on off-white.",
-  // section type -> component filename (in templates/modern/components/)
   implements: {
     hero: "Hero.astro",
     faq: "Faq.astro",
     "cta-band": "Cta.astro",
+    "program-cards": "ProgramCards.astro",
+    "coach-grid": "CoachGrid.astro",
+    schedule: "Schedule.astro",
+    "location-map": "LocationMap.astro",
+    "stats-band": "StatsBand.astro",
+    testimonials: "Testimonials.astro",
+    pricing: "Pricing.astro",
+    "feature-grid": "FeatureGrid.astro",
+    "content-block": "ContentBlock.astro",
+    "media-block": "MediaBlock.astro",
+    "contact-form": "ContactForm.astro",
+    "lead-form": "LeadForm.astro",
+    "logo-strip": "LogoStrip.astro",
   } as Record<string, string>,
 };

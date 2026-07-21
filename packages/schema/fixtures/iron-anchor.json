@@ -13,9 +13,183 @@
         "title": "Iron Anchor CrossFit — Denver",
         "meta": { "description": "Coached group CrossFit in Denver. Book your free intro." },
         "sections": [
-          { "section": "hero", "content": { "heading": "Get strong in Denver", "sub": "Coached group CrossFit for every level.", "cta": { "label": "Book your free intro", "href": "/start" }, "image": "https://placehold.co/1200x800/png" } },
-          { "section": "faq", "content": { "items": [ { "q": "What are your hours?", "a": "5am to 9pm every day." }, { "q": "Do you offer a free intro?", "a": "Yes — book a free 1-on-1 with a coach." } ] } },
-          { "section": "cta-band", "content": { "heading": "Ready to start?", "cta": { "label": "Book your free intro", "href": "/start" } } }
+          {
+            "section": "hero",
+            "content": {
+              "heading": "Get strong in Denver",
+              "sub": "Coached group CrossFit for every level.",
+              "cta": { "label": "Book your free intro", "href": "/start" },
+              "image": "https://placehold.co/1200x800/png"
+            }
+          },
+          {
+            "section": "stats-band",
+            "content": {
+              "stats": [
+                { "value": "500+", "label": "Members" },
+                { "value": "9", "label": "Years open" },
+                { "value": "CF-L3", "label": "Head coach cert" },
+                { "value": "5am–9pm", "label": "Daily hours" }
+              ]
+            }
+          },
+          {
+            "section": "feature-grid",
+            "content": {
+              "heading": "Why Iron Anchor?",
+              "variant": "cards",
+              "items": [
+                { "title": "Expert coaching", "body": "Every class is led by a CF-L2 or higher certified coach.", "icon": "🏋️" },
+                { "title": "All fitness levels", "body": "Every workout scales to meet you where you are.", "icon": "📈" },
+                { "title": "Real community", "body": "Members who show up for each other inside and outside the gym.", "icon": "🤝" },
+                { "title": "Proven programming", "body": "Periodized strength and conditioning you can trust.", "icon": "📋" }
+              ]
+            }
+          },
+          {
+            "section": "program-cards",
+            "content": {
+              "heading": "Our programs",
+              "programs": [
+                { "slug": "crossfit", "name": "CrossFit", "description": "Our flagship group class — constantly varied functional movements at high intensity.", "href": "/programs/crossfit", "image": "https://placehold.co/600x400/png" },
+                { "slug": "olympic-lifting", "name": "Olympic Lifting", "description": "Technique-first barbell work for the snatch and clean & jerk.", "href": "/programs/olympic-lifting", "image": "https://placehold.co/600x400/png" },
+                { "slug": "open-gym", "name": "Open Gym", "description": "Structured open floor time for skill work and accessory training.", "href": "/programs/open-gym" }
+              ]
+            }
+          },
+          {
+            "section": "media-block",
+            "content": {
+              "heading": "Coaching that gets results",
+              "body": "Iron Anchor was founded in 2015 by a team of competitive athletes who believe that great coaching is the difference between showing up and making progress.",
+              "image": "https://placehold.co/800x600/png",
+              "mediaSide": "right",
+              "cta": { "label": "Meet the coaches", "href": "/coaches" }
+            }
+          },
+          {
+            "section": "coach-grid",
+            "content": {
+              "heading": "Meet the coaches",
+              "coaches": [
+                { "name": "Sarah Chen", "role": "Head Coach", "bio": "CF-L3, 10 years coaching experience, competitive athlete.", "certs": ["CF-L3", "USAW-L1"] },
+                { "name": "Marcus Hill", "role": "Strength Coach", "bio": "Powerlifting background, specializes in barbell mechanics and injury prevention.", "certs": ["CF-L2", "NSCA-CSCS"] },
+                { "name": "Priya Nair", "role": "Coach", "bio": "Former collegiate sprinter, brings speed and conditioning expertise.", "certs": ["CF-L2"] }
+              ]
+            }
+          },
+          {
+            "section": "schedule",
+            "content": {
+              "heading": "Weekly schedule",
+              "days": [
+                { "day": "Mon", "slots": [{ "time": "5:30 AM", "name": "CrossFit" }, { "time": "12:00 PM", "name": "CrossFit" }, { "time": "5:30 PM", "name": "CrossFit" }, { "time": "6:30 PM", "name": "Olympic Lifting" }] },
+                { "day": "Tue", "slots": [{ "time": "5:30 AM", "name": "CrossFit" }, { "time": "12:00 PM", "name": "Open Gym" }, { "time": "5:30 PM", "name": "CrossFit" }] },
+                { "day": "Wed", "slots": [{ "time": "5:30 AM", "name": "CrossFit" }, { "time": "12:00 PM", "name": "CrossFit" }, { "time": "5:30 PM", "name": "CrossFit" }, { "time": "6:30 PM", "name": "Olympic Lifting" }] },
+                { "day": "Thu", "slots": [{ "time": "5:30 AM", "name": "CrossFit" }, { "time": "12:00 PM", "name": "Open Gym" }, { "time": "5:30 PM", "name": "CrossFit" }] },
+                { "day": "Fri", "slots": [{ "time": "5:30 AM", "name": "CrossFit" }, { "time": "12:00 PM", "name": "CrossFit" }, { "time": "5:30 PM", "name": "CrossFit" }] },
+                { "day": "Sat", "slots": [{ "time": "8:00 AM", "name": "CrossFit" }, { "time": "10:00 AM", "name": "Olympic Lifting" }] },
+                { "day": "Sun", "slots": [] }
+              ]
+            }
+          },
+          {
+            "section": "testimonials",
+            "content": {
+              "heading": "What members say",
+              "reviews": [
+                { "name": "Jordan M.", "quote": "I've tried a dozen gyms. Iron Anchor is the only one where I've made consistent progress for three years straight.", "source": "Google", "rating": 5 },
+                { "name": "Taylor R.", "quote": "The coaches actually know your name and remember what you're working on. It's not just another box.", "source": "Yelp", "rating": 5 },
+                { "name": "Casey L.", "quote": "Started with zero fitness background. Now I'm competing in local throwdowns. The programming works.", "rating": 5 }
+              ]
+            }
+          },
+          {
+            "section": "pricing",
+            "content": {
+              "heading": "Membership options",
+              "plans": [
+                { "name": "Drop-in", "price": "$30", "features": ["Single class", "Any program"], "featured": false },
+                { "name": "10-Pack", "price": "$250", "period": "/10 classes", "features": ["Any program", "Valid 90 days"], "cta": { "label": "Buy punch card", "href": "/join?plan=10pack" }, "featured": false },
+                { "name": "Unlimited", "price": "$165", "period": "/mo", "features": ["Unlimited CrossFit", "Olympic Lifting access", "Open Gym access", "Member app"], "cta": { "label": "Join now", "href": "/join?plan=unlimited" }, "featured": true }
+              ]
+            }
+          },
+          {
+            "section": "logo-strip",
+            "content": {
+              "heading": "Our community supports",
+              "logos": [
+                { "src": "https://placehold.co/120x40/png", "alt": "Denver Metro CrossFit League" },
+                { "src": "https://placehold.co/120x40/png", "alt": "USA Weightlifting" },
+                { "src": "https://placehold.co/120x40/png", "alt": "CrossFit Inc." }
+              ]
+            }
+          },
+          {
+            "section": "content-block",
+            "content": {
+              "heading": "Our approach",
+              "body": "<p>At Iron Anchor, we believe that fitness is a lifelong practice — not a 90-day program. Every athlete gets coached, not just counted. Every workout is purposeful, not random. We've been building a stronger Denver since 2015.</p>"
+            }
+          },
+          {
+            "section": "lead-form",
+            "content": {
+              "heading": "Book your free intro",
+              "sub": "No experience needed. A coach will walk you through everything.",
+              "fields": [
+                { "name": "name", "label": "Name", "kind": "text", "required": true },
+                { "name": "email", "label": "Email", "kind": "email", "required": true },
+                { "name": "phone", "label": "Phone", "kind": "tel", "required": false },
+                { "name": "goal", "label": "Primary goal", "kind": "select", "required": false, "options": ["Get fit", "Lose weight", "Build strength", "Train for competition", "Other"] }
+              ],
+              "submitLabel": "Book my free intro",
+              "formId": "iron-anchor-intro"
+            }
+          },
+          {
+            "section": "faq",
+            "content": {
+              "heading": "Frequently asked questions",
+              "items": [
+                { "q": "Do I need experience to join?", "a": "No experience needed. Every workout is scaled to your fitness level by a coach." },
+                { "q": "What are your hours?", "a": "Classes run Monday–Friday 5:30am–7:30pm, Saturday 8am–11am. Open gym hours vary." },
+                { "q": "Do you offer a free intro?", "a": "Yes — book a free 1-on-1 intro session with a coach. No commitment required." },
+                { "q": "Can I try before joining?", "a": "Yes. Drop-in classes are available for $30. We recommend the free intro first." }
+              ]
+            }
+          },
+          {
+            "section": "location-map",
+            "content": {
+              "heading": "Find us",
+              "address": "1234 Anchor St, Denver, CO 80202",
+              "hours": ["Mon–Fri: 5am–9pm", "Sat: 7am–12pm", "Sun: Closed"],
+              "phone": "(720) 555-0142",
+              "cta": { "label": "Get directions", "href": "https://maps.google.com/?q=1234+Anchor+St+Denver+CO" }
+            }
+          },
+          {
+            "section": "contact-form",
+            "content": {
+              "heading": "Get in touch",
+              "sub": "Questions? We respond within one business day.",
+              "fields": [
+                { "name": "name", "label": "Name", "kind": "text", "required": true },
+                { "name": "email", "label": "Email", "kind": "email", "required": true },
+                { "name": "message", "label": "Message", "kind": "textarea", "required": true }
+              ],
+              "submitLabel": "Send message"
+            }
+          },
+          {
+            "section": "cta-band",
+            "content": {
+              "heading": "Ready to start?",
+              "cta": { "label": "Book your free intro", "href": "/start" }
+            }
+          }
         ]
       }
     ]
