@@ -39,6 +39,23 @@ Discovery (2–4) is the deepest design driver. It is **built into the component
 - **Portability is a hard requirement.** A client's site can move to any template with zero content rework, because documents are template-agnostic and every theme implements the same **shared section contract**.
 - **Rebuild > initial build.** Documents are a durable knowledge base kept cleanly separate from rendered output, so re-rendering with *more* knowledge (their real buyers, converting leads, local terms) produces a better site each time. The knowledge comes from **PushPress platform data** (members, leads, enrollments, check-ins, attributions) — the moat a standalone builder can't replicate.
 
+## North Star & invariants
+
+The endgame is a system where a gym's **living documents** compound over time — seeded at onboarding, enriched continuously by PushPress data (members, leads, who-buys) and discovery signals (GSC, analytics, conversion) — and any template is a fast, discovery-native projection of them that an AI can safely edit and regenerate, each rebuild better than the last. Milo isn't a site builder; it's a knowledge base with websites as one output.
+
+Endgame capabilities (context — **out of Phase 1 build scope**): AI-edit assistant (P2) → content engine, blog/pillar/keyword→content (P3) → knowledge loop from PushPress data (P4) → feedback signals closing the loop (GSC/analytics/conversion → proactive rebuilds) → onboarding brand importer.
+
+**Invariants Phase 1 MUST honor** (each is a corner a later phase can't un-paint):
+1. Documents are the **sole source of truth**; the site is a **pure, deterministic projection** — nothing lives only in rendered HTML.
+2. **Content docs** (what renders) are separate from **knowledge docs** (what informs); render depends only on content docs.
+3. The contract is **template-agnostic** — no theme-specific data in documents (100% portability across themes).
+4. All state changes go through **schema-validated document mutations**, never direct HTML edits (safe AI editing later).
+5. Pages are **composed from token-driven, self-contained components** that emit their own schema (per-page layouts, reskin, compounding discovery).
+6. Rendering is **idempotent** from `(documents + theme + tokens)` — same inputs, same site.
+7. Facts carry **provenance** where it matters (esp. knowledge docs) — the anti-fudge principle, so AI decisions are traceable, not invented.
+
+These shape *how* Phase 1 is built; they do not add to *what* Phase 1 ships.
+
 ## Architecture
 
 ### 1. The portable content contract (`packages/schema`)
