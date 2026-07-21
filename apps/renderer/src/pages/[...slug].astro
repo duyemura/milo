@@ -3,7 +3,7 @@ import SeoHead from "../components/SeoHead.astro";
 import * as modern from "../../../../templates/modern/registry.ts";
 import * as blackout from "../../../../templates/blackout/registry.ts";
 import { loadDocuments } from "../lib/load.ts";
-import { tokensToCss } from "@milo/schema";
+import { tokensToCss, Section } from "@milo/schema";
 
 export function getStaticPaths() {
   const gymJson = process.env.GYM_JSON;
@@ -43,17 +43,34 @@ const postalAddress = id.addressParts
     ? { "@type": "PostalAddress", streetAddress: id.address }
     : undefined;
 
-const locSection = page.sections.find((s) => s.section === "location-map");
-const loc = locSection?.content as { address?: string; hours?: string[]; phone?: string } | undefined;
+// Validate ALL section content against the typed Section union upfront.
+// Unknown section types or malformed content are skipped with a warning (build continues).
+const validSections = page.sections.flatMap((s) => {
+  const result = Section.safeParse({ type: s.section, ...s.content });
+  if (!result.success) {
+    console.warn(`[renderer] section "${s.section}" on page "${page.slug}" has invalid content — skipping @graph extraction:\n${result.error.message}`);
+    return [];
+  }
+  return [result.data];
+});
 
-const faqSection = page.sections.find((s) => s.section === "faq");
-const faqContent = faqSection?.content as { items?: { q: string; a: string }[] } | undefined;
+// Location (first match — location is a page-singleton in practice)
+const locData = validSections.find((s) => s.type === "location-map");
 
-const programSection = page.sections.find((s) => s.section === "program-cards");
-const programContent = programSection?.content as { programs?: { slug: string; name: string; description: string }[] } | undefined;
+// FAQ — merge ALL faq sections into one FAQPage (multi-instance support)
+const faqItems = validSections
+  .filter((s) => s.type === "faq")
+  .flatMap((s) => (s as any).items ?? []);
 
-const coachSection = page.sections.find((s) => s.section === "coach-grid");
-const coachContent = coachSection?.content as { coaches?: { name: string; role?: string; bio?: string }[] } | undefined;
+// Programs — collect from ALL program-cards sections
+const allPrograms = validSections
+  .filter((s) => s.type === "program-cards")
+  .flatMap((s) => (s as any).programs ?? []);
+
+// Coaches — collect from ALL coach-grid sections
+const allCoaches = validSections
+  .filter((s) => s.type === "coach-grid")
+  .flatMap((s) => (s as any).coaches ?? []);
 
 const sameAs = [
   ...(id.socialProfiles ?? []),
@@ -66,9 +83,9 @@ const localBusiness: Record<string, unknown> = {
   name: id.name,
   url: siteUrl,
   ...(ogImage ? { image: ogImage } : {}),
-  ...(id.phone ?? loc?.phone ? { telephone: id.phone ?? loc?.phone } : {}),
+  ...(id.phone ?? (locData as any)?.phone ? { telephone: id.phone ?? (locData as any)?.phone } : {}),
   ...(postalAddress ? { address: postalAddress } : {}),
-  ...(loc?.hours?.length ? { openingHours: loc.hours } : {}),
+  ...(locData && (locData as any).hours?.length ? { openingHours: (locData as any).hours } : {}),
   ...(id.priceRange ? { priceRange: id.priceRange } : {}),
   ...(id.mapsUrl ? { hasMap: id.mapsUrl } : {}),
   ...(id.geoCoordinates
@@ -77,11 +94,11 @@ const localBusiness: Record<string, unknown> = {
   ...(sameAs.length ? { sameAs } : {}),
 };
 
-const faqSchema = faqContent?.items?.length
+const faqSchema = faqItems.length
   ? {
       "@type": "FAQPage",
       "@id": `${canonical}#faq`,
-      mainEntity: faqContent.items.map((it) => ({
+      mainEntity: faqItems.map((it: any) => ({
         "@type": "Question",
         name: it.q,
         acceptedAnswer: { "@type": "Answer", text: it.a },
@@ -89,7 +106,7 @@ const faqSchema = faqContent?.items?.length
     }
   : null;
 
-const serviceSchemas = (programContent?.programs ?? []).map((p) => ({
+const serviceSchemas = allPrograms.map((p: any) => ({
   "@type": "Service",
   "@id": `${siteUrl}/#service-${p.slug}`,
   name: p.name,
@@ -97,7 +114,7 @@ const serviceSchemas = (programContent?.programs ?? []).map((p) => ({
   provider: { "@id": `${siteUrl}/#localbusiness` },
 }));
 
-const personSchemas = (coachContent?.coaches ?? []).map((c) => ({
+const personSchemas = allCoaches.map((c: any) => ({
   "@type": "Person",
   name: c.name,
   ...(c.role ? { jobTitle: c.role } : {}),
@@ -135,7 +152,12 @@ const B = Base as any;
   {page.sections.map((s) => {
     const Cmp = COMPONENTS[s.section];
     if (!Cmp) throw new Error(`renderer [${TEMPLATE}]: no component for section "${s.section}"`);
+    const parsed = Section.safeParse({ type: s.section, ...s.content });
+    if (!parsed.success) {
+      throw new Error(`renderer [${TEMPLATE}]: invalid content for section "${s.section}" on page "${page.slug}":\n${parsed.error.message}`);
+    }
+    const { type: _type, ...props } = parsed.data as any;
     const C = Cmp as any;
-    return <C {...(s.content as any)} />;
+    return <C {...props} />;
   })}
 </B>

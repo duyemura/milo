@@ -2,6 +2,9 @@ import { defineConfig } from "astro/config";
 import sitemap from "@astrojs/sitemap";
 
 const siteUrl = process.env.SITE_URL ?? "https://example.com";
+if (!process.env.SITE_URL && process.env.NODE_ENV === "production") {
+  console.warn("[renderer] WARNING: SITE_URL is not set — canonical URLs, sitemap, and @graph @id will use https://example.com");
+}
 const outDir = process.env.OUT_DIR ?? "dist";
 
 export default defineConfig({
