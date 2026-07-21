@@ -43,8 +43,8 @@ const postalAddress = id.addressParts
     ? { "@type": "PostalAddress", streetAddress: id.address }
     : undefined;
 
-// Validate ALL section content against the typed Section union upfront.
-// Unknown section types or malformed content are skipped with a warning (build continues).
+// Parse sections for @graph extraction. Malformed sections are skipped here
+// (warning only) but will throw during render below — the build will still fail.
 const validSections = page.sections.flatMap((s) => {
   const result = Section.safeParse({ type: s.section, ...s.content });
   if (!result.success) {
