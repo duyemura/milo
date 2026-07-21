@@ -1,44 +1,17 @@
 ---
+// Template owns: fonts, typography, HTML shell.
+// All SEO meta tags + JSON-LD come from the renderer via <slot name="head" />.
 import "@fontsource-variable/montserrat/wght.css";
 import "@fontsource-variable/inter/wght.css";
-interface Props {
-  title: string;
-  description: string;
-  canonical: string;
-  tokenCss: string;
-  ogImage?: string;
-  siteName?: string;
-  themeColor?: string;
-  favicon?: string;
-}
-const { title, description, canonical, tokenCss, ogImage, siteName, themeColor, favicon } = Astro.props;
+interface Props { tokenCss: string }
+const { tokenCss } = Astro.props;
 ---
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title}</title>
-    <meta name="description" content={description} />
-    <meta name="robots" content="index, follow" />
-    <link rel="canonical" href={canonical} />
-    {favicon
-      ? <link rel="icon" href={favicon} type="image/svg+xml" />
-      : <link rel="icon" href="/favicon.svg" type="image/svg+xml" />}
-    {themeColor && <meta name="theme-color" content={themeColor} />}
-    <meta property="og:title" content={title} />
-    <meta property="og:description" content={description} />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content={canonical} />
-    <meta property="og:locale" content="en_US" />
-    {siteName && <meta property="og:site_name" content={siteName} />}
-    {ogImage && <meta property="og:image" content={ogImage} />}
-    {ogImage && <meta property="og:image:width" content="1200" />}
-    {ogImage && <meta property="og:image:height" content="630" />}
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={description} />
-    {ogImage && <meta name="twitter:image" content={ogImage} />}
+    <slot name="head" />
     <style set:html={tokenCss}></style>
     <style>
       *, *::before, *::after { box-sizing: border-box; }
@@ -66,7 +39,6 @@ const { title, description, canonical, tokenCss, ogImage, siteName, themeColor, 
       img { max-width: 100%; height: auto; display: block; }
       a { color: var(--color-accent); }
 
-      /* Global section rhythm */
       section { padding: var(--space-xl) var(--space-lg); }
       @media (max-width: 48rem) {
         section { padding: var(--space-lg) var(--space-md); }

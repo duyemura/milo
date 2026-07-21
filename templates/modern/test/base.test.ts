@@ -9,11 +9,18 @@ const tokens = BrandTokens.parse({
   space: { sm: "8px", md: "16px", lg: "32px" }, radius: { button: "10px", card: "12px" },
 });
 
-test("Base renders head SEO tags and injects token CSS vars", async () => {
+// Simulated head slot content (in production this comes from SeoHead.astro via the renderer)
+const headSlot = [
+  '<title>Iron Anchor — Denver</title>',
+  '<meta name="description" content="Coached CrossFit.">',
+  '<link rel="canonical" href="https://example.com/">',
+].join("");
+
+test("Base renders head slot content and injects token CSS vars", async () => {
   const container = await AstroContainer.create();
   const html = await container.renderToString(Base, {
-    props: { title: "Iron Anchor — Denver", description: "Coached CrossFit.", canonical: "https://example.com/", tokenCss: tokensToCss(tokens) },
-    slots: { default: "<main>hi</main>" },
+    props: { tokenCss: tokensToCss(tokens) },
+    slots: { head: headSlot, default: "<main>hi</main>" },
   });
   expect(html).toContain("<title>Iron Anchor — Denver</title>");
   expect(html).toMatch(/<meta name="description" content="Coached CrossFit\."/);
