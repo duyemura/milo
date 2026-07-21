@@ -31,14 +31,21 @@ test("head SEO gate: title, meta description, canonical, OG, twitter present", (
   expect(html).toMatch(/name="twitter:card"/);
 });
 
-test("AEO gate: FAQPage JSON-LD is valid and well-formed", () => {
+test("AEO gate: FAQPage JSON-LD is in @graph, valid and well-formed", () => {
   const html = readFileSync(DIST, "utf8");
   const blocks = [
     ...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g),
   ].map((m) => JSON.parse(m[1].replace(/<\\\/script>/g, "</script>")));
-  const faq = blocks.find((b) => b["@type"] === "FAQPage");
+  const graph = blocks.find((b) => b["@graph"]);
+  expect(graph).toBeTruthy();
+  const faq = graph["@graph"].find((n: any) => n["@type"] === "FAQPage");
   expect(faq).toBeTruthy();
   expect(faq.mainEntity.length).toBeGreaterThan(0);
+  expect(faq.mainEntity[0]["@type"]).toBe("Question");
+  // Service and Person nodes also present in @graph
+  const types = graph["@graph"].map((n: any) => n["@type"]).flat();
+  expect(types).toContain("Service");
+  expect(types).toContain("Person");
 });
 
 test("AEO gate: page-level @graph has LocalBusiness, WebSite, WebPage", () => {

@@ -54,11 +54,22 @@ const postalAddress = id.addressParts
     ? { "@type": "PostalAddress", streetAddress: id.address }
     : undefined;
 
-// Extract location-map section for opening hours fallback
+// --- Section content extraction for structured data ---
+
 const locSection = page.sections.find((s) => s.section === "location-map");
 const loc = locSection?.content as { address?: string; hours?: string[]; phone?: string } | undefined;
 
-// sameAs: social profiles + GBP URL
+const faqSection = page.sections.find((s) => s.section === "faq");
+const faqContent = faqSection?.content as { items?: { q: string; a: string }[] } | undefined;
+
+const programSection = page.sections.find((s) => s.section === "program-cards");
+const programContent = programSection?.content as { programs?: { slug: string; name: string; description: string }[] } | undefined;
+
+const coachSection = page.sections.find((s) => s.section === "coach-grid");
+const coachContent = coachSection?.content as { coaches?: { name: string; role?: string; bio?: string }[] } | undefined;
+
+// --- Build @graph nodes ---
+
 const sameAs = [
   ...(id.socialProfiles ?? []),
   ...(id.googleBusinessProfileUrl ? [id.googleBusinessProfileUrl] : []),
@@ -81,12 +92,43 @@ const localBusiness: Record<string, unknown> = {
   ...(sameAs.length ? { sameAs } : {}),
 };
 
+const faqSchema = faqContent?.items?.length
+  ? {
+      "@type": "FAQPage",
+      "@id": `${canonical}#faq`,
+      mainEntity: faqContent.items.map((it) => ({
+        "@type": "Question",
+        name: it.q,
+        acceptedAnswer: { "@type": "Answer", text: it.a },
+      })),
+    }
+  : null;
+
+const serviceSchemas = (programContent?.programs ?? []).map((p) => ({
+  "@type": "Service",
+  "@id": `${siteUrl}/#service-${p.slug}`,
+  name: p.name,
+  description: p.description,
+  provider: { "@id": `${siteUrl}/#localbusiness` },
+}));
+
+const personSchemas = (coachContent?.coaches ?? []).map((c) => ({
+  "@type": "Person",
+  name: c.name,
+  ...(c.role ? { jobTitle: c.role } : {}),
+  ...(c.bio ? { description: c.bio } : {}),
+  worksFor: { "@id": `${siteUrl}/#localbusiness` },
+}));
+
 const pageGraph = {
   "@context": "https://schema.org",
   "@graph": [
     { "@type": "WebSite", "@id": `${siteUrl}/#website`, name: id.name, url: siteUrl },
     { "@type": "WebPage", "@id": canonical, name: page.title, description: page.meta.description, url: canonical, isPartOf: { "@id": `${siteUrl}/#website` } },
     localBusiness,
+    ...(faqSchema ? [faqSchema] : []),
+    ...serviceSchemas,
+    ...personSchemas,
   ],
 };
 const pageGraphJson = JSON.stringify(pageGraph).replace(/<\/script>/gi, "<\\/script>");
