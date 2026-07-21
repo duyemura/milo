@@ -1,0 +1,97 @@
+---
+interface Item {
+  title: string;
+  body?: string;
+  icon?: string;
+}
+interface Props {
+  variant?: "default" | "numbered" | "cards" | "dark";
+  heading?: string;
+  items: Item[];
+}
+const { variant = "default", heading, items } = Astro.props;
+---
+<section class:list={["feature-grid", `feature-grid--${variant}`]}>
+  {heading && <h2 class="feature-grid__heading">{heading}</h2>}
+  <ul class="feature-grid__list">
+    {items.map((item, i) => (
+      <li class="feature-grid__item">
+        {variant === "numbered" ? (
+          <span class="feature-grid__number">{String(i + 1).padStart(2, "0")}</span>
+        ) : item.icon ? (
+          <span class="feature-grid__icon">{item.icon}</span>
+        ) : null}
+        <h3 class="feature-grid__title">{item.title}</h3>
+        {item.body && <p class="feature-grid__body">{item.body}</p>}
+      </li>
+    ))}
+  </ul>
+</section>
+<style>
+  .feature-grid {
+    padding: var(--space-xl) var(--space-md);
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+  .feature-grid--dark {
+    background: var(--color-primary);
+    color: var(--color-surface);
+  }
+  .feature-grid__heading {
+    text-align: center;
+    margin-bottom: var(--space-lg);
+    font-size: 2rem;
+    font-weight: 700;
+    color: inherit;
+  }
+  .feature-grid--dark .feature-grid__heading {
+    color: var(--color-surface);
+  }
+  .feature-grid__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--space-lg);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-width: 72rem;
+    margin-inline: auto;
+  }
+  .feature-grid__item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+  .feature-grid--cards .feature-grid__item {
+    background: var(--color-surface-alt, var(--color-surface));
+    border: 1px solid var(--color-border, var(--color-surface));
+    border-radius: 0.5rem;
+    padding: var(--space-md);
+    box-shadow: 0 1px 4px var(--color-shadow, transparent);
+  }
+  .feature-grid__icon {
+    font-size: 2rem;
+    line-height: 1;
+  }
+  .feature-grid__number {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-accent);
+  }
+  .feature-grid__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: inherit;
+    margin: 0;
+  }
+  .feature-grid__body {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--color-text-muted, var(--color-text));
+    margin: 0;
+  }
+  .feature-grid--dark .feature-grid__body {
+    color: var(--color-surface-muted, var(--color-surface));
+  }
+</style>
