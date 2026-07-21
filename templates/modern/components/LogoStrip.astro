@@ -1,0 +1,59 @@
+---
+interface Logo {
+  src: string;
+  alt: string;
+}
+interface Props {
+  heading?: string;
+  logos: Logo[];
+}
+const { heading, logos } = Astro.props;
+---
+<section class="logo-strip">
+  {heading && <p class="logo-strip-heading">{heading}</p>}
+  <div class="logo-row">
+    {logos.map((logo) => (
+      <img
+        class="logo-img"
+        src={logo.src}
+        alt={logo.alt}
+        loading="lazy"
+        decoding="async"
+      />
+    ))}
+  </div>
+</section>
+<style>
+  .logo-strip {
+    padding: var(--space-lg) var(--space-md);
+    background: var(--color-surface);
+    text-align: center;
+  }
+  .logo-strip-heading {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-on-surface);
+    opacity: 0.5;
+    margin-bottom: var(--space-md);
+  }
+  .logo-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: var(--space-lg);
+  }
+  .logo-img {
+    max-height: 3rem;
+    width: auto;
+    filter: grayscale(1);
+    opacity: 0.6;
+    transition: filter 0.2s ease, opacity 0.2s ease;
+  }
+  .logo-img:hover {
+    filter: grayscale(0);
+    opacity: 1;
+  }
+</style>
