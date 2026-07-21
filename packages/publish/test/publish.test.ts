@@ -138,3 +138,56 @@ describe("publishStatus", () => {
     expect(status).toBeNull();
   });
 });
+
+describe("publishRollback", () => {
+  let s3: FakeS3Adapter;
+  let kvs: FakeKvsAdapter;
+
+  beforeEach(async () => {
+    s3 = new FakeS3Adapter();
+    kvs = new FakeKvsAdapter();
+    // publish three staging versions with distinct IDs
+    let counter = 0;
+    const generateId = () => `v${++counter}`;
+    await publishStaging({ config, distDir: "/tmp", s3, kvs, generateId });
+    await publishStaging({ config, distDir: "/tmp", s3, kvs, generateId });
+    await publishStaging({ config, distDir: "/tmp", s3, kvs, generateId });
+  });
+
+  it("in list mode (no versionId), returns available versions without changing anything", async () => {
+    const result = await publishRollback({ config, env: "staging", s3, kvs });
+    expect(result.kind).toBe("list");
+    if (result.kind === "list") {
+      expect(result.versions).toHaveLength(3);
+    }
+    // current.json must not have changed
+    const current = await s3.getJson<CurrentJson>(currentJsonKey(config.slug));
+    expect(current?.history).toHaveLength(3);
+  });
+
+  it("in rollback mode, sets the env pointer to the specified version and updates KVS", async () => {
+    const current = await s3.getJson<CurrentJson>(currentJsonKey(config.slug));
+    const targetVersion = current!.history[2]; // oldest
+
+    await publishRollback({ config, env: "staging", versionId: targetVersion, s3, kvs });
+
+    const after = await s3.getJson<CurrentJson>(currentJsonKey(config.slug));
+    expect(after?.staging).toBe(targetVersion);
+
+    const stagingHost = `${config.slug}-staging.${config.siteDomain}`;
+    expect(kvs.entries.get(stagingHost)).toContain(targetVersion);
+  });
+
+  it("throws if versionId is not in history", async () => {
+    await expect(
+      publishRollback({ config, env: "staging", versionId: "nonexistent", s3, kvs }),
+    ).rejects.toThrow("Version nonexistent not found");
+  });
+
+  it("throws if already on that version", async () => {
+    const current = await s3.getJson<CurrentJson>(currentJsonKey(config.slug));
+    await expect(
+      publishRollback({ config, env: "staging", versionId: current!.staging, s3, kvs }),
+    ).rejects.toThrow("Already on that version");
+  });
+});

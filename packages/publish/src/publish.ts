@@ -9,6 +9,7 @@ import {
   addStagingVersion,
   computePrune,
   promoteToProduction,
+  rollbackEnv,
 } from "./versions.ts";
 
 export async function publishStaging(opts: {
@@ -127,12 +128,47 @@ export type RollbackResult =
   | { kind: "list"; versions: Array<{ versionId: string; isCurrent: boolean }> }
   | { kind: "rolled-back"; env: "staging" | "production"; versionId: string };
 
-export async function publishRollback(_opts: {
+export async function publishRollback(opts: {
   config: PublishConfig;
   env: "staging" | "production";
   versionId?: string;
   s3: S3Adapter;
   kvs: KvsAdapter;
 }): Promise<RollbackResult> {
-  throw new Error("publishRollback not yet implemented");
+  const { config, env, versionId, s3, kvs } = opts;
+
+  const current = await s3.getJson<CurrentJson>(currentJsonKey(config.slug));
+  if (!current) throw new Error("No publish history found. Run `milo publish staging` first.");
+
+  const currentVersion = current[env];
+
+  if (!versionId) {
+    const versions = current.history.map((v) => ({ versionId: v, isCurrent: v === currentVersion }));
+    console.log(`Available versions for ${env}:`);
+    for (const v of versions) {
+      console.log(`  ${v.isCurrent ? "*" : " "} ${v.versionId}${v.isCurrent ? "  (current)" : ""}`);
+    }
+    console.log(`Re-run with --version <id> to roll back.`);
+    return { kind: "list", versions };
+  }
+
+  if (!current.history.includes(versionId)) {
+    throw new Error(`Version ${versionId} not found in history.`);
+  }
+
+  if (currentVersion === versionId) {
+    throw new Error(`Already on that version (${versionId}).`);
+  }
+
+  const updated = rollbackEnv(current, env, versionId);
+  await s3.putJson(currentJsonKey(config.slug), updated);
+
+  const host =
+    env === "staging"
+      ? `${config.slug}-staging.${config.siteDomain}`
+      : `${config.slug}.${config.siteDomain}`;
+  await kvs.put(host, versionPrefix(config.slug, versionId).replace(/\/$/, ""));
+
+  console.log(`✓ Rolled back ${env} to ${versionId}`);
+  return { kind: "rolled-back", env, versionId };
 }
