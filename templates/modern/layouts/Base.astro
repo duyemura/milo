@@ -1,8 +1,8 @@
 ---
 import "@fontsource-variable/montserrat/wght.css";
 import "@fontsource-variable/inter/wght.css";
-interface Props { title: string; description: string; canonical: string; tokenCss: string }
-const { title, description, canonical, tokenCss } = Astro.props;
+interface Props { title: string; description: string; canonical: string; tokenCss: string; ogImage?: string; }
+const { title, description, canonical, tokenCss, ogImage } = Astro.props;
 ---
 <!doctype html>
 <html lang="en">
@@ -15,6 +15,14 @@ const { title, description, canonical, tokenCss } = Astro.props;
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    {ogImage && <meta property="og:image:width" content="1200" />}
+    {ogImage && <meta property="og:image:height" content="630" />}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    {ogImage && <meta name="twitter:image" content={ogImage} />}
     <style set:html={tokenCss}></style>
     <style>
       *, *::before, *::after { box-sizing: border-box; }
