@@ -21,22 +21,40 @@ beforeAll(() => {
   });
 }, 120_000);
 
-test("head SEO gate: title, meta description, canonical present", () => {
+test("head SEO gate: title, meta description, canonical, OG, twitter present", () => {
   const html = readFileSync(DIST, "utf8");
   expect(html).toMatch(/<title>[^<]+<\/title>/);
   expect(html).toMatch(/<meta name="description" content="[^"]+"/);
   expect(html).toMatch(/<link rel="canonical" href="[^"]+"/);
+  expect(html).toMatch(/property="og:url"/);
+  expect(html).toMatch(/property="og:title"/);
+  expect(html).toMatch(/name="twitter:card"/);
 });
 
 test("AEO gate: FAQPage JSON-LD is valid and well-formed", () => {
   const html = readFileSync(DIST, "utf8");
-  // Faq.astro escapes </script> as <\/script> inside the payload — unescape before parsing
   const blocks = [
     ...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g),
   ].map((m) => JSON.parse(m[1].replace(/<\\\/script>/g, "</script>")));
   const faq = blocks.find((b) => b["@type"] === "FAQPage");
   expect(faq).toBeTruthy();
   expect(faq.mainEntity.length).toBeGreaterThan(0);
+});
+
+test("AEO gate: page-level @graph has LocalBusiness, WebSite, WebPage", () => {
+  const html = readFileSync(DIST, "utf8");
+  const blocks = [
+    ...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g),
+  ].map((m) => JSON.parse(m[1].replace(/<\\\/script>/g, "</script>")));
+  const graph = blocks.find((b) => b["@graph"]);
+  expect(graph).toBeTruthy();
+  const types = graph["@graph"].map((n: any) => n["@type"]);
+  expect(types).toContain("LocalBusiness");
+  expect(types).toContain("WebSite");
+  expect(types).toContain("WebPage");
+  const lb = graph["@graph"].find((n: any) => n["@type"] === "LocalBusiness");
+  expect(lb.name).toBeTruthy();
+  expect(lb.telephone).toBeTruthy();
 });
 
 test("a11y gate: axe finds 0 serious/critical violations", async () => {

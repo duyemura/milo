@@ -30,8 +30,49 @@ export function getStaticPaths() {
 }
 
 const { page, docs } = Astro.props;
+const siteUrl = (process.env.SITE_URL ?? docs.identity.siteUrl ?? "https://example.com").replace(/\/$/, "");
+const canonical = `${siteUrl}/${page.slug === "index" ? "" : page.slug}`;
 const tokenCss = tokensToCss(docs.brand);
-const canonical = `https://example.com/${page.slug === "index" ? "" : page.slug}`;
+const ogImage = docs.identity.ogImage
+  ? docs.identity.ogImage.startsWith("http") ? docs.identity.ogImage : `${siteUrl}${docs.identity.ogImage}`
+  : undefined;
+
+// Extract location-map section data for page-level LocalBusiness schema
+const locSection = page.sections.find((s) => s.section === "location-map");
+const loc = locSection?.content as { address?: string; hours?: string[]; phone?: string } | undefined;
+
+const pageGraph = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}/#website`,
+      name: docs.identity.name,
+      url: siteUrl,
+    },
+    {
+      "@type": "WebPage",
+      "@id": canonical,
+      name: page.title,
+      description: page.meta.description,
+      url: canonical,
+      isPartOf: { "@id": `${siteUrl}/#website` },
+    },
+    {
+      "@type": "LocalBusiness",
+      "@id": `${siteUrl}/#localbusiness`,
+      name: docs.identity.name,
+      url: siteUrl,
+      ...(docs.identity.phone || loc?.phone ? { telephone: docs.identity.phone ?? loc?.phone } : {}),
+      ...(docs.identity.address || loc?.address
+        ? { address: { "@type": "PostalAddress", streetAddress: docs.identity.address ?? loc?.address } }
+        : {}),
+      ...(loc?.hours?.length ? { openingHours: loc.hours } : {}),
+      ...(docs.identity.socialProfiles?.length ? { sameAs: docs.identity.socialProfiles } : {}),
+    },
+  ],
+};
+const pageGraphJson = JSON.stringify(pageGraph).replace(/<\/script>/gi, "<\\/script>");
 
 const COMPONENTS: Record<string, unknown> = {
   hero: Hero,
@@ -52,11 +93,16 @@ const COMPONENTS: Record<string, unknown> = {
   "logo-strip": LogoStrip,
 };
 ---
-<Base title={page.title} description={page.meta.description} canonical={canonical} tokenCss={tokenCss}>
+<Base title={page.title} description={page.meta.description} canonical={canonical} tokenCss={tokenCss} ogImage={ogImage}>
+  <script type="application/ld+json" set:html={pageGraphJson}></script>
   {page.sections.map((s) => {
     const Cmp = COMPONENTS[s.section];
     if (!Cmp) throw new Error(`renderer: no component for section "${s.section}"`);
     const C = Cmp as any;
-    return <C {...(s.content as any)} />;
+    // Inject gymName into location-map for its component-level LocalBusiness schema
+    const props = s.section === "location-map"
+      ? { ...s.content, gymName: docs.identity.name }
+      : s.content;
+    return <C {...(props as any)} />;
   })}
 </Base>
