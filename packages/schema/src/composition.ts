@@ -4,8 +4,9 @@ import { BrandTokens } from "./brand-tokens.ts";
 
 /**
  * A section INSTANCE on a page: which shared section type, its content, and
- * optional per-instance overrides. Content is validated per-section-type by the
- * renderer against sections.ts; here we enforce the closed vocabulary + shape.
+ * optional per-instance overrides. Content is spread as component props by the
+ * renderer. The renderer validates content against sections.ts (Section.safeParse)
+ * before rendering.
  */
 export const SectionInstance = z.object({
   section: z.enum(SECTION_TYPES),
