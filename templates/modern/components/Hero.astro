@@ -2,14 +2,19 @@
 interface Props { heading: string; sub?: string; cta?: { label: string; href: string }; image: string }
 const { heading, sub, cta, image } = Astro.props;
 ---
-<section class="hero" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);align-items:center;padding:var(--space-lg);background:var(--color-primary);color:var(--color-surface);">
+<section class="hero">
   <div class="wrap">
-    <h1 style="font-size:clamp(2rem,5vw,3.5rem);margin:0 0 var(--space-md);">{heading}</h1>
-    {sub && <p class="sub" style="color:var(--color-surface);opacity:.85;">{sub}</p>}
-    {cta && <a class="cta" href={cta.href} style="display:inline-block;margin-top:var(--space-md);padding:var(--space-sm) var(--space-lg);background:var(--color-accent);color:var(--color-surface);border-radius:var(--radius-button);text-decoration:none;">{cta.label}</a>}
+    <h1>{heading}</h1>
+    {sub && <p class="sub">{sub}</p>}
+    {cta && <a class="cta" href={cta.href}>{cta.label}</a>}
   </div>
-  <img class="art" src={image} alt="" loading="eager" style="width:100%;height:auto;border-radius:var(--radius-card);" />
+  <img class="art" src={image} alt="" loading="eager" />
 </section>
 <style>
-  @media (max-width: 800px) { .hero { grid-template-columns: 1fr !important; } }
+  .hero { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg); align-items: center; padding: var(--space-lg); background: var(--color-primary); color: var(--color-surface); }
+  h1 { font-size: clamp(2rem, 5vw, 3.5rem); margin: 0 0 var(--space-md); }
+  .sub { color: var(--color-surface); opacity: .85; }
+  .cta { display: inline-block; margin-top: var(--space-md); padding: var(--space-sm) var(--space-lg); background: var(--color-accent); color: var(--color-surface); border-radius: var(--radius-button); text-decoration: none; }
+  .art { width: 100%; height: auto; border-radius: var(--radius-card); }
+  @media (max-width: 800px) { .hero { grid-template-columns: 1fr; } }
 </style>

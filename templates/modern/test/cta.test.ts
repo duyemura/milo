@@ -1,6 +1,12 @@
 import { test, expect } from "vitest";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import Cta from "../components/Cta.astro";
+
+const ctaSrc = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../components/Cta.astro"), "utf8");
+const ctaStyle = ctaSrc.slice(ctaSrc.indexOf("<style"));
 
 test("Cta renders heading + button, token-driven", async () => {
   const container = await AstroContainer.create();
@@ -10,5 +16,7 @@ test("Cta renders heading + button, token-driven", async () => {
   expect(html).toContain("Ready to start?");
   expect(html).toContain("Book your free intro");
   expect(html).toMatch(/href="\/start"/);
-  expect(html).toMatch(/var\(--color-/);
+  // token-driven: styles reference custom properties and use no raw hex
+  expect(ctaStyle).toMatch(/var\(--color-/);
+  expect(ctaStyle).not.toMatch(/#[0-9a-fA-F]{6}/);
 });
