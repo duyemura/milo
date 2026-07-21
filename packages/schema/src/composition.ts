@@ -24,7 +24,15 @@ export type Page = z.infer<typeof Page>;
 
 export const SiteHierarchy = z.object({ pages: z.array(Page).min(1) });
 
-export const Identity = z.object({ name: z.string().min(1), tagline: z.string().min(1) });
+export const Identity = z.object({
+  name: z.string().min(1),
+  tagline: z.string().min(1),
+  siteUrl: z.string().url().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  ogImage: z.string().optional(),
+  socialProfiles: z.array(z.string().url()).optional(),
+});
 
 export const GymDocuments = z.object({
   identity: Identity,

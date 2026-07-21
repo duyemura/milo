@@ -30,3 +30,25 @@ test("GymDocuments requires identity, brand tokens, and a hierarchy", () => {
   };
   expect(() => GymDocuments.parse(docs)).not.toThrow();
 });
+
+test("GymDocuments accepts optional identity SEO fields", () => {
+  const docs = {
+    identity: {
+      name: "Iron Anchor CrossFit",
+      tagline: "Coached strength in Denver",
+      siteUrl: "https://ironanchor.com",
+      phone: "(720) 555-0142",
+      address: "1234 Anchor St, Denver, CO 80202",
+      ogImage: "https://ironanchor.com/og.jpg",
+      socialProfiles: ["https://instagram.com/ironanchor", "https://facebook.com/ironanchor"],
+    },
+    brand: {
+      colors: { primary: "#0b1f3a", accent: "#0464fc", surface: "#ffffff", text: "#06090a", muted: "#5b6470" },
+      fonts: { display: "Montserrat", body: "Inter" },
+      space: { sm: "8px", md: "16px", lg: "32px" },
+      radius: { button: "10px", card: "12px" },
+    },
+    hierarchy: { pages: [{ slug: "index", title: "Iron Anchor", meta: { description: "CrossFit in Denver." }, sections: [{ section: "hero", content: { heading: "Get strong", image: "assets/hero.webp" } }] }] },
+  };
+  expect(() => GymDocuments.parse(docs)).not.toThrow();
+});

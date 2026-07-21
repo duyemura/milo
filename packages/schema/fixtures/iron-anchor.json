@@ -1,5 +1,13 @@
 {
-  "identity": { "name": "Iron Anchor CrossFit", "tagline": "Coached strength in Denver" },
+  "identity": {
+    "name": "Iron Anchor CrossFit",
+    "tagline": "Coached strength in Denver",
+    "siteUrl": "https://ironanchor.com",
+    "phone": "(720) 555-0142",
+    "address": "1234 Anchor St, Denver, CO 80202",
+    "ogImage": "/placeholder.svg",
+    "socialProfiles": ["https://instagram.com/ironanchor", "https://facebook.com/ironanchor"]
+  },
   "brand": {
     "colors": { "primary": "#0b1f3a", "accent": "#0464fc", "surface": "#ffffff", "text": "#06090a", "muted": "#5b6470" },
     "fonts": { "display": "Montserrat", "body": "Inter" },
