@@ -1,0 +1,53 @@
+---
+interface Props {
+  heading?: string;
+  body: string;
+}
+const { heading, body } = Astro.props;
+---
+<section class="content-block">
+  <div class="content-block__inner">
+    {heading && <h2 class="content-block__heading">{heading}</h2>}
+    <div class="content-block__body" set:html={body} />
+  </div>
+</section>
+<style>
+  .content-block {
+    padding: var(--space-xl) var(--space-md);
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+  .content-block__inner {
+    max-width: 65ch;
+    margin-inline: auto;
+  }
+  .content-block__heading {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: var(--space-md);
+    color: var(--color-primary);
+  }
+  .content-block__body {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--color-text);
+  }
+  .content-block__body :global(p) {
+    margin-bottom: var(--space-md);
+  }
+  .content-block__body :global(p:last-child) {
+    margin-bottom: 0;
+  }
+  .content-block__body :global(strong) {
+    font-weight: 600;
+    color: var(--color-primary);
+  }
+  .content-block__body :global(ul),
+  .content-block__body :global(ol) {
+    padding-left: var(--space-md);
+    margin-bottom: var(--space-md);
+  }
+  .content-block__body :global(li) {
+    margin-bottom: var(--space-xs, 0.25rem);
+  }
+</style>
