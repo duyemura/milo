@@ -1,5 +1,6 @@
 ---
 import Base from "../../../../templates/modern/layouts/Base.astro";
+import SeoHead from "../components/SeoHead.astro";
 import Hero from "../../../../templates/modern/components/Hero.astro";
 import Faq from "../../../../templates/modern/components/Faq.astro";
 import Cta from "../../../../templates/modern/components/Cta.astro";
@@ -39,7 +40,7 @@ const ogImage = id.ogImage
   ? id.ogImage.startsWith("http") ? id.ogImage : `${siteUrl}${id.ogImage}`
   : undefined;
 
-// Build structured PostalAddress — prefer addressParts, fall back to flat address string
+// Structured PostalAddress — prefer addressParts, fall back to flat string
 const postalAddress = id.addressParts
   ? {
       "@type": "PostalAddress",
@@ -57,7 +58,7 @@ const postalAddress = id.addressParts
 const locSection = page.sections.find((s) => s.section === "location-map");
 const loc = locSection?.content as { address?: string; hours?: string[]; phone?: string } | undefined;
 
-// Build sameAs array: social profiles + GBP URL
+// sameAs: social profiles + GBP URL
 const sameAs = [
   ...(id.socialProfiles ?? []),
   ...(id.googleBusinessProfileUrl ? [id.googleBusinessProfileUrl] : []),
@@ -83,62 +84,38 @@ const localBusiness: Record<string, unknown> = {
 const pageGraph = {
   "@context": "https://schema.org",
   "@graph": [
-    {
-      "@type": "WebSite",
-      "@id": `${siteUrl}/#website`,
-      name: id.name,
-      url: siteUrl,
-    },
-    {
-      "@type": "WebPage",
-      "@id": canonical,
-      name: page.title,
-      description: page.meta.description,
-      url: canonical,
-      isPartOf: { "@id": `${siteUrl}/#website` },
-    },
+    { "@type": "WebSite", "@id": `${siteUrl}/#website`, name: id.name, url: siteUrl },
+    { "@type": "WebPage", "@id": canonical, name: page.title, description: page.meta.description, url: canonical, isPartOf: { "@id": `${siteUrl}/#website` } },
     localBusiness,
   ],
 };
 const pageGraphJson = JSON.stringify(pageGraph).replace(/<\/script>/gi, "<\\/script>");
 
 const COMPONENTS: Record<string, unknown> = {
-  hero: Hero,
-  faq: Faq,
-  "cta-band": Cta,
-  "program-cards": ProgramCards,
-  "coach-grid": CoachGrid,
-  schedule: Schedule,
-  "location-map": LocationMap,
-  "stats-band": StatsBand,
-  testimonials: Testimonials,
-  pricing: Pricing,
-  "feature-grid": FeatureGrid,
-  "content-block": ContentBlock,
-  "media-block": MediaBlock,
-  "contact-form": ContactForm,
-  "lead-form": LeadForm,
+  hero: Hero, faq: Faq, "cta-band": Cta,
+  "program-cards": ProgramCards, "coach-grid": CoachGrid, schedule: Schedule,
+  "location-map": LocationMap, "stats-band": StatsBand, testimonials: Testimonials,
+  pricing: Pricing, "feature-grid": FeatureGrid, "content-block": ContentBlock,
+  "media-block": MediaBlock, "contact-form": ContactForm, "lead-form": LeadForm,
   "logo-strip": LogoStrip,
 };
 ---
-<Base
-  title={page.title}
-  description={page.meta.description}
-  canonical={canonical}
-  tokenCss={tokenCss}
-  ogImage={ogImage}
-  siteName={id.name}
-  themeColor={id.themeColor ?? docs.brand.colors.primary}
-  favicon={id.favicon}
->
-  <script type="application/ld+json" set:html={pageGraphJson}></script>
+<Base tokenCss={tokenCss}>
+  <SeoHead
+    slot="head"
+    title={page.title}
+    description={page.meta.description}
+    canonical={canonical}
+    ogImage={ogImage}
+    siteName={id.name}
+    themeColor={id.themeColor ?? docs.brand.colors.primary}
+    favicon={id.favicon}
+  />
+  <script slot="head" type="application/ld+json" set:html={pageGraphJson}></script>
   {page.sections.map((s) => {
     const Cmp = COMPONENTS[s.section];
     if (!Cmp) throw new Error(`renderer: no component for section "${s.section}"`);
     const C = Cmp as any;
-    const props = s.section === "location-map"
-      ? { ...s.content, gymName: id.name }
-      : s.content;
-    return <C {...(props as any)} />;
+    return <C {...(s.content as any)} />;
   })}
 </Base>
