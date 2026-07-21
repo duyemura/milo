@@ -45,6 +45,8 @@ The endgame is a system where a gym's **living documents** compound over time �
 
 Endgame capabilities (context — **out of Phase 1 build scope**): AI-edit assistant (P2) → content engine, blog/pillar/keyword→content (P3) → knowledge loop from PushPress data (P4) → feedback signals closing the loop (GSC/analytics/conversion → proactive rebuilds) → onboarding brand importer.
 
+**The larger endgame — a gym growth platform.** The website is the first surface of a full **lead generation & management** system that manages a gym's growth over time: paid ads + social + marketing campaigns, AI-assisted content creation, ad tracking / performance / attribution, reporting dashboards, an AI marketing assistant, lead intake + forms, lead management/CRM, and automated SMS/email nurture. The document/knowledge base is the shared spine for all of it (the site's leads and conversion data feed the same knowledge that improves rebuilds). All of this is **future** — named here so the document model and lead/forms primitives in Phase 1 don't preclude it.
+
 **Invariants Phase 1 MUST honor** (each is a corner a later phase can't un-paint):
 1. Documents are the **sole source of truth**; the site is a **pure, deterministic projection** — nothing lives only in rendered HTML.
 2. **Content docs** (what renders) are separate from **knowledge docs** (what informs); render depends only on content docs.
@@ -87,6 +89,15 @@ Discovery optimization is a **property of each component**, emitted by construct
 ### 5. Rendering (`apps/renderer`, rebuilt)
 `documents + theme + tokens → static site`. Astro build; tokens injected as CSS custom properties; blog/pillar via Astro content collections. Replaces the deleted template-registry renderer. Fast enough that "instant rebuild" and "switch template" are cheap re-renders.
 
+### 6. Interactivity, animation, Lottie (first-class, within the perf budget)
+Templates support real interactivity and motion **now**, not deferred: scroll/entrance animations, hover/interactive components, and **Lottie** animations. The constraint is that priority #1 (performance) still wins — so:
+- Prefer CSS/`@keyframes` and the Web Animations API; use JS only where needed, via **Astro islands** (component-scoped hydration), never a whole-page framework.
+- **Lottie loads lazily** (on view / after idle), players are dynamically imported, and animations are gated on `prefers-reduced-motion`.
+- Interactivity/animation is a **token-driven component property** like everything else — it degrades gracefully and never blocks the performance gate. If motion can't stay within the perf budget, the perf gate wins.
+
+### 7. Publish (`apps/publish`, later phase)
+Build output (HTML + assets) publishes to **S3**, fronted by a **CDN that dynamically routes and serves** it. Two environments per site: a **staging** (work-in-progress, viewable) version and a **production** version reached only by an **explicit publish** action (never automatic — consistent with prior staging/publish semantics). Prior infra exists (S3 `pushpress-marketing-dev` + a CloudFront viewer-request router on the `unicorn` AWS profile); **open decision:** use that existing CloudFront path or move to Cloudflare (see Open items). Publish is its own phase, after Template #1 renders locally + passes gates.
+
 ## Objective "great" bar (acceptance gates)
 Un-fudgeable, measured by standard scorers (not opinion):
 
@@ -97,16 +108,20 @@ Un-fudgeable, measured by standard scorers (not opinion):
 | AEO/GEO | Valid `FAQPage`+entity JSON-LD (Rich Results-clean); `llms.txt` present; heading/answer structure |
 | Local | Valid `LocalBusiness`+geo+hours+`aggregateRating`; location page per location |
 | a11y | axe: 0 serious/critical; WCAG AA contrast (incl. brand tokens) |
+| Motion | Animations/Lottie honor `prefers-reduced-motion`; perf gate holds with motion enabled (Lottie lazy, JS islands only) |
 | Contract | Sample gym renders through Template #1 with every shared section; blog + pillar render with schema; portability lint passes |
 
 A build is "done" only when all gates pass for the sample gym. Gates are checked-in and run in CI.
 
 ## Phasing
 
-- **Phase 1 (this plan):** the portable content contract + brand-token system + **Template #1** (discovery-native, token-skinned Astro component library implementing all shared sections + blog/pillar layouts) + a sample-gym fixture, all passing the objective gates. Knowledge-doc schemas stubbed as extension points but not populated. Rebuilt renderer.
+- **Phase 1 — contract + Template #1:** the portable content contract + brand-token system + **Template #1** (discovery-native, token-skinned Astro component library implementing all shared sections + blog/pillar layouts, **including interactivity / animation / Lottie within the perf budget**) + a sample-gym fixture, all passing the objective gates. Knowledge-doc schemas stubbed as extension points but not populated. Rebuilt renderer.
+- **Phase 1b — portability proof:** **Template #2** in a genuinely different design language (contract-stress quality — all shared sections, real second look, not necessarily full polish), then **render the sample gym through both and port between them**. This is the real proof of the portability invariant, and it replaces the earlier "skeleton theme" idea. (Build-order between 1 and 1b is the open decision below.)
+- **Publish:** `apps/publish` — S3 + CDN, **staging** (WIP, viewable) and **production** (explicit publish). Slots in once Template #1 renders + passes gates locally.
 - **Phase 2:** AI-assistant editing (safe, validated document mutations).
 - **Phase 3:** content engine (blog/pillar generation, internal linking, keyword→content).
 - **Phase 4:** knowledge-accumulation loop fed by PushPress data (members/leads/buyers) → smarter rebuilds.
+- **Beyond:** the gym growth platform (ads, social, campaigns, ad tracking/attribution, reporting, AI marketing assistant, lead intake/forms/CRM, SMS/email nurture) — all on the same document/knowledge spine.
 - **Later / optional:** onboarding brand importer (repositioned Phase 0 capture) to pre-fill content docs.
 
 ## Kept / repositioned / superseded
@@ -120,4 +135,6 @@ A build is "done" only when all gates pass for the sample gym. Gates are checked
 - Brand-token schema specifics (which roles/scales) and the contrast-validation rule.
 - Sample-gym fixture (reuse/refresh `iron-anchor`).
 - Exact Lighthouse/CWV thresholds if different from the standard targets above.
-- Whether Phase 1 includes a throwaway second "skeleton theme" to hard-prove portability, or defer full proof to real Template #2.
+- **Build order (decision pending):** build Template #1 fully → sites → then #2 (faster to first live site, but risks baking #1-isms into the "portable" contract); OR build #1 + a different #2 and port the sample gym between them first (proves the portability invariant earliest). Recommendation: the latter.
+- **CDN for Publish:** reuse existing AWS **CloudFront** router (S3 `pushpress-marketing-dev`, `unicorn` profile) or move to **Cloudflare** as stated. Prior CloudFront infra already exists in memory.
+- **Lead/forms primitives in the contract:** include a minimal `lead-form`/forms section + a lead-capture endpoint contract in Phase 1 (so the growth platform isn't precluded), or defer entirely.
