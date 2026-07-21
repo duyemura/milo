@@ -1,0 +1,26 @@
+---
+interface Props { heading?: string; items: { q: string; a: string }[] }
+const { heading = "Frequently asked questions", items } = Astro.props;
+const ld = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: items.map((it) => ({
+    "@type": "Question",
+    name: it.q,
+    acceptedAnswer: { "@type": "Answer", text: it.a },
+  })),
+};
+---
+<section class="faq">
+  <h2>{heading}</h2>
+  <dl>
+    {items.map((it) => (<div class="qa"><dt>{it.q}</dt><dd>{it.a}</dd></div>))}
+  </dl>
+  <script type="application/ld+json" set:html={JSON.stringify(ld)}></script>
+</section>
+<style>
+  .faq { padding: var(--space-lg); }
+  .qa { border-bottom: 1px solid var(--color-muted); padding: var(--space-md) 0; }
+  dt { font-weight: 700; }
+  dd { margin: var(--space-sm) 0 0; color: var(--color-muted); }
+</style>
