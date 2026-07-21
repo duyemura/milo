@@ -1,7 +1,7 @@
 import { test, expect, beforeAll, afterAll } from "vitest";
 import { execFileSync } from "node:child_process";
 import { createServer } from "node:http";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
 import path from "node:path";
 import { launch } from "chrome-launcher";
@@ -34,11 +34,17 @@ beforeAll(async () => {
 
   // Serve dist on a random port
   server = createServer((req, res) => {
-    const url = req.url === "/" ? "/index.html" : (req.url ?? "/index.html");
-    const filePath = join(DIST, url);
-    const resolved = existsSync(filePath) ? filePath : join(DIST, "index.html");
-    const ext = extname(resolved);
-    const content = readFileSync(resolved);
+    const urlPath = (req.url ?? "/").split("?")[0];
+    const url = urlPath === "/" ? "/index.html" : urlPath;
+    let filePath = join(DIST, url);
+    // Rewrite directory URLs (e.g. /about/ → /about/index.html)
+    if (!existsSync(filePath) || statSync(filePath).isDirectory()) {
+      filePath = join(filePath.replace(/\/$/, ""), "index.html");
+    }
+    // Fallback to root index for SPA-style 404s
+    if (!existsSync(filePath)) filePath = join(DIST, "index.html");
+    const ext = extname(filePath);
+    const content = readFileSync(filePath);
     res.writeHead(200, { "Content-Type": MIME[ext] ?? "application/octet-stream" });
     res.end(content);
   });
