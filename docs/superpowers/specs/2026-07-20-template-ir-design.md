@@ -1,7 +1,8 @@
 # Template IR — faithful template reproduction from a live URL
 
 **Date:** 2026-07-20
-**Status:** Approved design (brainstorm), pre-plan
+**Status:** ⚠️ SUPERSEDED (2026-07-20) by `2026-07-20-milo-template-system-design.md`.
+**Why superseded:** its goal was *visual reproduction of a client URL*. Direction changed — we do NOT clone client sites; clients fit into our own great templates. The capture pipeline built under this spec (Phase 0) survives, repositioned as a future onboarding/brand importer; the extract→render→align→pixel-eval→fix reproduction loop is abandoned. Kept for history (capture technique + the "objective, non-LLM eval" principle carry forward). See [[project_milo_direction_pivot]].
 **Supersedes:** the hand-authored template approach (`templates/modern`, `templates/blackout`) deleted 2026-07-20.
 
 ## Problem
