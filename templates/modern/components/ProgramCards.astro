@@ -14,14 +14,6 @@ interface Props {
 }
 
 const { heading, ctaLabel = "Contact Us For More Info", programs } = Astro.props;
-
-const ld = programs.map((p) => ({
-  "@context": "https://schema.org",
-  "@type": "Service",
-  name: p.name,
-  description: p.description,
-}));
-const ldJson = JSON.stringify(ld).replace(/<\/script>/gi, "<\\/script>");
 ---
 <section class="program-cards">
   {heading && <h2 class="program-cards__heading">{heading}</h2>}
@@ -48,7 +40,6 @@ const ldJson = JSON.stringify(ld).replace(/<\/script>/gi, "<\\/script>");
       </li>
     ))}
   </ul>
-  <script type="application/ld+json" set:html={ldJson}></script>
 </section>
 <style>
   .program-cards {

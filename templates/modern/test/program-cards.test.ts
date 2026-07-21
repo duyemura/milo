@@ -11,7 +11,7 @@ const src = readFileSync(
 );
 const styleBlock = src.slice(src.indexOf("<style"));
 
-test("ProgramCards renders program names and emits Service JSON-LD", async () => {
+test("ProgramCards renders program names and links", async () => {
   const container = await AstroContainer.create();
   const html = await container.renderToString(ProgramCards, {
     props: {
@@ -24,13 +24,8 @@ test("ProgramCards renders program names and emits Service JSON-LD", async () =>
   });
   expect(html).toContain("CrossFit");
   expect(html).toContain("Olympic Lifting");
-  // JSON-LD
-  const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
-  expect(m).not.toBeNull();
-  const ld = JSON.parse(m![1]);
-  // Service schema (array or single)
-  const services = Array.isArray(ld) ? ld : [ld];
-  expect(services.some((s: any) => s["@type"] === "Service")).toBe(true);
+  // Service JSON-LD is emitted by the renderer @graph, not this component
+  expect(html).not.toContain('"Service"');
   // token check — source style block must use custom properties only
   expect(styleBlock).toMatch(/var\(--color-/);
   expect(styleBlock).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
