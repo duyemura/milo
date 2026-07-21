@@ -8,7 +8,11 @@ importers:
 
   .: {}
 
-  apps/cli: {}
+  apps/cli:
+    dependencies:
+      '@milo/publish':
+        specifier: workspace:*
+        version: link:../../packages/publish
 
   apps/renderer:
     dependencies:
