@@ -48,13 +48,21 @@ test("AEO gate: page-level @graph has LocalBusiness, WebSite, WebPage", () => {
   ].map((m) => JSON.parse(m[1].replace(/<\\\/script>/g, "</script>")));
   const graph = blocks.find((b) => b["@graph"]);
   expect(graph).toBeTruthy();
-  const types = graph["@graph"].map((n: any) => n["@type"]);
+  const types = graph["@graph"].map((n: any) => [n["@type"]].flat()).flat();
   expect(types).toContain("LocalBusiness");
   expect(types).toContain("WebSite");
   expect(types).toContain("WebPage");
-  const lb = graph["@graph"].find((n: any) => n["@type"] === "LocalBusiness");
+  const lb = graph["@graph"].find((n: any) =>
+    Array.isArray(n["@type"]) ? n["@type"].includes("LocalBusiness") : n["@type"] === "LocalBusiness"
+  );
   expect(lb.name).toBeTruthy();
   expect(lb.telephone).toBeTruthy();
+  expect(Array.isArray(lb["@type"])).toBe(true);
+  expect(lb["@type"]).toContain("SportsActivityLocation");
+  expect(lb.address?.addressLocality).toBeTruthy();
+  expect(lb.geo?.latitude).toBeTruthy();
+  expect(lb.priceRange).toBeTruthy();
+  expect(lb.hasMap).toBeTruthy();
 });
 
 test("a11y gate: axe finds 0 serious/critical violations", async () => {

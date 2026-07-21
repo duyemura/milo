@@ -30,16 +30,55 @@ export function getStaticPaths() {
 }
 
 const { page, docs } = Astro.props;
-const siteUrl = (process.env.SITE_URL ?? docs.identity.siteUrl ?? "https://example.com").replace(/\/$/, "");
+const id = docs.identity;
+const siteUrl = (process.env.SITE_URL ?? id.siteUrl ?? "https://example.com").replace(/\/$/, "");
 const canonical = `${siteUrl}/${page.slug === "index" ? "" : page.slug}`;
 const tokenCss = tokensToCss(docs.brand);
-const ogImage = docs.identity.ogImage
-  ? docs.identity.ogImage.startsWith("http") ? docs.identity.ogImage : `${siteUrl}${docs.identity.ogImage}`
+
+const ogImage = id.ogImage
+  ? id.ogImage.startsWith("http") ? id.ogImage : `${siteUrl}${id.ogImage}`
   : undefined;
 
-// Extract location-map section data for page-level LocalBusiness schema
+// Build structured PostalAddress — prefer addressParts, fall back to flat address string
+const postalAddress = id.addressParts
+  ? {
+      "@type": "PostalAddress",
+      streetAddress: id.addressParts.street,
+      addressLocality: id.addressParts.city,
+      addressRegion: id.addressParts.state,
+      postalCode: id.addressParts.zip,
+      addressCountry: id.addressParts.country,
+    }
+  : id.address
+    ? { "@type": "PostalAddress", streetAddress: id.address }
+    : undefined;
+
+// Extract location-map section for opening hours fallback
 const locSection = page.sections.find((s) => s.section === "location-map");
 const loc = locSection?.content as { address?: string; hours?: string[]; phone?: string } | undefined;
+
+// Build sameAs array: social profiles + GBP URL
+const sameAs = [
+  ...(id.socialProfiles ?? []),
+  ...(id.googleBusinessProfileUrl ? [id.googleBusinessProfileUrl] : []),
+].filter(Boolean);
+
+const localBusiness: Record<string, unknown> = {
+  "@type": ["LocalBusiness", "SportsActivityLocation"],
+  "@id": `${siteUrl}/#localbusiness`,
+  name: id.name,
+  url: siteUrl,
+  ...(ogImage ? { image: ogImage } : {}),
+  ...(id.phone ?? loc?.phone ? { telephone: id.phone ?? loc?.phone } : {}),
+  ...(postalAddress ? { address: postalAddress } : {}),
+  ...(loc?.hours?.length ? { openingHours: loc.hours } : {}),
+  ...(id.priceRange ? { priceRange: id.priceRange } : {}),
+  ...(id.mapsUrl ? { hasMap: id.mapsUrl } : {}),
+  ...(id.geoCoordinates
+    ? { geo: { "@type": "GeoCoordinates", latitude: id.geoCoordinates.lat, longitude: id.geoCoordinates.lng } }
+    : {}),
+  ...(sameAs.length ? { sameAs } : {}),
+};
 
 const pageGraph = {
   "@context": "https://schema.org",
@@ -47,7 +86,7 @@ const pageGraph = {
     {
       "@type": "WebSite",
       "@id": `${siteUrl}/#website`,
-      name: docs.identity.name,
+      name: id.name,
       url: siteUrl,
     },
     {
@@ -58,18 +97,7 @@ const pageGraph = {
       url: canonical,
       isPartOf: { "@id": `${siteUrl}/#website` },
     },
-    {
-      "@type": "LocalBusiness",
-      "@id": `${siteUrl}/#localbusiness`,
-      name: docs.identity.name,
-      url: siteUrl,
-      ...(docs.identity.phone || loc?.phone ? { telephone: docs.identity.phone ?? loc?.phone } : {}),
-      ...(docs.identity.address || loc?.address
-        ? { address: { "@type": "PostalAddress", streetAddress: docs.identity.address ?? loc?.address } }
-        : {}),
-      ...(loc?.hours?.length ? { openingHours: loc.hours } : {}),
-      ...(docs.identity.socialProfiles?.length ? { sameAs: docs.identity.socialProfiles } : {}),
-    },
+    localBusiness,
   ],
 };
 const pageGraphJson = JSON.stringify(pageGraph).replace(/<\/script>/gi, "<\\/script>");
@@ -93,15 +121,23 @@ const COMPONENTS: Record<string, unknown> = {
   "logo-strip": LogoStrip,
 };
 ---
-<Base title={page.title} description={page.meta.description} canonical={canonical} tokenCss={tokenCss} ogImage={ogImage}>
+<Base
+  title={page.title}
+  description={page.meta.description}
+  canonical={canonical}
+  tokenCss={tokenCss}
+  ogImage={ogImage}
+  siteName={id.name}
+  themeColor={id.themeColor ?? docs.brand.colors.primary}
+  favicon={id.favicon}
+>
   <script type="application/ld+json" set:html={pageGraphJson}></script>
   {page.sections.map((s) => {
     const Cmp = COMPONENTS[s.section];
     if (!Cmp) throw new Error(`renderer: no component for section "${s.section}"`);
     const C = Cmp as any;
-    // Inject gymName into location-map for its component-level LocalBusiness schema
     const props = s.section === "location-map"
-      ? { ...s.content, gymName: docs.identity.name }
+      ? { ...s.content, gymName: id.name }
       : s.content;
     return <C {...(props as any)} />;
   })}
