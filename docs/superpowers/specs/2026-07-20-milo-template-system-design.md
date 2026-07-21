@@ -65,7 +65,7 @@ Typed (Zod), template-agnostic, closed shared vocabulary. Starts from the kept `
 
 - **Documents** — one typed schema per content doc (identity, brand, programs, coaches, schedule, memberships, testimonials, faq, locations, media-library, seo-profile, site-hierarchy). Knowledge-doc schemas are stubbed as an extension point but not populated in Phase 1.
 - **Composition, not fixed archetypes.** `site-hierarchy` defines pages; each **page = an ordered list of section instances**; each instance = `{ section: <shared section type>, content: <ref or inline>, overrides?: {...} }`. Archetypes become *optional starting compositions*, not rigid page types — any page can mix/reorder sections for a unique layout.
-- **Shared section vocabulary** (every theme MUST implement all): `hero, program-cards, coach-grid, schedule, testimonials, faq, cta, location, pricing, feature-grid, content-block, media-block, stats-band, logo-strip, blog-list, pillar-body`. Unknown section type fails validation.
+- **Shared section vocabulary** (every theme MUST implement all): `hero, program-cards, coach-grid, schedule, testimonials, faq, cta, lead-form, location, pricing, feature-grid, content-block, media-block, stats-band, logo-strip, blog-list, pillar-body`. Unknown section type fails validation. (`lead-form` renders a conversion form posting to a configurable endpoint; actual lead handling is deferred to the growth platform, but the section + endpoint contract exist now so it isn't precluded.)
 - **Portability lint:** documents may reference only shared section types (+ a theme's declared theme-unique component ids while that theme is selected). Content docs carry **no** theme-specific styling — that lives in tokens + theme.
 
 ### 2. Brand tokens (the skin)
@@ -135,6 +135,6 @@ A build is "done" only when all gates pass for the sample gym. Gates are checked
 - Brand-token schema specifics (which roles/scales) and the contrast-validation rule.
 - Sample-gym fixture (reuse/refresh `iron-anchor`).
 - Exact Lighthouse/CWV thresholds if different from the standard targets above.
-- **Build order (decision pending):** build Template #1 fully → sites → then #2 (faster to first live site, but risks baking #1-isms into the "portable" contract); OR build #1 + a different #2 and port the sample gym between them first (proves the portability invariant earliest). Recommendation: the latter.
-- **CDN for Publish:** reuse existing AWS **CloudFront** router (S3 `pushpress-marketing-dev`, `unicorn` profile) or move to **Cloudflare** as stated. Prior CloudFront infra already exists in memory.
-- **Lead/forms primitives in the contract:** include a minimal `lead-form`/forms section + a lead-capture endpoint contract in Phase 1 (so the growth platform isn't precluded), or defer entirely.
+- **Build order — RESOLVED (2026-07-20):** build Template #1 (full) then Template #2 in a different design language (contract-stress quality), and **port the sample gym between them before any dependent phase**. Proves the portability invariant earliest. → Phase 1 = contract + Template #1; Phase 1b = Template #2 + port; both before P2/P3/Publish.
+- **CDN for Publish — RESOLVED (2026-07-20):** reuse existing AWS **CloudFront** router (S3 `pushpress-marketing-dev`, viewer-request KVS router, `unicorn` AWS profile). Not Cloudflare.
+- **Lead/forms — RESOLVED (2026-07-20):** include a `lead-form` shared section (renders form + posts to a configurable endpoint) in Phase 1; backend lead handling deferred to the growth platform.
