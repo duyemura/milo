@@ -64,11 +64,12 @@ switch (command) {
   }
 
   case "publish": {
-    const config = await resolvePublishConfig();
-    const s3 = createRealS3Adapter({ bucket: config.bucket, region: config.region, awsProfile: config.awsProfile });
-    const kvs = createRealKvsAdapter({ kvsArn: config.kvsArn, region: config.region, awsProfile: config.awsProfile });
+    try {
+      const config = await resolvePublishConfig();
+      const s3 = createRealS3Adapter({ bucket: config.bucket, region: config.region, awsProfile: config.awsProfile });
+      const kvs = createRealKvsAdapter({ kvsArn: config.kvsArn, region: config.region, awsProfile: config.awsProfile });
 
-    switch (subcommand) {
+      switch (subcommand) {
       case "staging": {
         const distDir = flag("dist") ?? RENDERER_DIST;
         await publishStaging({ config, distDir, s3, kvs });
@@ -96,6 +97,10 @@ switch (command) {
         console.log("Usage: milo publish <staging|production|rollback|status> [flags]");
         process.exit(subcommand ? 1 : 0);
       }
+    }
+    } catch (err: unknown) {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
     }
     break;
   }

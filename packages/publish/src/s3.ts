@@ -119,31 +119,53 @@ export function createRealS3Adapter(opts: {
 
     async listVersionIds(gymSlug: string): Promise<string[]> {
       const prefix = `gyms/${gymSlug}/versions/`;
-      const result = await client.send(
-        new ListObjectsV2Command({
-          Bucket: opts.bucket,
-          Prefix: prefix,
-          Delimiter: "/",
-        }),
-      );
-      return (result.CommonPrefixes ?? [])
-        .map((p) => p.Prefix?.slice(prefix.length).replace(/\/$/, "") ?? "")
-        .filter(Boolean);
+      const ids: string[] = [];
+      let continuationToken: string | undefined;
+      do {
+        const result = await client.send(
+          new ListObjectsV2Command({
+            Bucket: opts.bucket,
+            Prefix: prefix,
+            Delimiter: "/",
+            ContinuationToken: continuationToken,
+          }),
+        );
+        for (const p of result.CommonPrefixes ?? []) {
+          const id = p.Prefix?.slice(prefix.length).replace(/\/$/, "");
+          if (id) ids.push(id);
+        }
+        continuationToken = result.NextContinuationToken;
+      } while (continuationToken);
+      return ids;
     },
 
     async deleteVersionPrefix(gymSlug: string, versionId: string): Promise<void> {
       const prefix = versionPrefix(gymSlug, versionId);
-      const list = await client.send(
-        new ListObjectsV2Command({ Bucket: opts.bucket, Prefix: prefix }),
-      );
-      const objects = (list.Contents ?? []).map((o) => ({ Key: o.Key! }));
-      if (objects.length === 0) return;
-      await client.send(
-        new DeleteObjectsCommand({
-          Bucket: opts.bucket,
-          Delete: { Objects: objects },
-        }),
-      );
+      const allObjects: { Key: string }[] = [];
+      let continuationToken: string | undefined;
+      do {
+        const list = await client.send(
+          new ListObjectsV2Command({
+            Bucket: opts.bucket,
+            Prefix: prefix,
+            ContinuationToken: continuationToken,
+          }),
+        );
+        for (const obj of list.Contents ?? []) {
+          if (obj.Key) allObjects.push({ Key: obj.Key });
+        }
+        continuationToken = list.NextContinuationToken;
+      } while (continuationToken);
+
+      for (let i = 0; i < allObjects.length; i += 1000) {
+        const batch = allObjects.slice(i, i + 1000);
+        await client.send(
+          new DeleteObjectsCommand({
+            Bucket: opts.bucket,
+            Delete: { Objects: batch },
+          }),
+        );
+      }
     },
   };
 }
