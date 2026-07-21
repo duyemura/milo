@@ -1,4 +1,6 @@
 ---
+import "@fontsource-variable/montserrat/wght.css";
+import "@fontsource-variable/inter/wght.css";
 interface Props { title: string; description: string; canonical: string; tokenCss: string }
 const { title, description, canonical, tokenCss } = Astro.props;
 ---
@@ -15,8 +17,36 @@ const { title, description, canonical, tokenCss } = Astro.props;
     <meta property="og:type" content="website" />
     <style set:html={tokenCss}></style>
     <style>
-      body { margin: 0; font-family: var(--font-body), system-ui, sans-serif; color: var(--color-text); background: var(--color-surface); }
-      h1,h2,h3 { font-family: var(--font-display), var(--font-body), sans-serif; }
+      *, *::before, *::after { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        font-family: "Inter Variable", var(--font-body), system-ui, sans-serif;
+        font-size: 1.0625rem;
+        line-height: 1.7;
+        color: var(--color-text);
+        background: var(--color-surface);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      h1, h2, h3, h4, h5, h6 {
+        font-family: "Montserrat Variable", var(--font-display), sans-serif;
+        font-weight: 800;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+        margin: 0;
+      }
+
+      p { margin: 0; }
+      img { max-width: 100%; height: auto; display: block; }
+      a { color: var(--color-accent); }
+
+      /* Global section rhythm */
+      section { padding: var(--space-xl) var(--space-lg); }
+      @media (max-width: 48rem) {
+        section { padding: var(--space-lg) var(--space-md); }
+      }
     </style>
   </head>
   <body><slot /></body>
