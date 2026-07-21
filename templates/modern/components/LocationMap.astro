@@ -6,6 +6,7 @@ interface Props {
   hours?: string[];
   phone?: string;
   cta?: { label: string; href: string };
+  gymName?: string;
 }
 
 const {
@@ -15,11 +16,13 @@ const {
   hours = [],
   phone,
   cta,
+  gymName,
 } = Astro.props;
 
 const ld: Record<string, unknown> = {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
+  ...(gymName ? { name: gymName } : {}),
   address: {
     "@type": "PostalAddress",
     streetAddress: address,
