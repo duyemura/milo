@@ -28,16 +28,16 @@ const {
     <form class="lead-form" method="post" action="#" data-form-id={formId}>
       {fields.map((field) => (
         <div class="form-field">
-          <label for={field.name}>{field.label}</label>
+          <label for={`${formId}-${field.name}`}>{field.label}</label>
           {field.kind === "textarea" ? (
             <textarea
-              id={field.name}
+              id={`${formId}-${field.name}`}
               name={field.name}
               required={field.required || undefined}
             ></textarea>
           ) : field.kind === "select" ? (
             <select
-              id={field.name}
+              id={`${formId}-${field.name}`}
               name={field.name}
               required={field.required || undefined}
             >
@@ -47,7 +47,7 @@ const {
             </select>
           ) : (
             <input
-              id={field.name}
+              id={`${formId}-${field.name}`}
               type={field.kind}
               name={field.name}
               required={field.required || undefined}
