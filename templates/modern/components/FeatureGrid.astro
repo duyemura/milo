@@ -63,11 +63,10 @@ const { variant = "default", heading, items } = Astro.props;
     gap: var(--space-sm);
   }
   .feature-grid--cards .feature-grid__item {
-    background: var(--color-surface-alt, var(--color-surface));
-    border: 1px solid var(--color-border, var(--color-surface));
-    border-radius: 0.5rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
     padding: var(--space-md);
-    box-shadow: 0 1px 4px var(--color-shadow, transparent);
   }
   .feature-grid__icon {
     font-size: 2rem;
@@ -88,10 +87,11 @@ const { variant = "default", heading, items } = Astro.props;
   .feature-grid__body {
     font-size: 0.9375rem;
     line-height: 1.6;
-    color: var(--color-text-muted, var(--color-text));
+    color: var(--color-muted);
     margin: 0;
   }
   .feature-grid--dark .feature-grid__body {
-    color: var(--color-surface-muted, var(--color-surface));
+    color: var(--color-on-primary);
+    opacity: 0.85;
   }
 </style>
