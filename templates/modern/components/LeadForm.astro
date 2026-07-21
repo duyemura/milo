@@ -1,0 +1,131 @@
+---
+interface Field {
+  name: string;
+  label: string;
+  kind: "text" | "email" | "tel" | "textarea" | "select";
+  required: boolean;
+  options?: string[];
+}
+interface Props {
+  heading: string;
+  sub?: string;
+  fields: Field[];
+  submitLabel?: string;
+  formId: string;
+}
+const {
+  heading,
+  sub,
+  fields,
+  submitLabel = "Book your free intro",
+  formId,
+} = Astro.props;
+---
+<section class="lead-form-section">
+  <div class="lead-form-inner">
+    <h2 class="lead-form-heading">{heading}</h2>
+    {sub && <p class="lead-form-sub">{sub}</p>}
+    <form class="lead-form" method="post" action="#" data-form-id={formId}>
+      {fields.map((field) => (
+        <div class="form-field">
+          <label for={field.name}>{field.label}</label>
+          {field.kind === "textarea" ? (
+            <textarea
+              id={field.name}
+              name={field.name}
+              required={field.required || undefined}
+            ></textarea>
+          ) : field.kind === "select" ? (
+            <select
+              id={field.name}
+              name={field.name}
+              required={field.required || undefined}
+            >
+              {field.options?.map((opt) => (
+                <option value={opt}>{opt}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              id={field.name}
+              type={field.kind}
+              name={field.name}
+              required={field.required || undefined}
+            />
+          )}
+        </div>
+      ))}
+      <button type="submit" class="submit-btn">{submitLabel}</button>
+    </form>
+  </div>
+</section>
+<style>
+  .lead-form-section {
+    padding: var(--space-xl) var(--space-md);
+    background: var(--color-accent);
+    color: var(--color-on-accent, var(--color-surface));
+  }
+  .lead-form-inner {
+    max-width: 36rem;
+    margin: 0 auto;
+  }
+  .lead-form-heading {
+    font-size: 2.25rem;
+    font-weight: 800;
+    margin-bottom: var(--space-sm);
+    color: var(--color-on-accent, var(--color-surface));
+  }
+  .lead-form-sub {
+    font-size: 1rem;
+    margin-bottom: var(--space-lg);
+    color: var(--color-on-accent, var(--color-surface));
+    opacity: 0.85;
+  }
+  .lead-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+  .form-field label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-on-accent, var(--color-surface));
+  }
+  .form-field input,
+  .form-field textarea,
+  .form-field select {
+    padding: var(--space-sm) var(--space-md);
+    border: none;
+    border-radius: var(--radius-sm, 0.375rem);
+    background: var(--color-surface);
+    color: var(--color-on-surface);
+    font-size: 1rem;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .form-field textarea {
+    min-height: 6rem;
+    resize: vertical;
+  }
+  .submit-btn {
+    padding: var(--space-md) var(--space-xl);
+    background: var(--color-primary);
+    color: var(--color-on-primary, var(--color-surface));
+    border: none;
+    border-radius: var(--radius-sm, 0.375rem);
+    font-size: 1.125rem;
+    font-weight: 800;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    width: 100%;
+  }
+  .submit-btn:hover {
+    opacity: 0.9;
+  }
+</style>
