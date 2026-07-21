@@ -1,0 +1,23 @@
+---
+interface Props { title: string; description: string; canonical: string; tokenCss: string }
+const { title, description, canonical, tokenCss } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <style set:html={tokenCss}></style>
+    <style>
+      body { margin: 0; font-family: var(--font-body), system-ui, sans-serif; color: var(--color-text); background: var(--color-surface); }
+      h1,h2,h3 { font-family: var(--font-display), var(--font-body), sans-serif; }
+    </style>
+  </head>
+  <body><slot /></body>
+</html>

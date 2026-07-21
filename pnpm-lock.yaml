@@ -55,6 +55,19 @@ importers:
         specifier: ^3.0.0
         version: 3.2.7(@types/debug@4.1.13)
 
+  templates/modern:
+    dependencies:
+      '@milo/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
+      astro:
+        specifier: ^5.0.0
+        version: 5.18.2(rollup@4.62.2)(typescript@5.9.3)
+    devDependencies:
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/debug@4.1.13)
+
 packages:
 
   '@astrojs/compiler@2.13.1':
