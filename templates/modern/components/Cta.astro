@@ -1,0 +1,8 @@
+---
+interface Props { heading: string; cta: { label: string; href: string } }
+const { heading, cta } = Astro.props;
+---
+<section class="cta-band" style="text-align:center;padding:var(--space-lg);background:var(--color-primary);color:var(--color-surface);">
+  <h2>{heading}</h2>
+  <a class="btn" href={cta.href} style="display:inline-block;margin-top:var(--space-md);padding:var(--space-sm) var(--space-lg);background:var(--color-accent);color:var(--color-surface);border-radius:var(--radius-button);text-decoration:none;">{cta.label}</a>
+</section>
