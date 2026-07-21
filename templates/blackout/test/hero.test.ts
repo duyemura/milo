@@ -21,6 +21,7 @@ test("Hero renders heading + CTA and uses token vars, not hardcoded color", asyn
   expect(heroStyle).not.toMatch(/#[0-9a-fA-F]{3,8}\b/); // 3/4/6/8-digit hex
   expect(heroStyle).not.toMatch(/\brgba?\s*\(/);        // rgb/rgba
   expect(heroStyle).not.toMatch(/\bhsla?\s*\(/);        // hsl/hsla
+  expect(heroStyle).not.toMatch(/:\s*(black|white|red|green|blue|yellow|orange|purple|gray|grey|transparent)\b/i);
 });
 
 test("Hero renders optional kicker", async () => {

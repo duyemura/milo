@@ -25,7 +25,8 @@ test("ContentBlock renders heading and body HTML", async () => {
   expect(styleBlock).toMatch(/var\(--color-/);
   expect(styleBlock).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   expect(styleBlock).not.toMatch(/\brgba?\s*\(/);
-  expect(styleBlock).not.toMatch(/\bhsla?\s*\(/);
+  expect(styleBlock).not.toMatch(/\bhsla?\s*\(/)
+  expect(styleBlock).not.toMatch(/:\s*(black|white|red|green|blue|yellow|orange|purple|gray|grey|transparent)\b/i);;
   // accent left border on heading
   expect(styleBlock).toContain("var(--color-accent)");
   // Oswald font

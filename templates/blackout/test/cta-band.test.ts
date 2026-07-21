@@ -21,4 +21,5 @@ test("CtaBand renders heading + button, token-driven", async () => {
   expect(styleBlock).not.toMatch(/#[0-9a-fA-F]{3,8}\b/); // 3/4/6/8-digit hex
   expect(styleBlock).not.toMatch(/\brgba?\s*\(/);        // rgb/rgba
   expect(styleBlock).not.toMatch(/\bhsla?\s*\(/);        // hsl/hsla
+  expect(styleBlock).not.toMatch(/:\s*(black|white|red|green|blue|yellow|orange|purple|gray|grey|transparent)\b/i);
 });

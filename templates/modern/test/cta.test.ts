@@ -21,4 +21,5 @@ test("Cta renders heading + button, token-driven", async () => {
   expect(ctaStyle).not.toMatch(/#[0-9a-fA-F]{3,8}\b/); // 3/4/6/8-digit hex
   expect(ctaStyle).not.toMatch(/\brgba?\s*\(/);        // rgb/rgba
   expect(ctaStyle).not.toMatch(/\bhsla?\s*\(/);        // hsl/hsla
+  expect(ctaStyle).not.toMatch(/:\s*(black|white|red|green|blue|yellow|orange|purple|gray|grey|transparent)\b/i);
 });

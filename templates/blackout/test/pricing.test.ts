@@ -43,7 +43,8 @@ test("Pricing renders plan names, prices, and features", async () => {
   expect(styleBlock).toMatch(/var\(--color-/);
   expect(styleBlock).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   expect(styleBlock).not.toMatch(/\brgba?\s*\(/);
-  expect(styleBlock).not.toMatch(/\bhsla?\s*\(/);
+  expect(styleBlock).not.toMatch(/\bhsla?\s*\(/)
+  expect(styleBlock).not.toMatch(/:\s*(black|white|red|green|blue|yellow|orange|purple|gray|grey|transparent)\b/i);;
   // Blackout-specific: sharp edges — border-radius must be 0
   expect(styleBlock).toMatch(/border-radius:\s*0/);
   // Oswald font

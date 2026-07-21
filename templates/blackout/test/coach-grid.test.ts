@@ -31,6 +31,7 @@ test("CoachGrid renders coach names and roles", async () => {
   expect(styleSrc).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   expect(styleSrc).not.toMatch(/\brgba?\s*\(/);
   expect(styleSrc).not.toMatch(/\bhsla?\s*\(/);
+  expect(styleSrc).not.toMatch(/:\s*(black|white|red|green|blue|yellow|orange|purple|gray|grey|transparent)\b/i);
 });
 
 test("CoachGrid renders photo img when provided, avatar initials when not", async () => {
