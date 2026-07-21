@@ -82,7 +82,14 @@ KVS is updated on every `publish staging`, `publish production`, and `publish ro
 
 ## Commands
 
-All commands accept `--gym <path>` (default: `./gym.json`) and `--dist <path>` (default: `./apps/renderer/dist`).
+```
+milo publish staging    [--gym <path>] [--dist <path>]
+milo publish production [--gym <path>]
+milo publish rollback   --env staging|production [--version <id>] [--gym <path>]
+milo publish status     [--gym <path>]
+```
+
+`--gym` defaults to `./gym.json`. `--dist` defaults to `./apps/renderer/dist`.
 
 ### `milo publish staging`
 
@@ -107,17 +114,45 @@ All commands accept `--gym <path>` (default: `./gym.json`) and `--dist <path>` (
 5. Update KVS entry for `{slug}.{domain}`
 6. Print: `✓ Production live: https://iron-anchor-4s1a.sites.pushpress.com`
 
-### `milo publish rollback [--env staging|production]`
+### `milo publish rollback --env staging|production [--version <versionId>]`
 
-Default env: `staging`
+`--env` is required (no default — forces explicit intent).
 
+**Without `--version`** — list mode:
 1. Read `current.json`
-2. Find the version before the current one for that env in `history`
-3. If no prior version → exit: `"No previous version to roll back to"`
-4. Set the env pointer to the prior version
+2. Print all versions in `history` with their timestamps and which is currently active for the requested env:
+   ```
+   Available versions for staging:
+     * 2026-07-21T11-00-00Z  (current)
+       2026-07-20T09-00-00Z
+       2026-07-19T14-00-00Z
+   Re-run with --version <id> to roll back.
+   ```
+3. Exit without making changes
+
+**With `--version <versionId>`** — execute rollback:
+1. Read `current.json`
+2. Validate `versionId` exists in `history` — exit with error if not found
+3. If `versionId` is already the active version for that env → exit: `"Already on that version"`
+4. Set the env pointer to `versionId`
 5. Write updated `current.json`
 6. Update KVS entry for that env's host
 7. Print: `✓ Rolled back staging to 2026-07-20T09-00-00Z`
+
+### `milo publish status [--gym <path>]`
+
+1. Read `publish.json` to get the slug and domain
+2. Read `current.json` from S3
+3. Print:
+   ```
+   Gym:        Iron Anchor CrossFit (iron-anchor-4s1a)
+   Staging:    https://iron-anchor-4s1a-staging.sites.pushpress.com
+               version: 2026-07-21T11-00-00Z
+   Production: https://iron-anchor-4s1a.sites.pushpress.com
+               version: 2026-07-20T09-00-00Z
+   History:    3 versions stored (10 max)
+   ```
+4. If staging and production point to the same version, note: `(staging and production in sync)`
 
 ---
 
@@ -127,6 +162,7 @@ Default env: `staging`
 - Prune runs after every `publish staging`
 - A version is prunable only if it is not referenced by `staging` or `production` in `current.json`
 - Prune = delete all S3 objects under `gyms/{slug}/versions/{versionId}/` + remove from `history`
+- **Orphan cleanup**: prune also lists all version prefixes directly from S3 (via `ListObjectsV2` with `/versions/` delimiter) and deletes any prefix not present in `history` — catches incomplete uploads that never made it into `current.json`
 
 ---
 
@@ -159,7 +195,7 @@ Priority: CLI flags > `publish.json` > env vars > defaults
 | `bucket` | `pushpress-marketing-dev` |
 | `region` | `us-east-1` |
 | `awsProfile` | `unicorn` |
-| `kvsArn` | — (required; read from `publish.json`) |
+| `kvsArn` | — (required; `CLOUDFRONT_KVS_ARN` env var or `--kvs-arn` flag on first run, then saved to `publish.json`) |
 | `siteDomain` | `sites.pushpress.com` |
 
 ---
@@ -184,7 +220,7 @@ Unit tests (no live AWS):
 
 - `slugify.ts` — deterministic output, collision-resistance property, kebab normalization edge cases
 - `versions.ts` — version ID format, `current.json` round-trip, prune logic (never prune active pointers, prune oldest beyond 10)
-- `publish.ts` — staging flow, production promote, rollback, each error case — all with injected fake S3 + KVS clients
+- `publish.ts` — staging flow, production promote, status output, rollback list mode, rollback to specific version, rollback to invalid version, each error case — all with injected fake S3 + KVS clients
 
 No integration tests against real AWS in CI. A manual smoke test against `pushpress-marketing-dev` bucket using the `unicorn` profile serves as the integration check.
 
