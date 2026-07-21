@@ -65,3 +65,41 @@ describe("publishStaging", () => {
     ).rejects.toThrow("Run the renderer build first");
   });
 });
+
+describe("publishProduction", () => {
+  let s3: FakeS3Adapter;
+  let kvs: FakeKvsAdapter;
+
+  beforeEach(async () => {
+    s3 = new FakeS3Adapter();
+    kvs = new FakeKvsAdapter();
+    // seed a staging publish first
+    let counter = 0;
+    const generateId = () => `v${++counter}`;
+    await publishStaging({ config, distDir: "/tmp", s3, kvs, generateId });
+  });
+
+  it("sets production pointer to match staging and updates KVS production entry", async () => {
+    await publishProduction({ config, s3, kvs });
+
+    const current = await s3.getJson<CurrentJson>(currentJsonKey(config.slug));
+    expect(current?.production).toBe(current?.staging);
+
+    const productionHost = `${config.slug}.${config.siteDomain}`;
+    expect(kvs.entries.get(productionHost)).toBeTruthy();
+  });
+
+  it("exits early if production already matches staging", async () => {
+    await publishProduction({ config, s3, kvs });
+    await expect(
+      publishProduction({ config, s3, kvs }),
+    ).rejects.toThrow("Production is already up to date with staging");
+  });
+
+  it("throws if current.json does not exist yet", async () => {
+    const freshS3 = new FakeS3Adapter();
+    await expect(
+      publishProduction({ config, s3: freshS3, kvs }),
+    ).rejects.toThrow("No staging version found");
+  });
+});

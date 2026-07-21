@@ -8,6 +8,7 @@ import {
   generateVersionId,
   addStagingVersion,
   computePrune,
+  promoteToProduction,
 } from "./versions.ts";
 
 export async function publishStaging(opts: {
@@ -51,13 +52,29 @@ export async function publishStaging(opts: {
   console.log(`Staging live: ${stagingUrl}`);
 }
 
-// Stubs — implemented in later tasks
-export async function publishProduction(_opts: {
+export async function publishProduction(opts: {
   config: PublishConfig;
   s3: S3Adapter;
   kvs: KvsAdapter;
 }): Promise<void> {
-  throw new Error("publishProduction not yet implemented");
+  const { config, s3, kvs } = opts;
+
+  const existing = await s3.getJson<CurrentJson>(currentJsonKey(config.slug));
+  if (!existing?.staging) {
+    throw new Error("No staging version found. Run `milo publish staging` first.");
+  }
+
+  if (existing.production === existing.staging) {
+    throw new Error("Production is already up to date with staging.");
+  }
+
+  const updated = promoteToProduction(existing);
+  await s3.putJson(currentJsonKey(config.slug), updated);
+
+  const productionHost = `${config.slug}.${config.siteDomain}`;
+  await kvs.put(productionHost, versionPrefix(config.slug, existing.staging).replace(/\/$/, ""));
+
+  console.log(`✓ Production live: https://${productionHost}`);
 }
 
 export interface PublishStatusResult {
