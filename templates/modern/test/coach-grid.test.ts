@@ -11,7 +11,7 @@ const componentSrc = readFileSync(
 );
 const styleSrc = componentSrc.slice(componentSrc.indexOf("<style"));
 
-test("CoachGrid renders coach names and emits Person JSON-LD", async () => {
+test("CoachGrid renders coach names and roles", async () => {
   const container = await AstroContainer.create();
   const html = await container.renderToString(CoachGrid, {
     props: {
@@ -24,10 +24,8 @@ test("CoachGrid renders coach names and emits Person JSON-LD", async () => {
   });
   expect(html).toContain("Jane Smith");
   expect(html).toContain("Bob Lee");
-  // Person JSON-LD
-  const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => JSON.parse(m[1]));
-  const people = blocks.flat().filter((b: any) => b["@type"] === "Person");
-  expect(people.length).toBeGreaterThanOrEqual(2);
+  // Person JSON-LD is emitted by the renderer @graph, not this component
+  expect(html).not.toContain('"Person"');
   // token check — read from source since Astro container strips <style> in SSR
   expect(styleSrc).toMatch(/var\(--color-/);
   expect(styleSrc).not.toMatch(/#[0-9a-fA-F]{6}/);

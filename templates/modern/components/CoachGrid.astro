@@ -23,21 +23,7 @@ function initials(name: string): string {
     .join("");
 }
 
-const ldPersons = coaches.map((coach) => {
-  const person: Record<string, string> = {
-    "@context": "https://schema.org",
-    "@type": "Person",
-    name: coach.name,
-  };
-  if (coach.role) person.jobTitle = coach.role;
-  if (coach.bio) person.description = coach.bio;
-  return person;
-});
 
-// Escape </script> to prevent JSON-LD breakout
-function safeJson(obj: unknown): string {
-  return JSON.stringify(obj).replace(/<\/script>/gi, "<\\/script>");
-}
 ---
 <section class="coach-grid">
   {heading && <h2 class="coach-grid__heading">{heading}</h2>}
@@ -71,7 +57,6 @@ function safeJson(obj: unknown): string {
             </ul>
           )}
         </div>
-        <script type="application/ld+json" set:html={safeJson(ldPersons[i])}></script>
       </li>
     ))}
   </ul>
