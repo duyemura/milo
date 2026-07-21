@@ -11,12 +11,14 @@ interface Props {
   sub?: string;
   fields: Field[];
   submitLabel?: string;
+  sectionId?: string;
 }
 const {
   heading,
   sub,
   fields,
   submitLabel = "Send message",
+  sectionId = "contact-form",
 } = Astro.props;
 ---
 <section class="contact-form-section">
@@ -25,16 +27,16 @@ const {
   <form class="contact-form" method="post" action="#">
     {fields.map((field) => (
       <div class="form-field">
-        <label for={field.name}>{field.label}</label>
+        <label for={`${sectionId}-${field.name}`}>{field.label}</label>
         {field.kind === "textarea" ? (
           <textarea
-            id={field.name}
+            id={`${sectionId}-${field.name}`}
             name={field.name}
             required={field.required || undefined}
           ></textarea>
         ) : field.kind === "select" ? (
           <select
-            id={field.name}
+            id={`${sectionId}-${field.name}`}
             name={field.name}
             required={field.required || undefined}
           >
@@ -44,7 +46,7 @@ const {
           </select>
         ) : (
           <input
-            id={field.name}
+            id={`${sectionId}-${field.name}`}
             type={field.kind}
             name={field.name}
             required={field.required || undefined}
