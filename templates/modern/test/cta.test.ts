@@ -16,7 +16,9 @@ test("Cta renders heading + button, token-driven", async () => {
   expect(html).toContain("Ready to start?");
   expect(html).toContain("Book your free intro");
   expect(html).toMatch(/href="\/start"/);
-  // token-driven: styles reference custom properties and use no raw hex
+  // token-driven: styles reference custom properties and use no raw color literals
   expect(ctaStyle).toMatch(/var\(--color-/);
-  expect(ctaStyle).not.toMatch(/#[0-9a-fA-F]{6}/);
+  expect(ctaStyle).not.toMatch(/#[0-9a-fA-F]{3,8}\b/); // 3/4/6/8-digit hex
+  expect(ctaStyle).not.toMatch(/\brgba?\s*\(/);        // rgb/rgba
+  expect(ctaStyle).not.toMatch(/\bhsla?\s*\(/);        // hsl/hsla
 });

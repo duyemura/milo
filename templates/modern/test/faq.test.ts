@@ -16,3 +16,19 @@ test("Faq renders items and emits valid FAQPage JSON-LD", async () => {
   expect(ld.mainEntity[0]["@type"]).toBe("Question");
   expect(ld.mainEntity[0].acceptedAnswer["@type"]).toBe("Answer");
 });
+
+test("Faq escapes </script> inside JSON-LD to prevent breakout/XSS", async () => {
+  const container = await AstroContainer.create();
+  const html = await container.renderToString(Faq, {
+    props: { items: [{ q: "Embed?", a: "Use </script> carefully." }] },
+  });
+  // The literal answer text must appear escaped, not as a raw closing tag inside the JSON.
+  expect(html).toContain("<\\/script>");
+  // Isolate the JSON-LD payload and confirm it has no raw </script> that would break out early.
+  const scriptOpen = html.indexOf('<script type="application/ld+json">');
+  const payloadStart = html.indexOf(">", scriptOpen) + 1;
+  const payloadEnd = html.indexOf("</script>", payloadStart);
+  const payload = html.slice(payloadStart, payloadEnd);
+  expect(payload).not.toContain("</script>");
+  expect(payload).toContain("<\\/script>");
+});
