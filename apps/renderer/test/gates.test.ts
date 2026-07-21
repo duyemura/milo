@@ -1,0 +1,86 @@
+import { test, expect, beforeAll } from "vitest";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { chromium } from "playwright";
+
+const require = createRequire(import.meta.url);
+// axe-core is CJS; createRequire gives us the .source string to inject into the page
+const axe = require("axe-core") as { source: string };
+
+const RENDERER = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const DIST = path.join(RENDERER, "dist", "index.html");
+const GYM = path.resolve(RENDERER, "../../packages/schema/fixtures/iron-anchor.json");
+
+beforeAll(() => {
+  execFileSync("pnpm", ["build"], {
+    cwd: RENDERER,
+    env: { ...process.env, GYM_JSON: GYM },
+    stdio: "inherit",
+  });
+}, 120_000);
+
+test("head SEO gate: title, meta description, canonical, OG, twitter present", () => {
+  const html = readFileSync(DIST, "utf8");
+  expect(html).toMatch(/<title>[^<]+<\/title>/);
+  expect(html).toMatch(/<meta name="description" content="[^"]+"/);
+  expect(html).toMatch(/<link rel="canonical" href="[^"]+"/);
+  expect(html).toMatch(/property="og:url"/);
+  expect(html).toMatch(/property="og:title"/);
+  expect(html).toMatch(/name="twitter:card"/);
+});
+
+test("AEO gate: FAQPage JSON-LD is in @graph, valid and well-formed", () => {
+  const html = readFileSync(DIST, "utf8");
+  const blocks = [
+    ...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g),
+  ].map((m) => JSON.parse(m[1].replace(/<\\\/script>/g, "</script>")));
+  const graph = blocks.find((b) => b["@graph"]);
+  expect(graph).toBeTruthy();
+  const faq = graph["@graph"].find((n: any) => n["@type"] === "FAQPage");
+  expect(faq).toBeTruthy();
+  expect(faq.mainEntity.length).toBeGreaterThan(0);
+  expect(faq.mainEntity[0]["@type"]).toBe("Question");
+  // Service and Person nodes also present in @graph
+  const types = graph["@graph"].map((n: any) => n["@type"]).flat();
+  expect(types).toContain("Service");
+  expect(types).toContain("Person");
+});
+
+test("AEO gate: page-level @graph has LocalBusiness, WebSite, WebPage", () => {
+  const html = readFileSync(DIST, "utf8");
+  const blocks = [
+    ...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g),
+  ].map((m) => JSON.parse(m[1].replace(/<\\\/script>/g, "</script>")));
+  const graph = blocks.find((b) => b["@graph"]);
+  expect(graph).toBeTruthy();
+  const types = graph["@graph"].map((n: any) => [n["@type"]].flat()).flat();
+  expect(types).toContain("LocalBusiness");
+  expect(types).toContain("WebSite");
+  expect(types).toContain("WebPage");
+  const lb = graph["@graph"].find((n: any) =>
+    Array.isArray(n["@type"]) ? n["@type"].includes("LocalBusiness") : n["@type"] === "LocalBusiness"
+  );
+  expect(lb.name).toBeTruthy();
+  expect(lb.telephone).toBeTruthy();
+  expect(Array.isArray(lb["@type"])).toBe(true);
+  expect(lb["@type"]).toContain("SportsActivityLocation");
+  expect(lb.address?.addressLocality).toBeTruthy();
+  expect(lb.geo?.latitude).toBeTruthy();
+  expect(lb.priceRange).toBeTruthy();
+  expect(lb.hasMap).toBeTruthy();
+});
+
+test("a11y gate: axe finds 0 serious/critical violations", async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  await page.goto("file://" + DIST);
+  await page.addScriptTag({ content: axe.source });
+  const results = await page.evaluate(async () => await (window as any).axe.run());
+  await browser.close();
+  const severe = results.violations.filter(
+    (v: any) => v.impact === "serious" || v.impact === "critical",
+  );
+  expect(severe, JSON.stringify(severe.map((v: any) => v.id))).toHaveLength(0);
+}, 30_000);

@@ -1,0 +1,85 @@
+---
+interface Cta {
+  label: string;
+  href: string;
+}
+interface Props {
+  heading: string;
+  body: string;
+  image: string;
+  mediaSide?: "left" | "right";
+  cta?: Cta;
+}
+const { heading, body, image, mediaSide = "right", cta } = Astro.props;
+---
+<section class:list={["media-block", `media-block--${mediaSide}`]}>
+  <div class="media-block__text">
+    <h2 class="media-block__heading">{heading}</h2>
+    <p class="media-block__body">{body}</p>
+    {cta && (
+      <a class="media-block__cta" href={cta.href}>{cta.label}</a>
+    )}
+  </div>
+  <div class="media-block__media">
+    <img class="media-block__img" src={image} alt="" loading="lazy" />
+  </div>
+</section>
+<style>
+  .media-block {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xl);
+    align-items: center;
+    padding: var(--space-xl) var(--space-md);
+    max-width: 72rem;
+    margin-inline: auto;
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+  /* image on left: swap column order */
+  .media-block--left .media-block__media {
+    order: -1;
+  }
+  .media-block__heading {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: var(--space-md);
+    color: var(--color-primary);
+  }
+  .media-block__body {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--color-text);
+    margin-bottom: var(--space-lg);
+  }
+  .media-block__cta {
+    display: inline-block;
+    padding: var(--space-sm) var(--space-lg);
+    background: var(--color-accent);
+    color: var(--color-surface);
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: 0.25rem;
+  }
+  .media-block__cta:hover {
+    opacity: 0.9;
+  }
+  .media-block__img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 0.5rem;
+    object-fit: cover;
+  }
+  @media (max-width: 48rem) {
+    .media-block {
+      grid-template-columns: 1fr;
+    }
+    .media-block--left .media-block__media {
+      order: 0;
+    }
+    .media-block__media {
+      order: -1;
+    }
+  }
+</style>

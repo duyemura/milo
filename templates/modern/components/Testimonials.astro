@@ -1,0 +1,113 @@
+---
+interface Review {
+  name: string;
+  quote: string;
+  source?: string;
+  rating: number;
+}
+
+interface Props {
+  heading: string;
+  reviews: Review[];
+}
+
+const { heading, reviews } = Astro.props;
+
+function stars(rating: number) {
+  const filled = Math.min(5, Math.max(0, Math.round(rating)));
+  return "★".repeat(filled) + "☆".repeat(5 - filled);
+}
+---
+<section class="testimonials">
+  <h2 class="testimonials__heading">{heading}</h2>
+  <ul class="testimonials__grid">
+    {reviews.map((review) => (
+      <li class="testimonials__card">
+        <p class="testimonials__quote">{review.quote}</p>
+        <footer class="testimonials__footer">
+          <span class="testimonials__stars" aria-label={`${review.rating} out of 5 stars`}>{stars(review.rating)}</span>
+          <span class="testimonials__name">{review.name}</span>
+          {review.source && <span class="testimonials__source">{review.source}</span>}
+        </footer>
+      </li>
+    ))}
+  </ul>
+</section>
+<style>
+  .testimonials {
+    /* Base rhythm from layout; no padding override needed */
+  }
+
+  .testimonials__heading {
+    text-align: center;
+    margin-bottom: var(--space-md);
+    color: var(--color-text);
+  }
+
+  .testimonials__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-md);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .testimonials__card {
+    background: var(--color-surface);
+    border-radius: var(--radius-card);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 2px 12px -4px var(--color-muted);
+    padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .testimonials__quote {
+    color: var(--color-text);
+    margin: 0;
+    flex: 1;
+    font-style: italic;
+    font-size: 1.0625rem;
+    position: relative;
+  }
+
+  .testimonials__quote::before {
+    content: "\201C";
+    display: block;
+    font-size: 3rem;
+    line-height: 0;
+    margin-bottom: var(--space-sm);
+    color: var(--color-accent);
+    font-style: normal;
+  }
+
+  .testimonials__footer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .testimonials__stars {
+    color: var(--color-accent);
+    font-size: 1.125rem;
+    letter-spacing: 0.05em;
+  }
+
+  .testimonials__name {
+    font-family: "Montserrat Variable", var(--font-display), sans-serif;
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+
+  .testimonials__source {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    background: var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0.125rem var(--space-xs);
+    align-self: flex-start;
+  }
+</style>

@@ -1,0 +1,150 @@
+---
+interface Coach {
+  name: string;
+  role?: string;
+  bio?: string;
+  photo?: string;
+  certs?: string[];
+}
+interface Props {
+  heading?: string;
+  coaches: Coach[];
+}
+const { heading, coaches } = Astro.props;
+
+function initials(name: string): string {
+  return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+}
+---
+<section class="coach-grid">
+  {heading && <h2 class="coach-grid__heading">{heading}</h2>}
+  <ul class="coach-grid__list">
+    {coaches.map((coach) => (
+      <li class="coach-grid__card">
+        <div class="coach-grid__media">
+          {coach.photo ? (
+            <img src={coach.photo} alt={coach.name} class="coach-grid__photo" loading="lazy" decoding="async" />
+          ) : (
+            <div class="coach-grid__avatar" aria-hidden="true">{initials(coach.name)}</div>
+          )}
+        </div>
+        <div class="coach-grid__body">
+          <p class="coach-grid__name">{coach.name}</p>
+          {coach.role && <p class="coach-grid__role">{coach.role}</p>}
+          {coach.bio && <p class="coach-grid__bio">{coach.bio}</p>}
+          {coach.certs && coach.certs.length > 0 && (
+            <ul class="coach-grid__certs">
+              {coach.certs.map((cert) => <li class="coach-grid__cert">{cert}</li>)}
+            </ul>
+          )}
+        </div>
+      </li>
+    ))}
+  </ul>
+</section>
+<style>
+  .coach-grid__heading {
+    margin-bottom: var(--space-lg);
+    color: var(--color-on-primary);
+    text-align: center;
+  }
+
+  .coach-grid__list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-md);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  @media (max-width: 768px) {
+    .coach-grid__list { grid-template-columns: 1fr; }
+  }
+  @media (min-width: 769px) and (max-width: 1024px) {
+    .coach-grid__list { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .coach-grid__card {
+    background: var(--color-primary);
+    border-top: 4px solid var(--color-accent);
+    border-radius: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .coach-grid__media {
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .coach-grid__photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .coach-grid__avatar {
+    font-family: "Oswald", system-ui, sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    letter-spacing: 0.05em;
+  }
+
+  .coach-grid__body {
+    padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    flex: 1;
+    border-left: 4px solid var(--color-accent);
+  }
+
+  .coach-grid__name {
+    font-family: "Oswald", system-ui, sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-on-primary);
+    margin: 0;
+  }
+
+  .coach-grid__role {
+    color: var(--color-accent);
+    font-size: 0.875rem;
+    margin: 0;
+  }
+
+  .coach-grid__bio {
+    color: var(--color-on-primary);
+    opacity: 0.75;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .coach-grid__certs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .coach-grid__cert {
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2em 0.6em;
+    border-radius: 0;
+  }
+</style>

@@ -1,0 +1,9 @@
+{
+  "name": "@milo/template-blackout",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "vitest run" },
+  "dependencies": { "astro": "^5.0.0", "@milo/schema": "workspace:*", "@fontsource/oswald": "^5.0.0" },
+  "devDependencies": { "vitest": "^3.0.0" }
+}

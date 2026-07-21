@@ -1,0 +1,63 @@
+---
+interface Stat { value: string; label: string }
+interface Props { stats: Stat[] }
+const { stats } = Astro.props;
+---
+<section class="stats-band">
+  {stats.map((stat) => (
+    <div class="stat-item">
+      <span class="stat-value">{stat.value}</span>
+      <span class="stat-label">{stat.label}</span>
+    </div>
+  ))}
+</section>
+<style>
+  .stats-band {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    background: var(--color-primary);
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-lg) var(--space-xl);
+    flex: 1;
+    min-width: 10rem;
+    position: relative;
+  }
+
+  .stat-item::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 25%;
+    height: 50%;
+    width: 1px;
+    background: var(--color-on-primary);
+    opacity: 0.15;
+  }
+
+  .stat-item:last-child::after {
+    display: none;
+  }
+
+  .stat-value {
+    font-family: "Montserrat Variable", var(--font-display), sans-serif;
+    font-size: 3rem;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--color-accent);
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-surface);
+    opacity: 0.7;
+  }
+</style>

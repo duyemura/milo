@@ -1,0 +1,126 @@
+---
+interface Plan {
+  name: string;
+  price: string;
+  period?: string;
+  features: string[];
+  cta?: { label: string; href: string };
+  featured: boolean;
+}
+
+interface Props {
+  heading?: string;
+  plans: Plan[];
+}
+
+const { heading, plans } = Astro.props;
+---
+<section class="pricing">
+  {heading && <h2 class="pricing__heading">{heading}</h2>}
+  <ul class="pricing__grid">
+    {plans.map((plan) => (
+      <li class={`pricing__card${plan.featured ? " pricing__card--featured" : ""}`}>
+        <h3 class="pricing__plan-name">{plan.name}</h3>
+        <div class="pricing__price-row">
+          <span class="pricing__price">{plan.price}</span>
+          {plan.period && <span class="pricing__period">{plan.period}</span>}
+        </div>
+        <ul class="pricing__features">
+          {plan.features.map((feature) => (
+            <li class="pricing__feature">{feature}</li>
+          ))}
+        </ul>
+        {plan.cta && (
+          <a class="pricing__cta" href={plan.cta.href}>{plan.cta.label}</a>
+        )}
+      </li>
+    ))}
+  </ul>
+</section>
+<style>
+  .pricing {
+    padding: var(--space-lg);
+  }
+  .pricing__heading {
+    text-align: center;
+    margin-bottom: var(--space-md);
+    color: var(--color-text);
+  }
+  .pricing__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--space-md);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .pricing__card {
+    background: var(--color-surface);
+    border-radius: var(--radius-card);
+    padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    border: 2px solid transparent;
+  }
+  .pricing__card--featured {
+    border-color: var(--color-accent);
+    background: var(--color-primary);
+    color: var(--color-surface);
+  }
+  .pricing__plan-name {
+    margin: 0;
+    color: var(--color-accent);
+  }
+  .pricing__card--featured .pricing__plan-name {
+    color: var(--color-accent);
+  }
+  .pricing__price-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+  }
+  .pricing__price {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-text);
+  }
+  .pricing__card--featured .pricing__price {
+    color: var(--color-surface);
+  }
+  .pricing__period {
+    font-size: 0.875rem;
+    color: var(--color-muted);
+  }
+  .pricing__card--featured .pricing__period {
+    color: var(--color-surface);
+  }
+  .pricing__features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+  .pricing__feature {
+    color: var(--color-text);
+    font-size: 0.9375rem;
+  }
+  .pricing__card--featured .pricing__feature {
+    color: var(--color-surface);
+  }
+  .pricing__cta {
+    display: inline-block;
+    margin-top: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-accent);
+    color: var(--color-surface);
+    border-radius: var(--radius-button);
+    text-decoration: none;
+    font-weight: 600;
+    text-align: center;
+  }
+</style>

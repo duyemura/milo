@@ -1,0 +1,103 @@
+---
+interface Item {
+  title: string;
+  body?: string;
+  icon?: string;
+}
+interface Props {
+  variant?: "default" | "numbered" | "cards" | "dark";
+  heading?: string;
+  items: Item[];
+}
+const { variant = "default", heading, items } = Astro.props;
+---
+<section class:list={["feature-grid", `feature-grid--${variant}`]}>
+  {heading && <h2 class="feature-grid__heading">{heading}</h2>}
+  <ul class="feature-grid__list">
+    {items.map((item, i) => (
+      <li class="feature-grid__item">
+        {variant === "numbered" ? (
+          <span class="feature-grid__number">{String(i + 1).padStart(2, "0")}</span>
+        ) : item.icon ? (
+          <span class="feature-grid__icon">{item.icon}</span>
+        ) : null}
+        <h3 class="feature-grid__title">{item.title}</h3>
+        {item.body && <p class="feature-grid__body">{item.body}</p>}
+      </li>
+    ))}
+  </ul>
+</section>
+<style>
+  .feature-grid {
+    padding: var(--space-xl) var(--space-md);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+  }
+
+  .feature-grid__heading {
+    text-align: center;
+    margin-bottom: var(--space-lg);
+    font-size: 2rem;
+    color: var(--color-on-primary);
+  }
+
+  .feature-grid__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--space-lg);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-width: 72rem;
+    margin-inline: auto;
+  }
+
+  .feature-grid__item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    border-left: 4px solid var(--color-accent);
+    padding-left: var(--space-md);
+  }
+
+  .feature-grid--cards .feature-grid__item {
+    border-left: 4px solid var(--color-accent);
+    border-top: none;
+    padding: var(--space-md);
+    padding-left: var(--space-md);
+    background: var(--color-primary);
+  }
+
+  .feature-grid__icon {
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--color-accent);
+  }
+
+  .feature-grid__number {
+    font-family: "Oswald", system-ui, sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-accent);
+    letter-spacing: 0.08em;
+  }
+
+  .feature-grid__title {
+    font-family: "Oswald", system-ui, sans-serif;
+    font-size: 1.125rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-on-primary);
+    margin: 0;
+  }
+
+  .feature-grid__body {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--color-on-primary);
+    opacity: 0.8;
+    margin: 0;
+  }
+</style>

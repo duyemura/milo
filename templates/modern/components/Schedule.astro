@@ -1,0 +1,98 @@
+---
+interface Slot {
+  time: string;
+  name: string;
+}
+
+interface Day {
+  day: string;
+  slots: Slot[];
+}
+
+interface Props {
+  heading?: string;
+  days: Day[];
+}
+
+const { heading, days } = Astro.props;
+---
+
+<section class="schedule">
+  {heading && <h2 class="schedule__heading">{heading}</h2>}
+  <div class="schedule__scroll-wrapper">
+    <div
+      class="schedule__grid"
+      style={`grid-template-columns: repeat(${days.length}, minmax(8rem, 1fr));`}
+    >
+      {days.map((d) => (
+        <div class="schedule__col">
+          <div class="schedule__day-label">{d.day}</div>
+          {d.slots.length === 0 ? (
+            <div class="schedule__rest">Rest day</div>
+          ) : (
+            d.slots.map((slot) => (
+              <div class="schedule__slot">
+                <span class="schedule__time">{slot.time}</span>
+                <span class="schedule__name">{slot.name}</span>
+              </div>
+            ))
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .schedule {
+    padding: var(--space-lg);
+  }
+  .schedule__heading {
+    margin-bottom: var(--space-md);
+    color: var(--color-text);
+  }
+  .schedule__scroll-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .schedule__grid {
+    display: grid;
+    gap: var(--space-sm);
+    min-width: max-content;
+  }
+  .schedule__col {
+    background: var(--color-surface);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  .schedule__day-label {
+    background: var(--color-primary);
+    color: var(--color-surface);
+    font-weight: 700;
+    padding: var(--space-sm) var(--space-md);
+    text-align: center;
+  }
+  .schedule__rest {
+    padding: var(--space-md);
+    text-align: center;
+    color: var(--color-muted);
+    font-style: italic;
+  }
+  .schedule__slot {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--color-muted);
+  }
+  .schedule__slot:last-child {
+    border-bottom: none;
+  }
+  .schedule__time {
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+  .schedule__name {
+    font-weight: 600;
+    color: var(--color-text);
+  }
+</style>

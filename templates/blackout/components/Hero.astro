@@ -1,0 +1,121 @@
+---
+interface Props { heading: string; kicker?: string; sub?: string; cta?: { label: string; href: string }; image: string }
+const { heading, kicker, sub, cta, image } = Astro.props;
+---
+<section class="hero">
+  <div class="hero__content">
+    <div class="hero__accent-bar">
+      {kicker && <span class="hero__kicker">{kicker}</span>}
+      <h1 class="hero__heading">{heading}</h1>
+    </div>
+    {sub && <p class="hero__sub">{sub}</p>}
+    {cta && <a class="hero__cta" href={cta.href}>{cta.label}</a>}
+  </div>
+  <div class="hero__image-wrap">
+    <img class="hero__art" src={image} alt="" loading="eager" fetchpriority="high" width="1200" height="800" />
+  </div>
+</section>
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: 60fr 40fr;
+    gap: var(--space-lg);
+    align-items: center;
+    background: var(--color-primary);
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .hero__content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: var(--space-xl) var(--space-lg);
+    gap: var(--space-md);
+  }
+
+  .hero__accent-bar {
+    border-left: 4px solid var(--color-accent);
+    padding-left: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .hero__kicker {
+    font-size: 0.75rem;
+    color: var(--color-accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .hero__heading {
+    font-size: clamp(2.5rem, 7vw, 5rem);
+    font-weight: 700;
+    color: var(--color-on-primary);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  .hero__sub {
+    color: var(--color-on-primary);
+    opacity: 0.8;
+    font-size: 1.125rem;
+    margin: 0;
+  }
+
+  .hero__cta {
+    display: inline-block;
+    align-self: flex-start;
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    border-radius: 0;
+    padding: var(--space-sm) var(--space-lg);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .hero__cta:hover {
+    opacity: 0.85;
+  }
+
+  .hero__image-wrap {
+    align-self: stretch;
+    overflow: hidden;
+    padding: var(--space-md) var(--space-md) var(--space-md) 0;
+  }
+
+  .hero__art {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 0;
+    min-height: 22rem;
+  }
+
+  @media (max-width: 800px) {
+    .hero {
+      grid-template-columns: 1fr;
+    }
+
+    .hero__image-wrap {
+      order: 1;
+      padding: 0 var(--space-md) var(--space-md);
+    }
+
+    .hero__content {
+      order: 0;
+      padding-bottom: 0;
+    }
+
+    .hero__art {
+      min-height: 14rem;
+    }
+  }
+</style>

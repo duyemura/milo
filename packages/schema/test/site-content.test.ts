@@ -4,7 +4,11 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GymSiteContent, SECTION_TYPES } from "../src/index.ts";
 
-const fixturePath = join(dirname(fileURLToPath(import.meta.url)), "../fixtures/iron-anchor.json");
+// Legacy GymSiteContent fixture (keyed on section `.type`). The new portable
+// contract uses `GymDocuments` (composition.ts, keyed on `.section`) with
+// iron-anchor.json. Reconciling/retiring GymSiteContent into the new contract
+// is a Plan 1b task — until then each schema keeps its own fixture.
+const fixturePath = join(dirname(fileURLToPath(import.meta.url)), "../fixtures/iron-anchor.legacy.json");
 const fixture = JSON.parse(readFileSync(fixturePath, "utf8"));
 
 describe("GymSiteContent contract", () => {
