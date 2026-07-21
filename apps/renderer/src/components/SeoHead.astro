@@ -1,0 +1,33 @@
+---
+// Renderer-level SEO head — shared across ALL templates via named `head` slot.
+// Templates own fonts + typography; this component owns every meta/link tag.
+interface Props {
+  title: string;
+  description: string;
+  canonical: string;
+  ogImage?: string;
+  siteName?: string;
+  themeColor?: string;
+  favicon?: string;
+}
+const { title, description, canonical, ogImage, siteName, themeColor, favicon } = Astro.props;
+---
+<title>{title}</title>
+<meta name="description" content={description} />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href={canonical} />
+<link rel="icon" href={favicon ?? "/favicon.svg"} type="image/svg+xml" />
+{themeColor && <meta name="theme-color" content={themeColor} />}
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:type" content="website" />
+<meta property="og:url" content={canonical} />
+<meta property="og:locale" content="en_US" />
+{siteName && <meta property="og:site_name" content={siteName} />}
+{ogImage && <meta property="og:image" content={ogImage} />}
+{ogImage && <meta property="og:image:width" content="1200" />}
+{ogImage && <meta property="og:image:height" content="630" />}
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+{ogImage && <meta name="twitter:image" content={ogImage} />}
