@@ -1,0 +1,42 @@
+---
+interface Stat { value: string; label: string }
+interface Props { stats: Stat[] }
+const { stats } = Astro.props;
+---
+<section class="stats-band">
+  {stats.map((stat) => (
+    <div class="stat-item">
+      <span class="stat-value">{stat.value}</span>
+      <span class="stat-label">{stat.label}</span>
+    </div>
+  ))}
+</section>
+<style>
+  .stats-band {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-lg);
+    padding: var(--space-lg) var(--space-md);
+    background: var(--color-primary);
+  }
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+    min-width: 8rem;
+  }
+  .stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-accent);
+  }
+  .stat-label {
+    font-size: 0.875rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-surface);
+  }
+</style>
