@@ -1,0 +1,29 @@
+---
+import Base from "../../../../templates/modern/layouts/Base.astro";
+import Hero from "../../../../templates/modern/components/Hero.astro";
+import Faq from "../../../../templates/modern/components/Faq.astro";
+import Cta from "../../../../templates/modern/components/Cta.astro";
+import { loadDocuments } from "../lib/load.ts";
+import { tokensToCss } from "@milo/schema";
+export function getStaticPaths() {
+  const gymJson = process.env.GYM_JSON;
+  if (!gymJson) throw new Error("renderer: GYM_JSON env var is required");
+  const docs = loadDocuments(gymJson);
+  return docs.hierarchy.pages.map((page) => ({
+    params: { slug: page.slug === "index" ? undefined : page.slug },
+    props: { page, docs },
+  }));
+}
+
+const { page, docs } = Astro.props;
+const tokenCss = tokensToCss(docs.brand);
+const canonical = `https://example.com/${page.slug === "index" ? "" : page.slug}`;
+---
+<Base title={page.title} description={page.meta.description} canonical={canonical} tokenCss={tokenCss}>
+  {page.sections.map((s) => {
+    if (s.section === "hero") return <Hero {...(s.content as any)} />;
+    if (s.section === "faq") return <Faq {...(s.content as any)} />;
+    if (s.section === "cta-band") return <Cta {...(s.content as any)} />;
+    throw new Error(`renderer: no component for section "${s.section}"`);
+  })}
+</Base>
