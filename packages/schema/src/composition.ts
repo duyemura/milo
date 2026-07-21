@@ -28,9 +28,29 @@ export const Identity = z.object({
   name: z.string().min(1),
   tagline: z.string().min(1),
   siteUrl: z.string().url().optional(),
+  // Contact / NAP
   phone: z.string().optional(),
-  address: z.string().optional(),
+  address: z.string().optional(),          // flat fallback string
+  addressParts: z.object({                 // structured — preferred for JSON-LD
+    street: z.string().min(1),
+    city: z.string().min(1),
+    state: z.string().min(1),
+    zip: z.string().min(1),
+    country: z.string().default("US"),
+  }).optional(),
+  // Maps / local SEO
+  geoCoordinates: z.object({
+    lat: z.number(),
+    lng: z.number(),
+  }).optional(),
+  mapsUrl: z.string().url().optional(),               // hasMap
+  googleBusinessProfileUrl: z.string().url().optional(), // sameAs
+  priceRange: z.string().optional(),                  // e.g. "$$"
+  // Media / brand
   ogImage: z.string().optional(),
+  favicon: z.string().optional(),
+  themeColor: z.string().optional(),                  // hex, e.g. "#0b1f3a"
+  // Social
   socialProfiles: z.array(z.string().url()).optional(),
 });
 

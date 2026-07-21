@@ -5,7 +5,20 @@
     "siteUrl": "https://ironanchor.com",
     "phone": "(720) 555-0142",
     "address": "1234 Anchor St, Denver, CO 80202",
+    "addressParts": {
+      "street": "1234 Anchor St",
+      "city": "Denver",
+      "state": "CO",
+      "zip": "80202",
+      "country": "US"
+    },
+    "geoCoordinates": { "lat": 39.7392, "lng": -104.9903 },
+    "mapsUrl": "https://maps.google.com/?q=1234+Anchor+St+Denver+CO+80202",
+    "googleBusinessProfileUrl": "https://g.page/iron-anchor-crossfit",
+    "priceRange": "$$",
     "ogImage": "/placeholder.svg",
+    "themeColor": "#0b1f3a",
+    "favicon": "/favicon.svg",
     "socialProfiles": ["https://instagram.com/ironanchor", "https://facebook.com/ironanchor"]
   },
   "brand": {
