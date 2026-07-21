@@ -19,6 +19,15 @@ export function tokensToCss(t: BrandTokens): string {
   for (const [k, v] of Object.entries(t.fonts)) lines.push(`--font-${k}: ${v};`);
   for (const [k, v] of Object.entries(t.space)) lines.push(`--space-${k}: ${v};`);
   for (const [k, v] of Object.entries(t.radius)) lines.push(`--radius-${k}: ${v};`);
+  // Fixed scale extensions (not gym-configurable — derived from the core scale).
+  lines.push("--space-xs: 4px;");
+  lines.push("--space-xl: 64px;");
+  lines.push("--radius-sm: 6px;");
+  // Semantic aliases — derived from the five core colors.
+  lines.push("--color-on-surface: var(--color-text);");
+  lines.push("--color-on-accent: var(--color-surface);");
+  lines.push("--color-on-primary: var(--color-surface);");
+  lines.push("--color-border: var(--color-muted);");
   return `:root {\n  ${lines.join("\n  ")}\n}`;
 }
 

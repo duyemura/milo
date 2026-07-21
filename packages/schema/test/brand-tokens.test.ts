@@ -17,6 +17,15 @@ test("tokensToCss emits custom properties", () => {
   expect(css).toContain("--color-primary: #0b1f3a;");
   expect(css).toContain("--font-display: Montserrat;");
   expect(css).toContain("--radius-button: 10px;");
+  // fixed scale extensions
+  expect(css).toContain("--space-xs: 4px;");
+  expect(css).toContain("--space-xl: 64px;");
+  expect(css).toContain("--radius-sm: 6px;");
+  // semantic aliases
+  expect(css).toContain("--color-on-surface: var(--color-text);");
+  expect(css).toContain("--color-on-accent: var(--color-surface);");
+  expect(css).toContain("--color-on-primary: var(--color-surface);");
+  expect(css).toContain("--color-border: var(--color-muted);");
 });
 
 test("contrastOk flags a failing text/surface pair", () => {
