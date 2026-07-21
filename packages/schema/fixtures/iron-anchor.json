@@ -19,7 +19,7 @@
               "heading": "Get strong in Denver",
               "sub": "Coached group CrossFit for every level.",
               "cta": { "label": "Book your free intro", "href": "/start" },
-              "image": "https://placehold.co/1200x800/png"
+              "image": "/placeholder.svg"
             }
           },
           {
@@ -51,8 +51,8 @@
             "content": {
               "heading": "Our programs",
               "programs": [
-                { "slug": "crossfit", "name": "CrossFit", "description": "Our flagship group class — constantly varied functional movements at high intensity.", "href": "/programs/crossfit", "image": "https://placehold.co/600x400/png" },
-                { "slug": "olympic-lifting", "name": "Olympic Lifting", "description": "Technique-first barbell work for the snatch and clean & jerk.", "href": "/programs/olympic-lifting", "image": "https://placehold.co/600x400/png" },
+                { "slug": "crossfit", "name": "CrossFit", "description": "Our flagship group class — constantly varied functional movements at high intensity.", "href": "/programs/crossfit", "image": "/placeholder.svg" },
+                { "slug": "olympic-lifting", "name": "Olympic Lifting", "description": "Technique-first barbell work for the snatch and clean & jerk.", "href": "/programs/olympic-lifting", "image": "/placeholder.svg" },
                 { "slug": "open-gym", "name": "Open Gym", "description": "Structured open floor time for skill work and accessory training.", "href": "/programs/open-gym" }
               ]
             }
@@ -62,7 +62,7 @@
             "content": {
               "heading": "Coaching that gets results",
               "body": "Iron Anchor was founded in 2015 by a team of competitive athletes who believe that great coaching is the difference between showing up and making progress.",
-              "image": "https://placehold.co/800x600/png",
+              "image": "/placeholder.svg",
               "mediaSide": "right",
               "cta": { "label": "Meet the coaches", "href": "/coaches" }
             }
@@ -120,9 +120,9 @@
             "content": {
               "heading": "Our community supports",
               "logos": [
-                { "src": "https://placehold.co/120x40/png", "alt": "Denver Metro CrossFit League" },
-                { "src": "https://placehold.co/120x40/png", "alt": "USA Weightlifting" },
-                { "src": "https://placehold.co/120x40/png", "alt": "CrossFit Inc." }
+                { "src": "/placeholder.svg", "alt": "Denver Metro CrossFit League" },
+                { "src": "/placeholder.svg", "alt": "USA Weightlifting" },
+                { "src": "/placeholder.svg", "alt": "CrossFit Inc." }
               ]
             }
           },
