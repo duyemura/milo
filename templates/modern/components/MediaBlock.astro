@@ -6,7 +6,7 @@ interface Cta {
 interface Props {
   heading: string;
   body: string;
-  image: string;
+  image: { src: string; alt: string };
   mediaSide?: "left" | "right";
   cta?: Cta;
 }
@@ -21,7 +21,7 @@ const { heading, body, image, mediaSide = "right", cta } = Astro.props;
     )}
   </div>
   <div class="media-block__media">
-    <img class="media-block__img" src={image} alt="" loading="lazy" />
+    <img class="media-block__img" src={image.src} alt={image.alt} loading="lazy" />
   </div>
 </section>
 <style>

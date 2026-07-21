@@ -19,7 +19,15 @@
     "ogImage": "/placeholder.svg",
     "themeColor": "#0b1f3a",
     "favicon": "/favicon.svg",
-    "socialProfiles": ["https://instagram.com/ironanchor", "https://facebook.com/ironanchor"]
+    "socialProfiles": ["https://instagram.com/ironanchor", "https://facebook.com/ironanchor"],
+    "areaServed": ["Denver, CO", "LoDo", "RiNo", "Capitol Hill"],
+    "sports": ["CrossFit", "Olympic Weightlifting", "Strength Training"],
+    "email": "info@ironanchor.com",
+    "foundingDate": "2015-06-01",
+    "openingHoursSpecification": [
+      { "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"], "opens": "05:00", "closes": "21:00" },
+      { "dayOfWeek": ["Saturday"], "opens": "07:00", "closes": "12:00" }
+    ]
   },
   "brand": {
     "colors": { "primary": "#0b1f3a", "accent": "#0464fc", "surface": "#ffffff", "text": "#06090a", "muted": "#5b6470" },
@@ -40,7 +48,7 @@
               "heading": "Get strong in Denver",
               "sub": "Coached group CrossFit for every level.",
               "cta": { "label": "Book your free intro", "href": "/start" },
-              "image": "/placeholder.svg"
+              "image": { "src": "/placeholder.svg", "alt": "Iron Anchor CrossFit gym floor" }
             }
           },
           {
@@ -72,8 +80,8 @@
             "content": {
               "heading": "Our programs",
               "programs": [
-                { "slug": "crossfit", "name": "CrossFit", "description": "Our flagship group class — constantly varied functional movements at high intensity.", "href": "/programs/crossfit", "image": "/placeholder.svg" },
-                { "slug": "olympic-lifting", "name": "Olympic Lifting", "description": "Technique-first barbell work for the snatch and clean & jerk.", "href": "/programs/olympic-lifting", "image": "/placeholder.svg" },
+                { "slug": "crossfit", "name": "CrossFit", "description": "Our flagship group class — constantly varied functional movements at high intensity.", "href": "/programs/crossfit", "image": { "src": "/placeholder.svg", "alt": "CrossFit class at Iron Anchor" } },
+                { "slug": "olympic-lifting", "name": "Olympic Lifting", "description": "Technique-first barbell work for the snatch and clean & jerk.", "href": "/programs/olympic-lifting", "image": { "src": "/placeholder.svg", "alt": "Olympic weightlifting coaching" } },
                 { "slug": "open-gym", "name": "Open Gym", "description": "Structured open floor time for skill work and accessory training.", "href": "/programs/open-gym" }
               ]
             }
@@ -83,7 +91,7 @@
             "content": {
               "heading": "Coaching that gets results",
               "body": "Iron Anchor was founded in 2015 by a team of competitive athletes who believe that great coaching is the difference between showing up and making progress.",
-              "image": "/placeholder.svg",
+              "image": { "src": "/placeholder.svg", "alt": "Iron Anchor coaches working with a member" },
               "mediaSide": "right",
               "cta": { "label": "Meet the coaches", "href": "/coaches" }
             }

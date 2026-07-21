@@ -56,7 +56,7 @@ test("ProgramCards with image renders an img element", async () => {
           slug: "strength",
           name: "Strength Training",
           description: "Build real-world strength.",
-          image: "https://example.com/strength.jpg",
+          image: { src: "https://example.com/strength.jpg", alt: "Strength training class" },
         },
       ],
     },
@@ -64,4 +64,5 @@ test("ProgramCards with image renders an img element", async () => {
   expect(html).toContain("Strength Training");
   expect(html).toContain('<img');
   expect(html).toContain("https://example.com/strength.jpg");
+  expect(html).toContain("Strength training class");
 });

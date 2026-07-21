@@ -18,7 +18,7 @@ test("CoachGrid renders coach names and roles", async () => {
       heading: "Meet the coaches",
       coaches: [
         { name: "Jane Smith", role: "Head Coach", bio: "10 years CrossFit.", certs: ["CF-L3"] },
-        { name: "Bob Lee", role: "Coach", photo: "assets/bob.webp" },
+        { name: "Bob Lee", role: "Coach", photo: { src: "assets/bob.webp", alt: "Bob Lee coach photo" } },
       ],
     },
   });
@@ -39,13 +39,13 @@ test("CoachGrid renders photo img when provided, avatar initials when not", asyn
   const html = await container.renderToString(CoachGrid, {
     props: {
       coaches: [
-        { name: "Alice Brown", photo: "assets/alice.webp", certs: [] },
+        { name: "Alice Brown", photo: { src: "assets/alice.webp", alt: "Alice Brown coach photo" }, certs: [] },
         { name: "Tom Chen", certs: [] },
       ],
     },
   });
-  // Alice has a photo — expect an img with her name as alt
-  expect(html).toContain('alt="Alice Brown"');
+  // Alice has a photo — expect an img with the provided alt text
+  expect(html).toContain('alt="Alice Brown coach photo"');
   expect(html).toContain("assets/alice.webp");
   // Tom has no photo — expect initials avatar
   expect(html).toContain("TC");

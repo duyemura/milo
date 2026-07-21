@@ -17,7 +17,7 @@ test("MediaBlock renders heading, body, image, and optional CTA", async () => {
     props: {
       heading: "Train like an athlete",
       body: "Our programming is designed by coaches with decades of experience.",
-      image: "assets/training.webp",
+      image: { src: "assets/training.webp", alt: "Coaches training members" },
       mediaSide: "right",
       cta: { label: "See the programming", href: "/programming" },
     },
@@ -25,6 +25,7 @@ test("MediaBlock renders heading, body, image, and optional CTA", async () => {
   expect(html).toContain("Train like an athlete");
   expect(html).toContain("Our programming is designed by coaches");
   expect(html).toContain("assets/training.webp");
+  expect(html).toContain("Coaches training members");
   expect(html).toContain("See the programming");
   expect(html).toMatch(/href="\/programming"/);
   expect(styleBlock).toMatch(/var\(--color-/);

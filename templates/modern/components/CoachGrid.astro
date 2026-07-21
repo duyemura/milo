@@ -3,7 +3,7 @@ interface Coach {
   name: string;
   role?: string;
   bio?: string;
-  photo?: string;
+  photo?: { src: string; alt: string };
   certs?: string[];
 }
 
@@ -33,8 +33,8 @@ function initials(name: string): string {
         <div class="coach-grid__media">
           {coach.photo ? (
             <img
-              src={coach.photo}
-              alt={coach.name}
+              src={coach.photo.src}
+              alt={coach.photo.alt || coach.name}
               class="coach-grid__photo"
               loading="lazy"
               decoding="async"

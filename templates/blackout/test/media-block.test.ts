@@ -17,7 +17,7 @@ test("MediaBlock renders heading, body, image, and optional CTA", async () => {
     props: {
       heading: "Train like an athlete",
       body: "Our programming is designed by coaches with decades of experience.",
-      image: "assets/training.webp",
+      image: { src: "assets/training.webp", alt: "Coaches training members" },
       mediaSide: "right",
       cta: { label: "See the programming", href: "/programming" },
     },
@@ -43,7 +43,7 @@ test("MediaBlock renders image on left when mediaSide=left", async () => {
     props: {
       heading: "About us",
       body: "We have been coaching since 2010.",
-      image: "assets/about.webp",
+      image: { src: "assets/about.webp", alt: "About our gym" },
       mediaSide: "left",
     },
   });

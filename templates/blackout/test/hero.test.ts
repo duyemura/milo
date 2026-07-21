@@ -11,7 +11,7 @@ const heroStyle = heroSrc.slice(heroSrc.indexOf("<style"));
 test("Hero renders heading + CTA and uses token vars, not hardcoded color", async () => {
   const container = await AstroContainer.create();
   const html = await container.renderToString(Hero, {
-    props: { heading: "Get strong in Denver", sub: "Coached group CrossFit.", cta: { label: "Book intro", href: "/start" }, image: "assets/hero.webp" },
+    props: { heading: "Get strong in Denver", sub: "Coached group CrossFit.", cta: { label: "Book intro", href: "/start" }, image: { src: "assets/hero.webp", alt: "Gym hero image" } },
   });
   expect(html).toContain("Get strong in Denver");
   expect(html).toMatch(/href="\/start"/);
@@ -27,7 +27,7 @@ test("Hero renders heading + CTA and uses token vars, not hardcoded color", asyn
 test("Hero renders optional kicker", async () => {
   const container = await AstroContainer.create();
   const html = await container.renderToString(Hero, {
-    props: { heading: "Train hard", kicker: "Denver No.1 gym", image: "assets/hero.webp" },
+    props: { heading: "Train hard", kicker: "Denver No.1 gym", image: { src: "assets/hero.webp", alt: "Gym hero image" } },
   });
   expect(html).toContain("Denver No.1 gym");
   expect(html).toContain("Train hard");

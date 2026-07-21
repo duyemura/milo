@@ -77,7 +77,7 @@
           "heading": "Train hard.<br/>Recover smart.<br/>Live strong.",
           "sub": "Our coaches meet you where you are and build a plan that gets you where you want to be — no intimidation, no guesswork.",
           "cta": { "label": "Book Your Free Intro", "href": "/getting-started" },
-          "image": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&q=80"
+          "image": { "src": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&q=80", "alt": "Iron Anchor CrossFit gym floor" }
         },
         {
           "type": "feature-grid",
@@ -97,14 +97,14 @@
               "slug": "crossfit",
               "name": "CrossFit",
               "description": "Constantly varied functional movement at high intensity. Our flagship group class blends strength work and conditioning so you never plateau — and never get bored.",
-              "image": "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1200&q=80",
+              "image": { "src": "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1200&q=80", "alt": "CrossFit class at Iron Anchor" },
               "href": "/programs/crossfit"
             },
             {
               "slug": "olympic-lifting",
               "name": "Olympic Lifting",
               "description": "Master the snatch and clean & jerk with dedicated barbell coaching. Small groups, individual attention, and programming that builds real power.",
-              "image": "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=1200&q=80",
+              "image": { "src": "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=1200&q=80", "alt": "Olympic weightlifting coaching at Iron Anchor" },
               "href": "/programs/olympic-lifting"
             }
           ]
@@ -143,7 +143,7 @@
           "type": "media-block",
           "heading": "A community that will keep you going",
           "body": "Working out isn't easy — but showing up is easier when people expect you. Our members celebrate PRs together, sweat together, and stick around because this place feels like theirs.",
-          "image": "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1200&q=80",
+          "image": { "src": "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1200&q=80", "alt": "Iron Anchor gym community training together" },
           "mediaSide": "left",
           "cta": { "label": "Meet The Community", "href": "/about" }
         },
@@ -169,7 +169,7 @@
           "type": "cta-band",
           "heading": "Ready to become the strongest version of yourself?",
           "cta": { "label": "Book Your Free Intro", "href": "/getting-started" },
-          "image": "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=1400&q=80"
+          "image": { "src": "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=1400&q=80", "alt": "Iron Anchor athletes training" }
         }
       ]
     },
@@ -185,9 +185,9 @@
           "type": "coach-grid",
           "heading": "Coaches who know your name and your goals",
           "coaches": [
-            { "name": "Alex Rivera", "role": "Head Coach & Owner", "bio": "CrossFit since 2012. Believes consistency beats intensity, but loves both.", "photo": "https://images.unsplash.com/photo-1567013127542-490d757e51fc?w=800&q=80", "certs": ["CF-L3", "USAW L2"] },
-            { "name": "Jordan Blake", "role": "Olympic Lifting Coach", "bio": "Competitive weightlifter turned teacher. Will fix your snatch and your confidence.", "photo": "https://images.unsplash.com/photo-1571731956672-f2b94d7dd0cb?w=800&q=80", "certs": ["USAW L2"] },
-            { "name": "Sam Okafor", "role": "Coach", "bio": "The 6am crew's favorite human. Powerlifting background, endless patience.", "photo": "https://images.unsplash.com/photo-1548690312-e3b507d8c110?w=800&q=80", "certs": ["CF-L2", "PN1"] }
+            { "name": "Alex Rivera", "role": "Head Coach & Owner", "bio": "CrossFit since 2012. Believes consistency beats intensity, but loves both.", "photo": { "src": "https://images.unsplash.com/photo-1567013127542-490d757e51fc?w=800&q=80", "alt": "Alex Rivera, Head Coach" }, "certs": ["CF-L3", "USAW L2"] },
+            { "name": "Jordan Blake", "role": "Olympic Lifting Coach", "bio": "Competitive weightlifter turned teacher. Will fix your snatch and your confidence.", "photo": { "src": "https://images.unsplash.com/photo-1571731956672-f2b94d7dd0cb?w=800&q=80", "alt": "Jordan Blake, Olympic Lifting Coach" }, "certs": ["USAW L2"] },
+            { "name": "Sam Okafor", "role": "Coach", "bio": "The 6am crew's favorite human. Powerlifting background, endless patience.", "photo": { "src": "https://images.unsplash.com/photo-1548690312-e3b507d8c110?w=800&q=80", "alt": "Sam Okafor, Coach" }, "certs": ["CF-L2", "PN1"] }
           ]
         },
         {

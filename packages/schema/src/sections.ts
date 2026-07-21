@@ -6,7 +6,15 @@ import { z } from "zod";
  * docs/specs/2026-07-19-milo-v2-rethink-design.md
  */
 
-const image = z.string().min(1);
+// Plain URL string — used only inside LogoStrip which already wraps it in {src, alt}
+const imageUrl = z.string().min(1);
+
+// Rich image with alt text for standalone image props (SEO + a11y)
+export const SectionImage = z.object({
+  src: z.string().min(1),
+  alt: z.string().default(""),
+});
+
 const Cta = z.object({ label: z.string().min(1), href: z.string().min(1) });
 
 export const HeroSection = z.object({
@@ -15,7 +23,7 @@ export const HeroSection = z.object({
   heading: z.string().min(1),
   sub: z.string().optional(),
   cta: Cta.optional(),
-  image,
+  image: SectionImage,
 });
 
 export const ProgramCardsSection = z.object({
@@ -28,7 +36,7 @@ export const ProgramCardsSection = z.object({
         slug: z.string().min(1),
         name: z.string().min(1),
         description: z.string().min(1),
-        image: image.optional(),
+        image: SectionImage.optional(),
         href: z.string().optional(),
       }),
     )
@@ -44,7 +52,7 @@ export const CoachGridSection = z.object({
         name: z.string().min(1),
         role: z.string().optional(),
         bio: z.string().optional(),
-        photo: image.optional(),
+        photo: SectionImage.optional(),
         certs: z.array(z.string()).default([]),
       }),
     )
@@ -89,7 +97,7 @@ export const CtaBandSection = z.object({
   type: z.literal("cta-band"),
   heading: z.string().min(1),
   cta: Cta,
-  image: image.optional(),
+  image: SectionImage.optional(),
 });
 
 export const LocationMapSection = z.object({
@@ -176,7 +184,7 @@ export const MediaBlockSection = z.object({
   type: z.literal("media-block"),
   heading: z.string().min(1),
   body: z.string().min(1),
-  image,
+  image: SectionImage,
   mediaSide: z.enum(["left", "right"]).default("right"),
   cta: Cta.optional(),
 });
@@ -189,7 +197,7 @@ export const StatsBandSection = z.object({
 export const LogoStripSection = z.object({
   type: z.literal("logo-strip"),
   heading: z.string().optional(),
-  logos: z.array(z.object({ src: image, alt: z.string().min(1) })).min(1),
+  logos: z.array(z.object({ src: imageUrl, alt: z.string().min(1) })).min(1),
 });
 
 export const Section = z.discriminatedUnion("type", [

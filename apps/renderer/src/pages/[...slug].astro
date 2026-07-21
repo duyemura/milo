@@ -77,21 +77,33 @@ const sameAs = [
   ...(id.googleBusinessProfileUrl ? [id.googleBusinessProfileUrl] : []),
 ].filter(Boolean);
 
+// OpeningHoursSpecification — prefer typed format from Identity; fall back to plain strings from location-map section
+const openingHoursData = id.openingHoursSpecification?.length
+  ? { openingHoursSpecification: id.openingHoursSpecification.map((spec) => ({ "@type": "OpeningHoursSpecification", ...spec })) }
+  : locData && (locData as any).hours?.length
+    ? { openingHours: (locData as any).hours }
+    : {};
+
 const localBusiness: Record<string, unknown> = {
   "@type": ["LocalBusiness", "SportsActivityLocation"],
   "@id": `${siteUrl}/#localbusiness`,
   name: id.name,
   url: siteUrl,
+  ...(id.email ? { email: id.email } : {}),
   ...(ogImage ? { image: ogImage } : {}),
   ...(id.phone ?? (locData as any)?.phone ? { telephone: id.phone ?? (locData as any)?.phone } : {}),
   ...(postalAddress ? { address: postalAddress } : {}),
-  ...(locData && (locData as any).hours?.length ? { openingHours: (locData as any).hours } : {}),
+  ...openingHoursData,
   ...(id.priceRange ? { priceRange: id.priceRange } : {}),
   ...(id.mapsUrl ? { hasMap: id.mapsUrl } : {}),
   ...(id.geoCoordinates
     ? { geo: { "@type": "GeoCoordinates", latitude: id.geoCoordinates.lat, longitude: id.geoCoordinates.lng } }
     : {}),
   ...(sameAs.length ? { sameAs } : {}),
+  ...(id.areaServed?.length ? { areaServed: id.areaServed } : {}),
+  ...(id.sports?.length ? { sport: id.sports } : {}),
+  ...(id.foundingDate ? { foundingDate: id.foundingDate } : {}),
+  description: page.meta.description,
 };
 
 const faqSchema = faqItems.length
@@ -119,6 +131,7 @@ const personSchemas = allCoaches.map((c: any) => ({
   name: c.name,
   ...(c.role ? { jobTitle: c.role } : {}),
   ...(c.bio ? { description: c.bio } : {}),
+  ...(c.photo?.src ? { image: c.photo.src } : {}),
   worksFor: { "@id": `${siteUrl}/#localbusiness` },
 }));
 

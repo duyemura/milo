@@ -1,5 +1,5 @@
 ---
-interface Props { heading: string; kicker?: string; sub?: string; cta?: { label: string; href: string }; image: string }
+interface Props { heading: string; kicker?: string; sub?: string; cta?: { label: string; href: string }; image: { src: string; alt: string } }
 const { heading, kicker, sub, cta, image } = Astro.props;
 ---
 <section class="hero">
@@ -12,7 +12,7 @@ const { heading, kicker, sub, cta, image } = Astro.props;
     {cta && <a class="hero__cta" href={cta.href}>{cta.label}</a>}
   </div>
   <div class="hero__image-wrap">
-    <img class="hero__art" src={image} alt="" loading="eager" fetchpriority="high" width="1200" height="800" />
+    <img class="hero__art" src={image.src} alt={image.alt} loading="eager" fetchpriority="high" width="1200" height="800" />
   </div>
 </section>
 <style>

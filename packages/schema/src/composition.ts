@@ -53,6 +53,17 @@ export const Identity = z.object({
   themeColor: z.string().optional(),                  // hex, e.g. "#0b1f3a"
   // Social
   socialProfiles: z.array(z.string().url()).optional(),
+  // Local SEO
+  areaServed: z.array(z.string()).optional(),          // e.g. ["Denver, CO", "LoDo", "RiNo"]
+  sports: z.array(z.string()).optional(),              // e.g. ["CrossFit", "Olympic Weightlifting"]
+  email: z.string().email().optional(),
+  foundingDate: z.string().optional(),                 // ISO date string e.g. "2015-06-01"
+  // Structured opening hours — preferred over plain string array for JSON-LD
+  openingHoursSpecification: z.array(z.object({
+    dayOfWeek: z.array(z.string()).min(1),             // ["Monday","Tuesday",...]
+    opens: z.string(),                                 // "05:00"
+    closes: z.string(),                                // "21:00"
+  })).optional(),
 });
 
 export const GymDocuments = z.object({

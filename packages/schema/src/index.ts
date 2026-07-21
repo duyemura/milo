@@ -1,4 +1,4 @@
-export { Section, SECTION_TYPES } from "./sections.ts";
+export { Section, SECTION_TYPES, SectionImage } from "./sections.ts";
 export { BrandTokens, tokensToCss, contrastOk } from "./brand-tokens.ts";
 export type {
   Section as SectionType,

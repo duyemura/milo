@@ -3,7 +3,7 @@ interface Program {
   slug: string;
   name: string;
   description: string;
-  image?: string;
+  image?: { src: string; alt: string };
   href?: string;
 }
 interface Props {
@@ -19,7 +19,7 @@ const { heading, ctaLabel = "Contact Us For More Info", programs } = Astro.props
     {programs.map((p) => (
       <li class="program-card">
         {p.image && (
-          <img class="program-card__image" src={p.image} alt={p.name} loading="lazy" />
+          <img class="program-card__image" src={p.image.src} alt={p.image.alt || p.name} loading="lazy" />
         )}
         <div class="program-card__body">
           <h3 class="program-card__name">{p.name}</h3>
