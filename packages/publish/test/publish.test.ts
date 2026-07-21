@@ -103,3 +103,38 @@ describe("publishProduction", () => {
     ).rejects.toThrow("No staging version found");
   });
 });
+
+describe("publishStatus", () => {
+  it("returns the current staging and production info", async () => {
+    const s3 = new FakeS3Adapter();
+    const kvs = new FakeKvsAdapter();
+    let counter = 0;
+    const generateId = () => `v${++counter}`;
+    await publishStaging({ config, distDir: "/tmp", s3, kvs, generateId });
+
+    const status = await publishStatus({ config, s3 });
+    expect(status?.slug).toBe(config.slug);
+    expect(status?.stagingVersion).toBeTruthy();
+    expect(status?.productionVersion).toBeUndefined();
+    expect(status?.historyCount).toBe(1);
+  });
+
+  it("shows production version after promote", async () => {
+    const s3 = new FakeS3Adapter();
+    const kvs = new FakeKvsAdapter();
+    let counter = 0;
+    const generateId = () => `v${++counter}`;
+    await publishStaging({ config, distDir: "/tmp", s3, kvs, generateId });
+    await publishProduction({ config, s3, kvs });
+
+    const status = await publishStatus({ config, s3 });
+    expect(status?.productionVersion).toBeTruthy();
+    expect(status?.inSync).toBe(true);
+  });
+
+  it("returns null if never published", async () => {
+    const s3 = new FakeS3Adapter();
+    const status = await publishStatus({ config, s3 });
+    expect(status).toBeNull();
+  });
+});

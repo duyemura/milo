@@ -87,11 +87,40 @@ export interface PublishStatusResult {
   inSync: boolean;
 }
 
-export async function publishStatus(_opts: {
+export async function publishStatus(opts: {
   config: PublishConfig;
   s3: S3Adapter;
 }): Promise<PublishStatusResult | null> {
-  throw new Error("publishStatus not yet implemented");
+  const { config, s3 } = opts;
+
+  const current = await s3.getJson<CurrentJson>(currentJsonKey(config.slug));
+  if (!current) return null;
+
+  const stagingUrl = `https://${config.slug}-staging.${config.siteDomain}`;
+  const productionUrl = `https://${config.slug}.${config.siteDomain}`;
+  const result: PublishStatusResult = {
+    slug: config.slug,
+    stagingUrl,
+    productionUrl,
+    stagingVersion: current.staging,
+    productionVersion: current.production,
+    historyCount: current.history.length,
+    inSync: current.production === current.staging,
+  };
+
+  console.log(`Gym:        ${config.slug}`);
+  console.log(`Staging:    ${stagingUrl}`);
+  console.log(`            version: ${current.staging}`);
+  if (current.production) {
+    console.log(`Production: ${productionUrl}`);
+    console.log(`            version: ${current.production}`);
+    if (result.inSync) console.log(`            (staging and production in sync)`);
+  } else {
+    console.log(`Production: not yet published`);
+  }
+  console.log(`History:    ${current.history.length} versions stored (10 max)`);
+
+  return result;
 }
 
 export type RollbackResult =
