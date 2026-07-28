@@ -38,9 +38,15 @@ If anything is red, fix it before proceeding.
 4. **`GymDocuments` is the single source of truth.** Templates are skins.
 5. **Intake populates docs once.** After join, Milo is system of record.
 
+## Status (updated 2026-07-28)
+
+- **Publish — DONE** (`packages/publish`, wired into CLI). Option A below is complete.
+- **Intake — DONE** (`packages/intake`, `milo intake`). See `SESSION-3-REPORT.md`. Option B below is complete, on branch `intake` (not yet merged to `main`).
+- **Generate — NOT built.** This is the next build (Option C below).
+
 ## What to build next (ask Dan which one)
 
-### Option A: Publish (`apps/publish`)
+### Option A: Publish (`apps/publish`) — ✅ DONE
 S3 + CloudFront staging/production. Port from `~/pushpress/websites/apps/api/src/services/`:
 - `cloudfront.ts` — KVS router for slug → S3 prefix
 - `s3.ts` — upload dist/ to `pushpress-marketing-dev` (unicorn AWS profile)
@@ -48,7 +54,7 @@ S3 + CloudFront staging/production. Port from `~/pushpress/websites/apps/api/src
 Flow: `milo build → dist/ → milo publish staging → S3 upload → viewable at CDN URL`
 Then: `milo publish production → swap KVS entry → site goes live`
 
-### Option B: Intake (`apps/cli intake`)
+### Option B: Intake (`apps/cli intake`) — ✅ DONE (branch `intake`)
 `milo intake --url <gym-url>` → populates GymDocuments from a real gym.
 - GMB lookup → identity (name, address, phone, hours, geo)
 - Homepage crawl → brand (logo, colors, hero image)  
@@ -56,7 +62,7 @@ Then: `milo publish production → swap KVS entry → site goes live`
 
 Port from `~/pushpress/websites/apps/api/src/services/gmb.ts`
 
-### Option C: Generate (`apps/cli generate`)
+### Option C: Generate (`apps/cli generate`) — ⬅ NEXT
 `GymDocuments` → `gym.json` (complete site content) via LLM + archetype recipes.
 Reads all doc fields, produces structured content the renderer needs.
 

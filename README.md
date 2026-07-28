@@ -14,6 +14,8 @@ deterministic.
 |---|---|
 | `packages/schema` | The contract: `GymSiteContent` (closed 16-section vocabulary, 15 page archetypes) + `TemplateManifest` + fixture gym |
 | `packages/llm` | OpenRouter/Ollama client (ported v1 keeper), injected config, cost accumulator |
+| `packages/intake` | `milo intake` engine: crawl a real gym's site → `gym.json` + `context/business/integrations.json` + local assets. Injected `PlacesClient`/`PageFetcher`/`chat` (fakes in tests, no live HTTP in CI) |
+| `packages/publish` | S3 + CloudFront versioned deploy (staging/production/rollback/status) |
 | `templates/<name>` | A template: Astro components (full vocabulary) + `registry.ts` + `template.json` manifest + `docs/` |
 | `apps/renderer` | gym.json + template → static site; schema-validated, loud failures |
 | `apps/studio` | Template Studio tooling: `capture.mjs` (any URL → capture bundle), `shoot-site.mjs` (visual verification), `template-docs.mjs` (docs generator) |
@@ -24,11 +26,47 @@ deterministic.
 
 ```bash
 pnpm test                                    # all package tests
+pnpm milo intake --url <gym-url>             # crawl a real gym → intake-output/
 pnpm milo build --gym <gym.json> --template modern --out <dir>
 pnpm milo preview --template blackout        # serve last build
 pnpm milo studio --url <reference-url>       # capture a reference site
 pnpm milo docs                               # regenerate template docs from manifests
+pnpm milo publish staging|production|rollback|status
 ```
+
+## Intake
+
+`milo intake --url <gym-url>` crawls a gym's real web presence and writes a
+`GymDocuments` fixture plus intelligence docs — the one-time seed that populates
+the docs before a gym joins Milo.
+
+```bash
+milo intake --url https://<gym>.com \
+  [--out ./intake-output] [--max-pages 25] [--concurrency 3] \
+  [--include-ugc] [--skip-crawl]        # --skip-crawl re-runs synthesis on an existing crawl/ bundle
+```
+
+Requires env `GOOGLE_PLACES_API_KEY` (identity lookup) and `OPENROUTER_API_KEY`
+(LLM synthesis). Optional model overrides: `MILO_CAPABLE_MODEL`, `MILO_FAST_MODEL`.
+
+Output layout:
+
+```
+intake-output/
+  gym.json              # GymDocuments — feed straight to `milo build`
+  context.json          # ICP, brand voice, positioning, objections, SEO
+  business.json         # tech stack, marketing maturity, pricing signals
+  integrations.json     # detected analytics + gym software (operator-editable)
+  assets/               # downloaded images + fonts (local paths in gym.json)
+  crawl/                # raw bundle: identity.json, brand.json, pages.json,
+                        #   links.json (FULL internal link graph), pages/<slug>.json
+```
+
+Every output is Zod-validated before write; `gym.json`'s section content is
+deep-checked against the `Section` schema during synthesis so malformed
+sections self-correct in the LLM retry loop. `crawl/links.json` records every
+same-origin URL seen — crawled or not — as the gym's real site map, independent
+of `--max-pages`.
 
 ## Templates
 
