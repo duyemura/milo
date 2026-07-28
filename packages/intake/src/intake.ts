@@ -106,6 +106,7 @@ export async function runIntake(opts: RunIntakeOptions): Promise<void> {
     // link they contain (a) may be enqueued up to --max-pages, and (b) is recorded
     // in the link map regardless of the cap. Nothing internal is silently dropped.
     const budgetOf = new Map(inventory.pages.map((p) => [p.url, p.llmBudget] as const));
+    const sourceOf = new Map(inventory.pages.map((p) => [p.url, p.source] as const));
     const queued = new Set<string>(inventory.pages.map((p) => p.url));
     let queue: string[] = inventory.pages.map((p) => p.url);
     const crawledSlugs = new Map<string, string>();      // url -> slug (crawled only)
@@ -155,7 +156,7 @@ export async function runIntake(opts: RunIntakeOptions): Promise<void> {
       ...inventory,
       pages: rawDocs.map((d) => ({
         url: d.url, slug: d.slug, priority: priorityFor(d.url),
-        source: (budgetOf.has(d.url) ? "sitemap" : "crawl-discovered") as "sitemap" | "crawl-discovered",
+        source: sourceOf.get(d.url) ?? "crawl-discovered",   // preserve nav/sitemap provenance
         llmBudget: budgetOf.get(d.url) ?? "truncated",
       })),
     });
