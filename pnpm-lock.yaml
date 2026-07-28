@@ -10,6 +10,12 @@ importers:
 
   apps/cli:
     dependencies:
+      '@milo/intake':
+        specifier: workspace:*
+        version: link:../../packages/intake
+      '@milo/llm':
+        specifier: workspace:*
+        version: link:../../packages/llm
       '@milo/publish':
         specifier: workspace:*
         version: link:../../packages/publish

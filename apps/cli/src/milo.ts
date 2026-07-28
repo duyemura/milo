@@ -106,8 +106,43 @@ switch (command) {
   }
 
   case "intake": {
-    console.log('"intake" is not implemented yet.');
-    process.exit(2);
+    // intake has no subcommand — combine subcommand + rest so flags after "intake" are all visible
+    const intakeArgs = subcommand ? [subcommand, ...rest] : rest;
+    try {
+      const url = requireFlag("url", intakeArgs);
+      const outDir = path.resolve(flag("out", intakeArgs) ?? "./intake-output");
+      const placesKey = process.env.GOOGLE_PLACES_API_KEY;
+      if (!placesKey) { console.error("GOOGLE_PLACES_API_KEY is required for intake"); process.exit(1); }
+      const openrouterKey = process.env.OPENROUTER_API_KEY;
+      if (!openrouterKey) { console.error("OPENROUTER_API_KEY is required for intake"); process.exit(1); }
+
+      const { runIntake, createRealPlacesClient, createRealPageFetcher } = await import("@milo/intake");
+      const { chatCompletion } = await import("@milo/llm");
+      const llmConfig = {
+        provider: "openrouter" as const,
+        openrouterBaseUrl: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+        openrouterApiKey: openrouterKey,
+      };
+
+      await runIntake({
+        url,
+        outDir,
+        maxPages: Number(flag("max-pages", intakeArgs) ?? 25),
+        includeUgc: intakeArgs.includes("--include-ugc"),
+        concurrency: Number(flag("concurrency", intakeArgs) ?? 3),
+        skipCrawl: intakeArgs.includes("--skip-crawl"),
+        places: createRealPlacesClient(placesKey),
+        fetcher: createRealPageFetcher(),
+        chat: (o) => chatCompletion(o, llmConfig),
+        capableModel: process.env.MILO_CAPABLE_MODEL ?? "anthropic/claude-opus-4-8",
+        fastModel: process.env.MILO_FAST_MODEL ?? "anthropic/claude-haiku-4-5",
+        discoveredAt: new Date().toISOString(),
+      });
+    } catch (err: unknown) {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+    break;
   }
 
   default: {

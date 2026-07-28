@@ -44,13 +44,17 @@ export interface ChatResponse {
 }
 
 export class LlmClientError extends Error {
+  readonly status: number;
+  readonly response: unknown;
   constructor(
     message: string,
-    public readonly status: number,
-    public readonly response: unknown,
+    status: number,
+    response: unknown,
   ) {
     super(message);
     this.name = "LlmClientError";
+    this.status = status;
+    this.response = response;
   }
 }
 

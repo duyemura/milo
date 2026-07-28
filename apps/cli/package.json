@@ -7,6 +7,8 @@
     "milo": "./src/milo.ts"
   },
   "dependencies": {
+    "@milo/intake": "workspace:*",
+    "@milo/llm": "workspace:*",
     "@milo/publish": "workspace:*"
   }
 }
