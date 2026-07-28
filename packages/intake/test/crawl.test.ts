@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { stripBoilerplate, extractPageDocument, collectAssetUrls, needsPlaywright } from "../src/crawl.ts";
+import { stripBoilerplate, extractPageDocument, collectAssetUrls, needsPlaywright, metaContent, sanitizeAssetName } from "../src/crawl.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const about = readFileSync(path.join(dir, "fixtures/about.html"), "utf8");
@@ -55,5 +55,40 @@ describe("collectAssetUrls", () => {
     const urls = collectAssetUrls(html, "https://g.com/about");
     expect(urls).toContain("https://g.com/og.png");
     expect(urls).toContain("https://g.com/hero.webp");
+  });
+
+  it("collects og:image even when content precedes property (CMS order)", () => {
+    const html = `<html><head><meta content="/og.png" property="og:image"></head></html>`;
+    expect(collectAssetUrls(html, "https://g.com/about")).toContain("https://g.com/og.png");
+  });
+});
+
+describe("metaContent (attribute-order independent)", () => {
+  it("reads description when content comes before name", () => {
+    const html = `<meta content="A great gym." name="description">`;
+    expect(metaContent(html, "name", "description")).toBe("A great gym.");
+  });
+  it("returns empty string when the meta tag is absent", () => {
+    expect(metaContent(`<meta name="keywords" content="x">`, "name", "description")).toBe("");
+  });
+});
+
+describe("extractPageDocument metaDescription", () => {
+  it("reads content-first description order", () => {
+    const doc = extractPageDocument({
+      html: `<html><head><title>T</title><meta content="Desc here" name="description"></head><body><main>hello world this is body text that is long enough to matter for extraction.</main></body></html>`,
+      url: "https://g.com/x", slug: "x", baseUrl: "https://g.com/", fetchMethod: "static", llmBudget: "full",
+    });
+    expect(doc.metaDescription).toBe("Desc here");
+  });
+});
+
+describe("sanitizeAssetName", () => {
+  it("gives distinct names to same-basename assets on different paths", () => {
+    const a = sanitizeAssetName("https://g.com/en/hero.jpg");
+    const b = sanitizeAssetName("https://g.com/fr/hero.jpg");
+    expect(a).not.toBe(b);
+    expect(a.endsWith("hero.jpg")).toBe(true);
+    expect(b.endsWith("hero.jpg")).toBe(true);
   });
 });

@@ -42,10 +42,24 @@ function decodeEntities(s: string): string {
   return s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 }
 
+/**
+ * Read a `<meta>` tag's `content` by matching a key attribute (`property`/`name`)
+ * regardless of attribute order — CMSs commonly emit `content` before `name`/
+ * `property`, which an ordered regex silently misses. Returns "" if not found.
+ */
+export function metaContent(html: string, keyAttr: "property" | "name", keyValue: string): string {
+  const escaped = keyValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const hasKey = new RegExp(`\\b${keyAttr}\\s*=\\s*["']${escaped}["']`, "i");
+  for (const m of html.matchAll(/<meta\b[^>]*>/gi)) {
+    if (hasKey.test(m[0])) return decodeEntities(matchOne(m[0], /\bcontent\s*=\s*["']([^"']*)["']/i));
+  }
+  return "";
+}
+
 export function collectAssetUrls(html: string, pageUrl: string): string[] {
   const raw: string[] = [];
   for (const m of html.matchAll(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi)) raw.push(m[1]);
-  const og = matchOne(html, /<meta\b[^>]*property\s*=\s*["']og:image["'][^>]*content\s*=\s*["']([^"']+)["']/i);
+  const og = metaContent(html, "property", "og:image");
   if (og) raw.push(og);
   for (const m of html.matchAll(/background-image\s*:\s*url\(\s*["']?([^"')]+)["']?\s*\)/gi)) raw.push(m[1]);
 
@@ -73,9 +87,7 @@ export function extractPageDocument(input: ExtractInput): PageDocument {
   const origin = new URL(baseUrl).origin;
 
   const title = decodeEntities(matchOne(html, /<title\b[^>]*>([\s\S]*?)<\/title>/i));
-  const metaDescription = decodeEntities(
-    matchOne(html, /<meta\b[^>]*name\s*=\s*["']description["'][^>]*content\s*=\s*["']([^"']*)["']/i),
-  );
+  const metaDescription = metaContent(html, "name", "description");
 
   const headings: string[] = [];
   for (const m of html.matchAll(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>/gi)) {
@@ -119,6 +131,9 @@ export function createRealPageFetcher(): PageFetcher {
   return {
     async fetch(url: string): Promise<FetchedPage> {
       const res = await fetch(url, { headers: { "User-Agent": USER_AGENT }, redirect: "follow" });
+      // Don't let a styled 4xx/5xx error page get stored as a real page — that would
+      // poison LLM synthesis. Throw; the orchestrator skips the page and continues.
+      if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
       const html = await res.text();
       if (needsPlaywright(html)) {
         console.log(`[intake] page ${new URL(url).pathname} is JS-rendered — using Playwright`);
@@ -151,9 +166,18 @@ async function renderWithPlaywright(url: string): Promise<string | null> {
   }
 }
 
-function sanitizeAssetName(assetUrl: string): string {
-  const base = path.basename(new URL(assetUrl).pathname) || "asset";
-  return base.replace(/[^a-z0-9.\-_]/gi, "_");
+/** Stable short hash (djb2) so distinct asset URLs never collide on basename. */
+function shortHash(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = (((h << 5) + h) + s.charCodeAt(i)) >>> 0;
+  return h.toString(36).slice(0, 6);
+}
+
+export function sanitizeAssetName(assetUrl: string): string {
+  const u = new URL(assetUrl);
+  const base = (path.basename(u.pathname) || "asset").replace(/[^a-z0-9.\-_]/gi, "_");
+  // Prefix a hash of the full path+query so /en/hero.jpg and /fr/hero.jpg differ.
+  return `${shortHash(u.pathname + u.search)}-${base}`;
 }
 
 /**
