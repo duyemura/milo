@@ -44,6 +44,9 @@ export function buildLinkMap(input: BuildLinkMapInput): LinkMapT {
   const edges: { from: string; to: string }[] = [];
 
   for (const [from, tos] of input.pageLinks) {
+    // Keys are same-origin crawled pages by construction; guard defensively so a
+    // stray cross-origin (or malformed) key can never inject a bogus node/edge.
+    if (!sameOrigin(from, origin)) continue;
     nodeUrls.add(from);
     for (const to of tos) {
       if (!sameOrigin(to, origin)) continue;

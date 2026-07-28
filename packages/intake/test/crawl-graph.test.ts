@@ -45,4 +45,18 @@ describe("buildLinkMap", () => {
     // cross-origin links are never nodes or edges
     expect(map.edges.some((e) => e.to.includes("facebook"))).toBe(false);
   });
+
+  it("ignores cross-origin from-keys — they never become nodes or edges", () => {
+    const map = buildLinkMap({
+      baseUrl: "https://g.com/",
+      discoveredAt: "2026-07-28T00:00:00Z",
+      crawledSlugs: new Map([["https://g.com/", "index"]]),
+      pageLinks: new Map([
+        ["https://g.com/", ["https://g.com/about"]],
+        ["https://evil.com/x", ["https://g.com/", "https://evil.com/y"]], // stray cross-origin key
+      ]),
+    });
+    expect(map.nodes.some((n) => n.url.includes("evil.com"))).toBe(false);
+    expect(map.edges.some((e) => e.from.includes("evil.com"))).toBe(false);
+  });
 });
