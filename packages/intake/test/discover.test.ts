@@ -98,7 +98,8 @@ describe("buildInventory", () => {
     const many = Array.from({ length: 30 }, (_, i) => `https://g.com/p${i}`);
     const inv = buildInventory({ baseUrl: "https://g.com/", sitemapUrls: many, navUrls: [], maxPages: 10, discoveredAt: "t" });
     expect(inv.pages.length).toBe(10);
-    expect(inv.capped).toBe(20);
+    // 30 sitemap URLs + auto-injected homepage = 31 ranked; 10 kept → 21 dropped by cap.
+    expect(inv.capped).toBe(21);
     expect(inv.pages.filter((p) => p.llmBudget === "full").length).toBe(8);   // top 8 full
   });
 });

@@ -119,7 +119,9 @@ export function buildInventory(input: BuildInventoryInput): PagesJson {
     .map((url) => ({ url, slug: slugFor(url, input.baseUrl), priority: priorityFor(url), source: sourceOf.get(url) ?? "crawl-discovered" }))
     .sort((a, b) => a.priority - b.priority || a.slug.localeCompare(b.slug));
 
-  const capped = Math.max(0, totalDiscovered - input.maxPages);
+  // Pages dropped specifically by the cap = survivors of filtering beyond maxPages.
+  // (Not totalDiscovered - maxPages, which would double-count UGC/non-html removals.)
+  const capped = Math.max(0, ranked.length - input.maxPages);
   const kept = ranked.slice(0, input.maxPages);
 
   const pages: PageInventoryItem[] = kept.map((p, i) => ({
