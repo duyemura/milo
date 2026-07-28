@@ -34,4 +34,8 @@ describe("brand extraction", () => {
     expect(a.gtm).toBe("GTM-ABC123");
     expect(a.facebookPixel).toBe("detected");   // pixel present, id parsed separately if available
   });
+  it("body font-family lookup is not hijacked by a tbody rule", () => {
+    const css = `<style>tbody { font-family: Comic Sans; } body { font-family: Helvetica; }</style>`;
+    expect(extractFonts(css).body).toBe("Helvetica");
+  });
 });

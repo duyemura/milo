@@ -20,7 +20,8 @@ function fontVar(html: string, name: string): string | null {
 }
 
 function familyOf(html: string, selector: string): string | null {
-  const block = html.match(new RegExp(`${selector}\\s*\\{[^}]*font-family\\s*:\\s*([^;}]+)`, "i"));
+  // \b anchors the selector so a lookup for `body` doesn't match `tbody { … }`.
+  const block = html.match(new RegExp(`\\b${selector}\\b\\s*\\{[^}]*font-family\\s*:\\s*([^;}]+)`, "i"));
   if (!block) return null;
   const first = block[1].split(",")[0].trim().replace(/["']/g, "");
   return first.startsWith("var(") ? null : first;
