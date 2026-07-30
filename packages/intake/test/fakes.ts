@@ -1,6 +1,6 @@
 import type { PlacesClient } from "../src/places.ts";
 import type { PageFetcher, FetchedPage } from "../src/crawl.ts";
-import type { ChatFn } from "../src/llm-json.ts";
+import type { ChatFn } from "@milo/llm";
 
 export class FakePlacesClient implements PlacesClient {
   constructor(private result: unknown | null) {}

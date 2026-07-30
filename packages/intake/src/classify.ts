@@ -1,7 +1,9 @@
 import { z } from "zod";
-import { BusinessDoc, IntegrationsDoc, PageDocument } from "./schemas.ts";
-import type { BusinessDoc as BusinessDocT, IntegrationsDoc as IntegrationsDocT, PageDocument as PageDoc, BrandCrawl } from "./schemas.ts";
-import { llmJson, type ChatFn } from "./llm-json.ts";
+import { PageDocument, BrandCrawl } from "@milo/schema";
+import type { PageDocument as PageDoc } from "@milo/schema";
+import { BusinessDoc, IntegrationsDoc } from "./schemas.ts";
+import type { BusinessDoc as BusinessDocT, IntegrationsDoc as IntegrationsDocT } from "./schemas.ts";
+import { llmJson, type ChatFn } from "@milo/llm";
 
 /** Deterministic: brand signals -> IntegrationsDoc. No LLM. */
 export function buildIntegrations(brand: BrandCrawl): IntegrationsDocT {

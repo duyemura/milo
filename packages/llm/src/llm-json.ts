@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { ChatMessage, ChatOptions, ChatResponse } from "@milo/llm";
+import type { ChatMessage, ChatOptions, ChatResponse } from "./llm-client.ts";
 
 /** Injectable chat function — real one is `(o) => chatCompletion(o, config)`. */
 export type ChatFn = (options: ChatOptions) => Promise<ChatResponse>;
