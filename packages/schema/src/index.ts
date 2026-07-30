@@ -5,3 +5,5 @@ export type {
 } from "./sections.ts";
 export { GymSiteContent, Page as GymSiteContentPage, Brand, Business, NavConfig, FooterConfig, PAGE_ARCHETYPES } from "./site-content.ts";
 export { SectionInstance, Page, SiteHierarchy, Identity, GymDocuments } from "./composition.ts";
+export { PagesJson, LinkMap, PageDocument, IdentityCrawl, BrandCrawl } from "./crawl.ts";
+export type { PagesJson as PagesJsonType, LinkMap as LinkMapType, PageDocument as PageDocumentType, IdentityCrawl as IdentityCrawlType, BrandCrawl as BrandCrawlType } from "./crawl.ts";

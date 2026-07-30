@@ -51,7 +51,7 @@ export function priorityFor(url: string): number {
   return 9;
 }
 
-import type { PagesJson, PageInventoryItem } from "./schemas.ts";
+import type { PagesJson, PageInventoryItem } from "@milo/schema";
 
 export function parseSitemap(xml: string): string[] {
   return [...xml.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/gi)].map((m) => m[1].trim());

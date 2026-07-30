@@ -1,7 +1,6 @@
 import { mkdir, writeFile, readFile, access } from "node:fs/promises";
 import path from "node:path";
-import { GymDocuments } from "@milo/schema";
-import { PagesJson, PageDocument, BrandCrawl, IdentityCrawl } from "./schemas.ts";
+import { GymDocuments, PagesJson, PageDocument, BrandCrawl, IdentityCrawl } from "@milo/schema";
 import type { PlacesClient } from "./places.ts";
 import { placesToIdentity } from "./places.ts";
 import type { PageFetcher } from "./crawl.ts";
@@ -10,9 +9,10 @@ import { normalizeBaseUrl, parseSitemap, extractNavLinks, buildInventory, slugFo
 import type { FetchLike } from "./discover.ts";
 import { nextToCrawl, buildLinkMap } from "./crawl-graph.ts";
 import { extractColors, extractFonts, extractLogo, extractSocialLinks, fingerprintSoftware, detectAnalytics } from "./brand.ts";
-import { synthesize } from "./synthesize.ts";
 import { classifyPage, classifyBusiness, buildIntegrations } from "./classify.ts";
-import type { ChatFn } from "./llm-json.ts";
+import { analyzeContext } from "./context.ts";
+import { generateSite } from "@milo/generate";
+import type { ChatFn } from "@milo/llm";
 
 export interface RunIntakeOptions {
   url: string;
@@ -184,13 +184,21 @@ export async function runIntake(opts: RunIntakeOptions): Promise<void> {
     for (const doc of pageDocs) await writeJson(path.join(pagesDir, `${doc.slug}.json`), doc);
   }
 
-  // --- Step 5: synthesis
+  // --- Step 5: project docs into site content
   const budgets = new Map(inventory.pages.map((p) => [p.slug, p.llmBudget] as const));
-  const { gym, context } = await synthesize({
-    chat: opts.chat, model: opts.capableModel, pages: pageDocs, budgets, identity, brand,
-  });
   const business = await classifyBusiness({ chat: opts.chat, model: opts.fastModel, pages: pageDocs, brand });
   const integrations = buildIntegrations(brand);
+  const context = await analyzeContext({ chat: opts.chat, model: opts.capableModel, pages: pageDocs, budgets, identity, brand });
+  const { gym } = await generateSite({
+    chat: opts.chat,
+    model: opts.capableModel,
+    pages: pageDocs,
+    budgets,
+    identity,
+    brand,
+    context,
+    business,
+  });
 
   // --- validate + write outputs (Zod-gated)
   GymDocuments.parse(gym);

@@ -1,5 +1,5 @@
-import { LinkMap } from "./schemas.ts";
-import type { LinkMap as LinkMapT } from "./schemas.ts";
+import { LinkMap } from "@milo/schema";
+import type { LinkMap as LinkMapT } from "@milo/schema";
 import { isUgc, slugFor } from "./discover.ts";
 
 function sameOrigin(url: string, origin: string): boolean {

@@ -1,4 +1,4 @@
-import { IdentityCrawl } from "./schemas.ts";
+import { IdentityCrawl } from "@milo/schema";
 
 /** Injected Places client. Real one hits Places API (New); fake used in tests. */
 export interface PlacesClient {

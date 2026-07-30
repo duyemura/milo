@@ -1,6 +1,6 @@
 import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
-import { PageDocument } from "./schemas.ts";
+import { PageDocument } from "@milo/schema";
 
 export interface FetchedPage {
   html: string;

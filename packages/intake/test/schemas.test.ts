@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import {
-  PagesJson, PageDocument, LinkMap, ContextDoc, BusinessDoc, IntegrationsDoc, BrandCrawl, IdentityCrawl,
-} from "../src/schemas.ts";
+import { PagesJson, PageDocument, LinkMap, BrandCrawl, IdentityCrawl } from "@milo/schema";
+import { ContextDoc, BusinessDoc, IntegrationsDoc } from "../src/schemas.ts";
 
 describe("intake schemas", () => {
   it("PageDocument requires fetchMethod and detectedType", () => {
