@@ -57,13 +57,23 @@ export async function classifyBusiness(input: ClassifyBusinessInput): Promise<Bu
     pageCount: input.pages.length,
     slugs: input.pages.map((p) => p.slug),
   };
+  const system = [
+    "You assess a gym's business from detected tech signals + page content.",
+    "Output ONLY a JSON object with this EXACT shape (every field required; use null only where shown):",
+    `{
+  "techStack": { "websiteBuilder": string|null, "gymSoftware": string|null, "emailPlatform": string|null, "bookingMethod": string|null, "hasPaymentProcessing": boolean, "hasLiveChat": boolean },
+  "marketingMaturity": { "runsPaidAds": boolean, "hasEmailList": boolean, "doesContentMarketing": boolean, "hasMemberApp": boolean, "socialPlatforms": string[] },
+  "businessSignals": { "locationCount": number, "coachCount": number|null, "pricingPoints": string[], "membershipModel": string[], "hasCompetitiveTeam": boolean },
+  "assessment": string
+}`,
+  ].join("\n");
   return llmJson(BusinessDoc, {
     chat: input.chat,
     model: input.model,
     messages: [
-      { role: "system", content: "Return a JSON object matching the BusinessDoc schema (techStack, marketingMaturity, businessSignals, assessment). Base it on the detected signals and page inventory." },
+      { role: "system", content: system },
       { role: "user", content: `DETECTED SIGNALS: ${JSON.stringify(signals)}\n\nPAGES: ${input.pages.map((p) => `${p.slug}: ${p.bodyText.slice(0, 500)}`).join("\n")}` },
     ],
-    maxRetries: 2,
+    maxRetries: 3,
   });
 }

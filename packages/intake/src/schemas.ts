@@ -133,7 +133,7 @@ export type ContextDoc = z.infer<typeof ContextDoc>;
 export const BusinessDoc = z.object({
   techStack: z.object({
     websiteBuilder: z.string().nullable(), gymSoftware: z.string().nullable(),
-    emailPlatform: z.string().nullable(), bookingMethod: z.string(),
+    emailPlatform: z.string().nullable(), bookingMethod: z.string().nullable(),
     hasPaymentProcessing: z.boolean(), hasLiveChat: z.boolean(),
   }),
   marketingMaturity: z.object({

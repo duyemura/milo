@@ -50,4 +50,17 @@ describe("intake schemas", () => {
     expect(m.nodes).toHaveLength(2);
     expect(m.nodes[1].crawled).toBe(false);
   });
+
+  it("BusinessDoc.techStack.bookingMethod accepts null (LLM returns null when undetected)", () => {
+    const base = {
+      techStack: { websiteBuilder: null, gymSoftware: null, emailPlatform: null,
+        bookingMethod: null, hasPaymentProcessing: false, hasLiveChat: false },
+      marketingMaturity: { runsPaidAds: false, hasEmailList: false, doesContentMarketing: false,
+        hasMemberApp: false, socialPlatforms: [] },
+      businessSignals: { locationCount: 1, coachCount: null, pricingPoints: [], membershipModel: [], hasCompetitiveTeam: false },
+      assessment: "ok",
+    };
+    expect(() => BusinessDoc.parse(base)).not.toThrow();
+    expect(BusinessDoc.parse({ ...base, techStack: { ...base.techStack, bookingMethod: "embedded widget" } }).techStack.bookingMethod).toBe("embedded widget");
+  });
 });

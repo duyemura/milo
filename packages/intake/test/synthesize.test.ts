@@ -1,7 +1,18 @@
 import { describe, it, expect, vi } from "vitest";
-import { GymDocuments } from "@milo/schema";
-import { budgetPages, synthesize } from "../src/synthesize.ts";
+import { GymDocuments, SECTION_TYPES } from "@milo/schema";
+import { budgetPages, synthesize, sectionShapeGuide } from "../src/synthesize.ts";
 import type { PageDocument } from "../src/schemas.ts";
+
+describe("sectionShapeGuide", () => {
+  it("lists a content-field line for every section type (so the synthesis prompt never omits one)", () => {
+    const guide = sectionShapeGuide();
+    for (const type of SECTION_TYPES) {
+      expect(guide).toContain(`"${type}"`);
+    }
+    // each line names the fields that go inside `content`
+    expect(guide).toMatch(/"hero":\s*\{[^}]*heading/);
+  });
+});
 
 function page(slug: string, budget: "full" | "truncated", chars: number): PageDocument {
   return {
