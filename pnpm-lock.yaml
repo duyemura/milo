@@ -25,6 +25,10 @@ importers:
       '@milo/schema':
         specifier: workspace:*
         version: link:../../packages/schema
+    devDependencies:
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@26.1.1)
 
   apps/renderer:
     dependencies:

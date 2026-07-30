@@ -1,6 +1,6 @@
 import { mkdir, writeFile, readFile, access } from "node:fs/promises";
 import path from "node:path";
-import { GymDocuments, PagesJson, PageDocument, BrandCrawl, IdentityCrawl } from "@milo/schema";
+import { PagesJson, PageDocument, BrandCrawl, IdentityCrawl } from "@milo/schema";
 import type { PlacesClient } from "./places.ts";
 import { placesToIdentity } from "./places.ts";
 import type { PageFetcher } from "./crawl.ts";
@@ -200,8 +200,9 @@ export async function runIntake(opts: RunIntakeOptions): Promise<void> {
     business,
   });
 
-  // --- validate + write outputs (Zod-gated)
-  GymDocuments.parse(gym);
+  // --- write outputs
+  // gym was already deep-validated by generateSite() against GymDocumentsStrict;
+  // no need to re-parse here.
   await writeJson(path.join(opts.outDir, "gym.json"), gym);
   await writeJson(path.join(opts.outDir, "context.json"), context);
   await writeJson(path.join(opts.outDir, "business.json"), business);

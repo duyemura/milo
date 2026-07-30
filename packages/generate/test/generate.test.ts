@@ -163,6 +163,13 @@ describe("budgetPages", () => {
     expect(out.reduce((n, p) => n + p.bodyText.length, 0)).toBeLessThanOrEqual(4000);
   });
 
+  it("caps full pages at FULL_CHARS even when total is under the ceiling", () => {
+    const pages = [pageDoc("a", "full", 50_000)];
+    const budgets = new Map([["a", "full"]] as const);
+    const out = budgetPages(pages, budgets, 1_000_000);
+    expect(out[0].bodyText.length).toBe(8000);
+  });
+
   it("starts truncated pages at 800 chars", () => {
     const pages = [pageDoc("a", "truncated", 5000)];
     const budgets = new Map([["a", "truncated"]] as const);

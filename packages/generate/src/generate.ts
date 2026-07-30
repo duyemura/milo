@@ -46,32 +46,78 @@ const GymDocumentsStrict = GymDocuments.superRefine((doc, ctx) => {
   });
 });
 
+interface ZodObjectLike {
+  shape: Record<string, ZodFieldLike>;
+}
+
+interface ZodFieldLike {
+  isOptional?: () => boolean;
+  _def?: { value?: unknown };
+}
+
+interface ZodDiscriminatedUnionLike {
+  _def?: { options?: unknown[] };
+}
+
 /**
  * Introspect the Section discriminated union into a compact per-type content
  * field guide (a trailing `?` marks optional/defaulted fields). This is fed to
  * the LLM so it knows the exact content shape for each section type — without
  * it, the model guesses the envelope wrong and every generation attempt fails
  * validation. Generated from the schema so it never drifts from the source.
+ *
+ * This reaches into Zod internals by design (the only way to keep the prompt
+ * in sync with the schema automatically). It defensively validates the shape
+ * and throws a clear error if a future Zod version changes the representation.
  */
 export function sectionShapeGuide(): string {
-  const opts = (Section as unknown as { _def: { options: unknown[] } })._def.options;
+  const sectionUnion = Section as unknown as ZodDiscriminatedUnionLike;
+  const opts = sectionUnion._def?.options;
+  if (!Array.isArray(opts)) {
+    throw new Error(
+      "sectionShapeGuide: expected Section to be a Zod discriminated union with _def.options. " +
+        "The Zod representation may have changed; update this introspection or generate the guide from the schema another way.",
+    );
+  }
+
   const lines: string[] = [];
   for (const opt of opts) {
-    const o = opt as { shape: Record<string, { isOptional?: () => boolean; _def?: { value?: unknown } }> };
-    const shape = o.shape;
-    const typeVal = shape.type?._def?.value;
+    const { shape } = opt as ZodObjectLike;
+    if (!shape || typeof shape !== "object") {
+      throw new Error("sectionShapeGuide: expected each Section option to be a Zod object with a shape.");
+    }
+    const typeField = shape.type as ZodFieldLike | undefined;
+    const typeVal = typeField?._def?.value;
+    if (typeof typeVal !== "string") {
+      throw new Error("sectionShapeGuide: expected each Section option to have a string literal `type` field.");
+    }
     const fields = Object.keys(shape)
       .filter((k) => k !== "type")
       .map((k) => (shape[k].isOptional?.() ? `${k}?` : k));
-    lines.push(`  "${String(typeVal)}": { ${fields.join(", ")} }`);
+    lines.push(`  "${typeVal}": { ${fields.join(", ")} }`);
   }
+
+  const emitted = new Set(lines.map((l) => l.match(/^  "([^"]+)":/)?.[1]).filter((s): s is string => !!s));
+  const missing = SECTION_TYPES.filter((t) => !emitted.has(t));
+  if (missing.length > 0) {
+    throw new Error(`sectionShapeGuide: missing section types in generated guide: ${missing.join(", ")}`);
+  }
+
   return lines.join("\n");
 }
 
 const FULL_CHARS = 8000;
 const TRUNC_STEPS = [FULL_CHARS, 2000, 1000, 800];
 
-/** Estimate ~4 chars/token; keep total input body under `charCeiling`. */
+/**
+ * Fit page body text into the LLM context window.
+ *
+ * Budget rules:
+ * - "truncated" pages are capped at 800 chars.
+ * - "full" pages are capped at FULL_CHARS (8000) initially.
+ * - If the total still exceeds `charCeiling`, progressively shrink "full" pages
+ *   through the truncation steps until everything fits.
+ */
 export function budgetPages(
   pages: PageDocument[],
   budgets: Map<string, "full" | "truncated">,
@@ -79,8 +125,12 @@ export function budgetPages(
 ): PageDocument[] {
   const cap = (p: PageDocument, n: number): PageDocument => ({ ...p, bodyText: p.bodyText.slice(0, n) });
 
-  // Truncated pages start at 800.
-  let working = pages.map((p) => (budgets.get(p.slug) === "truncated" ? cap(p, 800) : p));
+  let working = pages.map((p) => {
+    const budget = budgets.get(p.slug);
+    if (budget === "truncated") return cap(p, 800);
+    if (budget === "full") return cap(p, FULL_CHARS);
+    return p;
+  });
 
   for (const step of TRUNC_STEPS) {
     const total = working.reduce((n, p) => n + p.bodyText.length, 0);

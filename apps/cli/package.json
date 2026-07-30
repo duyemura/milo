@@ -6,11 +6,17 @@
   "bin": {
     "milo": "./src/milo.ts"
   },
+  "scripts": {
+    "test": "vitest run"
+  },
   "dependencies": {
     "@milo/intake": "workspace:*",
     "@milo/llm": "workspace:*",
     "@milo/publish": "workspace:*",
     "@milo/generate": "workspace:*",
     "@milo/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
   }
 }
