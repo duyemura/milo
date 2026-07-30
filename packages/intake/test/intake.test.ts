@@ -50,8 +50,8 @@ describe("runIntake", () => {
   it("produces all four validated output files + crawl bundle offline", async () => {
     const places = new FakePlacesClient({ displayName: { text: "Iron Anchor" }, formattedAddress: "1 Dock St, Denver, CO 80202, USA" });
     const fetcher = new FakePageFetcher({ "https://ironanchor.com/": HOME, "/about": ABOUT, "/pricing": PRICING });
-    // classify calls: 3 pages -> 3 CLASS, then synthesize gym+context, then business
-    const chat = fakeChat([CLASS, CLASS, CLASS, JSON.stringify(GYM), JSON.stringify(CONTEXT), JSON.stringify(BUSINESS)]);
+    // classify calls: 3 pages -> 3 CLASS, then business, context, gym
+    const chat = fakeChat([CLASS, CLASS, CLASS, JSON.stringify(BUSINESS), JSON.stringify(CONTEXT), JSON.stringify(GYM)]);
 
     await runIntake({
       url: "https://ironanchor.com", outDir: out, maxPages: 25, includeUgc: false, concurrency: 3,
@@ -90,8 +90,8 @@ describe("runIntake", () => {
       { "https://ironanchor.com/": HOME, "/about": ABOUT, "/pricing": PRICING },
       ["/pricing"],
     );
-    // Only 2 pages successfully crawl -> 2 CLASS calls, then gym, context, business.
-    const chat = fakeChat([CLASS, CLASS, JSON.stringify(GYM), JSON.stringify(CONTEXT), JSON.stringify(BUSINESS)]);
+    // Only 2 pages successfully crawl -> 2 CLASS calls, then business, context, gym.
+    const chat = fakeChat([CLASS, CLASS, JSON.stringify(BUSINESS), JSON.stringify(CONTEXT), JSON.stringify(GYM)]);
 
     await runIntake({
       url: "https://ironanchor.com", outDir: out, maxPages: 25, includeUgc: false, concurrency: 3,
