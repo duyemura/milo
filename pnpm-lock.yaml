@@ -10,6 +10,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@milo/generate':
+        specifier: workspace:*
+        version: link:../../packages/generate
       '@milo/intake':
         specifier: workspace:*
         version: link:../../packages/intake
@@ -19,6 +22,9 @@ importers:
       '@milo/publish':
         specifier: workspace:*
         version: link:../../packages/publish
+      '@milo/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
 
   apps/renderer:
     dependencies:
@@ -58,8 +64,27 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@26.1.1)
 
+  packages/generate:
+    dependencies:
+      '@milo/llm':
+        specifier: workspace:*
+        version: link:../llm
+      '@milo/schema':
+        specifier: workspace:*
+        version: link:../schema
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+    devDependencies:
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@26.1.1)
+
   packages/intake:
     dependencies:
+      '@milo/generate':
+        specifier: workspace:*
+        version: link:../generate
       '@milo/llm':
         specifier: workspace:*
         version: link:../llm
@@ -82,6 +107,9 @@ importers:
       vitest:
         specifier: ^3.0.0
         version: 3.2.7(@types/debug@4.1.13)(@types/node@26.1.1)
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
 
   packages/publish:
     dependencies:

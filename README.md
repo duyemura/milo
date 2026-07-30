@@ -12,9 +12,10 @@ deterministic.
 
 | Path | What |
 |---|---|
-| `packages/schema` | The contract: `GymSiteContent` (closed 16-section vocabulary, 15 page archetypes) + `TemplateManifest` + fixture gym |
-| `packages/llm` | OpenRouter/Ollama client (ported v1 keeper), injected config, cost accumulator |
-| `packages/intake` | `milo intake` engine: crawl a real gym's site → `gym.json` + `context/business/integrations.json` + local assets. Injected `PlacesClient`/`PageFetcher`/`chat` (fakes in tests, no live HTTP in CI) |
+| `packages/schema` | The contract: `GymDocuments` (closed 16-section vocabulary + 15 page archetypes), raw crawl artifact schemas, `BrandTokens`, and fixture gym |
+| `packages/llm` | OpenRouter/Ollama client (ported v1 keeper), injected config, cost accumulator, plus `llmJson` schema-enforced JSON helper |
+| `packages/intake` | `milo intake` engine: crawl a real gym's site → `context/business/integrations.json` + crawl bundle, then calls `packages/generate` to write `gym.json`. Injected `PlacesClient`/`PageFetcher`/`chat` (fakes in tests, no live HTTP in CI) |
+| `packages/generate` | `GymDocuments` = docs + crawl → `gym.json`. The re-runnable projection both `intake` and future editing tools call |
 | `packages/publish` | S3 + CloudFront versioned deploy (staging/production/rollback/status) |
 | `templates/<name>` | A template: Astro components (full vocabulary) + `registry.ts` + `template.json` manifest + `docs/` |
 | `apps/renderer` | gym.json + template → static site; schema-validated, loud failures |
@@ -27,6 +28,7 @@ deterministic.
 ```bash
 pnpm test                                    # all package tests
 pnpm milo intake --url <gym-url>             # crawl a real gym → intake-output/
+pnpm milo generate --docs <intake-output>   # reproject docs → gym.json (no re-crawl)
 pnpm milo build --gym <gym.json> --template modern --out <dir>
 pnpm milo preview --template blackout        # serve last build
 pnpm milo studio --url <reference-url>       # capture a reference site
@@ -67,6 +69,27 @@ deep-checked against the `Section` schema during synthesis so malformed
 sections self-correct in the LLM retry loop. `crawl/links.json` records every
 same-origin URL seen — crawled or not — as the gym's real site map, independent
 of `--max-pages`.
+
+`--skip-crawl` re-runs the doc → `gym.json` projection without fetching pages
+again.
+
+## Generate
+
+`packages/generate` is the docs → `GymDocuments` projection. It takes the crawl
+bundle plus optional `context.json`/`business.json`, budgets pages to fit the
+LLM context window, and emits a `gym.json` whose sections are deep-validated
+against the closed section vocabulary.
+
+The CLI exposes it as `milo generate --docs <dir> [--out <dir>]`:
+
+```bash
+# After intake, regenerate site content from edited docs without crawling again.
+# Only needs OPENROUTER_API_KEY (no Places key).
+pnpm milo generate --docs ./intake-output
+```
+
+This is the same function `milo intake` calls internally; separating it makes
+future AI assistant edits and reskin rebuilds deterministic and previewable.
 
 ## Templates
 

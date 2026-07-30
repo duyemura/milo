@@ -9,6 +9,8 @@
   "dependencies": {
     "@milo/intake": "workspace:*",
     "@milo/llm": "workspace:*",
-    "@milo/publish": "workspace:*"
+    "@milo/publish": "workspace:*",
+    "@milo/generate": "workspace:*",
+    "@milo/schema": "workspace:*"
   }
 }
