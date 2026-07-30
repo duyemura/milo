@@ -1,0 +1,20 @@
+{
+  "name": "@milo/generate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@milo/schema": "workspace:*",
+    "@milo/llm": "workspace:*",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  }
+}
