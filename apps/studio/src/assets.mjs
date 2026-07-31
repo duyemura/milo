@@ -19,21 +19,44 @@ export function rewriteRefs(bundle, map) {
   };
 }
 
-/** Download each url into `dir`, returning { url -> relativeLocalPath }. Integration-only. */
+/** Parse a failed download into a coarse reason bucket. */
+function classifyError(err, status) {
+  if (status != null) return "http";
+  const msg = (err?.message || "").toLowerCase();
+  if (msg.includes("enetunreach") || msg.includes("econnrefused") || msg.includes("fetch")) return "network";
+  if (msg.includes("ENOTFOUND") || msg.includes("not found") || msg.includes("dns")) return "dns";
+  return "other";
+}
+
+/**
+ * Download each url into `dir`, returning { url -> relativeLocalPath } plus a
+ * summary of failures. Integration-only.
+ */
 export async function downloadAssets(urls, dir) {
   fs.mkdirSync(dir, { recursive: true });
   const map = {};
+  const failures = [];
   let i = 0;
   for (const url of urls) {
     const ext = (path.extname(new URL(url).pathname) || ".bin").split("?")[0];
     const name = `asset-${String(i++).padStart(3, "0")}${ext}`;
     try {
       const res = await fetch(url);
-      if (!res.ok) continue;
+      if (!res.ok) {
+        failures.push({ url, status: res.status, reason: classifyError(null, res.status) });
+        continue;
+      }
       const buf = Buffer.from(await res.arrayBuffer());
       fs.writeFileSync(path.join(dir, name), buf);
       map[url] = path.join("assets", name);
-    } catch { /* skip unreachable asset; eval will flag any missing */ }
+    } catch (err) {
+      failures.push({ url, reason: classifyError(err, null), message: err?.message });
+    }
   }
-  return map;
+  const ok = Object.keys(map).length;
+  console.log(`[assets] downloaded ${ok}/${urls.length} (${failures.length} failed)`);
+  for (const f of failures) {
+    console.log(`[assets] failed ${f.reason}: ${f.url}${f.status ? ` (HTTP ${f.status})` : ""}`);
+  }
+  return { map, failures, stats: { total: urls.length, ok, failed: failures.length } };
 }

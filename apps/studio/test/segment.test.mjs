@@ -31,6 +31,31 @@ test("descends shell wrappers instead of returning one monster block", async () 
     "Three Steps",
     "Stories of Glory",
   ]);
+  // No section may span (almost) the whole page — that was the collapse bug.
   const pageHeight = 900 + 1200 + 600;
   expect(Math.max(...sections.map((s) => s.height))).toBeLessThan(pageHeight * 0.9);
+});
+
+test("keeps short header/footer siblings at the spine", async () => {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  await page.goto(fixture("short-header.html"));
+  const sections = await page.evaluate(segmentPage);
+  await page.close();
+  const header = sections.find((s) => s.tag === "HEADER");
+  expect(header).toBeTruthy();
+  expect(header.height).toBeLessThan(80);
+  expect(sections.map((s) => s.heading)).toContain("Site header");
+  expect(sections.map((s) => s.heading)).toContain("Alpha");
+  expect(sections.map((s) => s.heading)).toContain("Bravo");
+});
+
+test("records position and viewport-relative y for fixed elements", async () => {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  await page.goto(fixture("fixed-header.html"));
+  const sections = await page.evaluate(segmentPage);
+  await page.close();
+  const header = sections.find((s) => s.tag === "HEADER");
+  expect(header).toBeTruthy();
+  expect(header.position).toBe("fixed");
+  expect(header.y).toBeGreaterThanOrEqual(0);
 });

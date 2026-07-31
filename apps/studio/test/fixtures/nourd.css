@@ -1,0 +1,8 @@
+@font-face {
+  font-family: "Nourd Light Font";
+  font-style: normal;
+  font-weight: 300;
+  src: url("/fonts/nourd-light.woff2") format("woff2");
+}
+
+h1 { font-family: "Nourd Light Font", sans-serif; }

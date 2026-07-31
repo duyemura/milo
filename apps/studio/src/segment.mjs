@@ -8,14 +8,17 @@
  */
 export const segmentPage = () => {
   const MIN_H = 80;
-  const tall = (el) =>
-    [...el.children].filter((c) => c.getBoundingClientRect().height >= MIN_H);
-  const isShell = (el) => tall(el).length === 1;
+  const MIN_H_SHORT = 20; // keep header/footer siblings even when visually compact
+  const isHeaderFooter = (el) => el.tagName === "HEADER" || el.tagName === "FOOTER";
+  const minHeightFor = (el) => (isHeaderFooter(el) ? MIN_H_SHORT : MIN_H);
+  const tall = (el, min = MIN_H) =>
+    [...el.children].filter((c) => c.getBoundingClientRect().height >= min);
+  const isShell = (el) => tall(el, MIN_H).length === 1;
   const descend = (el) => {
     let node = el;
     let guard = 0;
     while (isShell(node) && guard++ < 20) {
-      const next = tall(node)[0];
+      const next = tall(node, MIN_H)[0];
       if (!next || next === node) break;
       node = next;
     }
@@ -26,13 +29,16 @@ export const segmentPage = () => {
   for (const el of spine.children) {
     const r = el.getBoundingClientRect();
     const h = Math.round(r.height);
-    if (h < MIN_H) continue;
+    if (h < minHeightFor(el)) continue;
     const cs = getComputedStyle(el);
+    // Fixed elements are viewport-relative; everything else is document-relative.
+    const y = cs.position === "fixed" ? Math.round(r.y) : Math.round(r.y + window.scrollY);
     out.push({
       tag: el.tagName,
       cls: (el.className?.toString() || "").slice(0, 140),
-      y: Math.round(r.y + window.scrollY),
+      y,
       height: h,
+      position: cs.position,
       bg: cs.backgroundColor,
       padding: cs.padding,
       heading: el.querySelector("h1,h2,h3")?.textContent?.trim().slice(0, 100) ?? null,
