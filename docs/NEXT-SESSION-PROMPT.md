@@ -8,9 +8,9 @@ I'm continuing work on **Milo v2**, a gym website platform. The repo is at `~/pu
 
 ## Read these first
 
-1. `~/pushpress/milo/docs/SESSION-2-REPORT.md` — full state of what was built and what's next.
-2. `~/pushpress/milo/docs/specs/2026-07-19-milo-v2-rethink-design.md` — approved design.
-3. `~/pushpress/milo/README.md` — repo map, commands, rules.
+1. `~/pushpress/milo/docs/SESSION-3-REPORT.md` — intake close-out and current state.
+2. `~/pushpress/milo/README.md` — repo map, commands, rules.
+3. `~/pushpress/milo/docs/specs/2026-07-19-milo-v2-rethink-design.md` — approved design.
 
 ## Verify the foundation is green before doing anything
 
@@ -18,67 +18,100 @@ I'm continuing work on **Milo v2**, a gym website platform. The repo is at `~/pu
 cd ~/pushpress/milo && pnpm test
 ```
 
-Expected: **119 tests passing, 0 failing** across packages/schema, packages/llm, apps/studio, apps/renderer (includes Lighthouse gate perf=99, SEO=100, portability gate), templates/modern (31), templates/blackout (39).
+Expected: **all 10 workspace projects green, 0 failing** (intake 58 tests, generate 10, publish 36, renderer 20, templates, schema, llm, studio, cli).
 
 If anything is red, fix it before proceeding.
 
 ## What exists
 
-- **`templates/modern`** — Template #1: Montserrat, navy+blue, all 16 sections, full SEO/AEO @graph
-- **`templates/blackout`** — Template #2: Oswald, dark, sharp edges, all 16 sections
-- **`apps/renderer`** — Astro static renderer, `TEMPLATE=modern|blackout`, `GYM_JSON=path/to/gym.json`
-- **`packages/schema`** — `GymDocuments`, `Identity` (with geo/GBP/priceRange), 16 section schemas, `tokensToCss`
-- **`apps/studio`** — Playwright capture tools
+- **`packages/intake`** + `milo intake` — DONE. Crawls a real gym, downloads GMB photos + page assets, writes `gym.json` + `context.json` + `business.json` + `integrations.json` + full crawl bundle.
+- **`packages/generate`** + `milo generate` — DONE. Standalone docs → `gym.json` reprojection; also called internally by intake.
+- **`packages/publish`** + `milo publish staging|production|rollback|status` — DONE. S3 + CloudFront KVS versioned deploy.
+- **`apps/renderer`** — Astro static renderer, `GYM_JSON=... TEMPLATE=modern pnpm --filter renderer build`.
+- **`templates/modern`** and **`templates/blackout`** — full 16-section templates.
+- **`packages/schema`** — `GymDocuments`, `BrandTokens`, 16 section schemas.
 
 ## Core invariants (do not violate)
 
-1. **Templates own fonts + typography only.** All JSON-LD, meta tags, structured data = renderer.
-2. **Section content validated** via `Section.safeParse` before rendering. Malformed docs fail loudly.
-3. **`SECTION_TYPES` is closed.** Adding a section = schema change + tests + both template components.
-4. **`GymDocuments` is the single source of truth.** Templates are skins.
-5. **Intake populates docs once.** After join, Milo is system of record.
+1. **Docs are the single source of truth.** After intake, all site changes flow through doc edits + rebuild.
+2. **Templates own fonts + typography only.** JSON-LD, meta tags, structured data = renderer.
+3. **Section content validated** via `Section.safeParse` before rendering. Malformed docs fail loudly.
+4. **`SECTION_TYPES` is closed.** Adding a section = schema change + tests + both template components.
+5. **No re-clone / re-sync from source.** Milo is system of record after join.
 
-## Status (updated 2026-07-28)
+## Next target — real-gym end-to-end burn-in
 
-- **Publish — DONE** (`packages/publish`, wired into CLI). Option A below is complete.
-- **Intake — DONE** (`packages/intake`, `milo intake`). See `SESSION-3-REPORT.md`. Option B below is complete, on branch `intake` (not yet merged to `main`).
-- **Generate — NOT built.** This is the next build (Option C below).
+The stack is built; now it needs to survive real gym data. Run the full pipeline against live gyms and harden from what breaks.
 
-## What to build next (ask Dan which one)
+### Scope
 
-### Option A: Publish (`apps/publish`) — ✅ DONE
-S3 + CloudFront staging/production. Port from `~/pushpress/websites/apps/api/src/services/`:
-- `cloudfront.ts` — KVS router for slug → S3 prefix
-- `s3.ts` — upload dist/ to `pushpress-marketing-dev` (unicorn AWS profile)
+Pick 3–5 real gym websites representing different underlying platforms (PushPress, Squarespace, Wodify, WordPress, Webflow, etc.). For each:
 
-Flow: `milo build → dist/ → milo publish staging → S3 upload → viewable at CDN URL`
-Then: `milo publish production → swap KVS entry → site goes live`
+1. **Intake**
+   ```bash
+   GOOGLE_PLACES_API_KEY=… OPENROUTER_API_KEY=… \
+     node apps/cli/src/milo.ts intake \
+       --url https://<gym>.com \
+       --name "Gym Name" \
+       --city "City" \
+       --state "ST" \
+       --max-pages 15 \
+       --out ./burnin/<gym-slug>
+   ```
+2. **Validate `gym.json`** — `GymDocuments.parse` must pass; every page needs ≥1 valid section.
+3. **Build**
+   ```bash
+   node apps/cli/src/milo.ts build \
+     --gym ./burnin/<gym-slug>/gym.json \
+     --theme modern \
+     --out ./burnin/<gym-slug>/dist
+   ```
+4. **Publish staging**
+   ```bash
+   AWS_PROFILE=unicorn node apps/cli/src/milo.ts publish staging \
+     --dist ./burnin/<gym-slug>/dist
+   ```
+5. **Evaluate** — open the staging URL and score:
+   - Content accuracy (does it represent the real gym?)
+   - Section coverage (missing archetypes? thin placeholders?)
+   - Asset quality (logo, hero, GMB photos, downloaded images)
+   - Lighthouse / a11y gates (`apps/renderer/test/lighthouse.test.ts`, `gates.test.ts`)
+   - Renderer errors or schema validation failures
 
-### Option B: Intake (`apps/cli intake`) — ✅ DONE (branch `intake`)
-`milo intake --url <gym-url>` → populates GymDocuments from a real gym.
-- GMB lookup → identity (name, address, phone, hours, geo)
-- Homepage crawl → brand (logo, colors, hero image)  
-- Targeted subpage fetch → program/coach/schedule/pricing content via @milo/llm
+### Hardening loop
 
-Port from `~/pushpress/websites/apps/api/src/services/gmb.ts`
+For every failure, find the **root cause** and fix upstream:
 
-### Option C: Generate (`apps/cli generate`) — ⬅ NEXT
-`GymDocuments` → `gym.json` (complete site content) via LLM + archetype recipes.
-Reads all doc fields, produces structured content the renderer needs.
+- Bad crawl / missing page → `discover.ts`, `crawl.ts`, `rules.ts`.
+- Bad content synthesis → prompt/template in `packages/generate`, `context.ts`, `classify.ts`.
+- Missing archetype → `missingArchetypes()` logic or placeholder generation in `generateSite()`.
+- Asset not downloaded / wrong path → `downloadAsset`, `downloadPageAssets`, `downloadGmbPhotos`.
+- Brand/fonts wrong → `brand.ts`, Playwright font capture.
+- Integration/analytics misdetected → `brand.ts` `detectAnalytics` / `fingerprintSoftware`.
+
+Add a regression test in `packages/intake/test` or `packages/generate/test` for every fix. Update the bundled crawl rules if a whole class of URLs needs new handling.
+
+### Output
+
+Write `docs/BURN-IN-2026-07-29.md` (or dated equivalent) with:
+- Gyms tested, platform, pages crawled, staging URLs.
+- Pass/fail per evaluation dimension.
+- Root-cause fixes applied and tests added.
+- Remaining known gaps prioritized.
 
 ## Working style
 
-- Brainstorm/plan before building (superpowers skills)
-- TDD: red test → implementation → green
-- Commit frequently
-- Use agents for parallel independent work
-- PR review after each logical batch
-- Before claiming anything works, run it and show evidence
-- Long builds/captures as background tasks with progress narration
-- Before any LLM-touching code: load the `claude-api` skill
+- Brainstorm/plan before building (superpowers skills).
+- TDD for every fix: red regression test → implementation → green.
+- Commit frequently.
+- Use agents for parallel independent gym runs.
+- Before claiming anything works, run it and show evidence.
+- Long captures/builds as background tasks with progress narration.
+- Before any LLM-touching code: load the `claude-api` skill.
 
 ## Pending decisions (ask Dan, don't assume)
 
-- Which of A/B/C to build first
-- Whether to create a GitHub remote for the milo repo
-- Whether to do a visual polish pass on both templates before publish
+- Which live gyms to use for burn-in (and whether any need permission).
+- Whether to create a GitHub remote for the milo repo.
+- Whether to do a visual polish pass on templates before broader burn-in.
+- Whether to keep the `--skip-crawl` flow or fold it into a future edit/rebuild command.

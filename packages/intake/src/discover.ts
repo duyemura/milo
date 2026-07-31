@@ -80,6 +80,8 @@ export interface BuildInventoryInput {
   includeUgc?: boolean;
 }
 
+type RankedPage = Omit<PageInventoryItem, "llmBudget">;
+
 export function buildInventory(input: BuildInventoryInput, rules: CompiledCrawlRules = defaultRules()): PagesJson {
   const origin = new URL(input.baseUrl).origin;
   const sourceOf = new Map<string, "sitemap" | "nav">();
@@ -113,7 +115,7 @@ export function buildInventory(input: BuildInventoryInput, rules: CompiledCrawlR
   }
 
   const ranked = [...bySlug.values()]
-    .map((url) => ({ url, slug: slugFor(url, input.baseUrl), priority: priorityFor(url, rules), source: sourceOf.get(url) ?? "crawl-discovered" }))
+    .map((url): RankedPage => ({ url, slug: slugFor(url, input.baseUrl), priority: priorityFor(url, rules), source: sourceOf.get(url) ?? "crawl-discovered" }))
     .sort((a, b) => a.priority - b.priority || a.slug.localeCompare(b.slug));
 
   // Pages dropped specifically by the cap = survivors of filtering beyond maxPages.

@@ -1,65 +1,70 @@
-# Session 3 Report — Intake
+# Session 3 Report — Intake close-out
 
-**Date:** 2026-07-28
-**Branch:** `intake` (local only — no remote)
-**Tests:** 209 passing, 0 failing across the whole monorepo (was 119 pre-intake; `packages/intake` adds 53)
+**Date:** 2026-07-29  
+**Branch:** `main` (merged)  
+**Tests:** all 10 workspace projects green; `packages/intake` adds 58 tests, total monorepo suite now 238 passing, 0 failing.
 
 ---
 
-## What was built
+## What `milo intake` does
 
-`packages/intake` + the `milo intake --url <gym-url>` command — the one-time engine that turns a real gym's web presence into a `GymDocuments` fixture (`gym.json`) plus three intelligence docs and a local asset archive. Built from `docs/superpowers/specs/2026-07-21-intake-design.md` via `docs/superpowers/plans/2026-07-28-intake.md` (16 TDD tasks, subagent-driven with a spec+quality review after each substantive task).
+`packages/intake` + `apps/cli/src/milo.ts` implement the one-time engine that turns a real gym's web presence into a `GymDocuments` fixture (`gym.json`) plus three intelligence docs and a local asset archive.
 
-### The pipeline (`runIntake`)
+Pipeline (`runIntake` in `packages/intake/src/intake.ts`):
 
-1. **Normalize base URL** — follow redirects to the canonical origin (`discover.ts`).
-2. **Places identity** (best-effort) — Google Places API (New) → `IdentityCrawl` (`places.ts`); no match ⇒ warn + crawl-only identity.
-3. **Discovery** — probe `/sitemap.xml`, parse nav, merge same-origin, filter non-HTML + UGC, prioritize (homepage→about→coaches→programs→pricing→…), cap at `--max-pages`, assign per-page LLM budget → `pages.json` (`discover.ts`).
-4. **Wave-based crawl with queue expansion** — static fetch (Playwright fallback for JS-rendered pages), boilerplate-stripped page documents, per-page LLM classification, asset collection. Newly-seen same-origin links feed back into the queue up to the cap (`crawl.ts`, `crawl-graph.ts`, orchestrated in `intake.ts`).
-5. **Full internal link map** — `crawl/links.json` records **every** same-origin URL seen, crawled or not, with edges — the gym's real site graph independent of `--max-pages` (`crawl-graph.ts`). *(Added at Dan's request beyond the original spec.)*
-6. **Brand extraction** — colors, fonts, logo, socials, gym-software fingerprint, analytics detection from homepage HTML/CSS (`brand.ts`).
-7. **LLM synthesis Pass 1** — `gym.json` (`GymDocuments`) + `context.json`, with context-window budgeting and **deep per-section content validation** (`GymDocumentsStrict`) so malformed sections self-correct inside the retry loop (`synthesize.ts`).
-8. **LLM Pass 2** — `business.json` + `integrations.json` (deterministic signal mapping + a narrative LLM call) (`classify.ts`).
-9. **Validate + write** — every output Zod-validated before write.
+1. **Normalize base URL** — follow redirects to canonical origin (`discover.ts`).
+2. **Operator-supplied identity** — `--name`, `--city`, `--state`, `[--country US]` drive the Google Places query and act as fallback when no match is found (`places.ts`).
+3. **Places identity + GMB photos** — Places API (New) → `IdentityCrawl`; downloaded GMB photos are written to `assets/` and recorded in `crawl/gmb-assets.json` (`places.ts`, `crawl.ts`).
+4. **Discovery** — probe `/sitemap.xml`, parse homepage nav, merge same-origin URLs, filter non-HTML + UGC, prioritize, cap at `--max-pages`, assign per-page LLM budget → `crawl/pages.json` (`discover.ts`). Custom crawl rules are supported via `--rules` (`rules.ts`).
+5. **Wave-based crawl** — static fetch with Playwright fallback for JS-rendered pages, boilerplate strip, page-document extraction, per-page LLM classification, asset collection. Newly-seen same-origin links feed back into the queue up to the cap (`crawl.ts`, `crawl-graph.ts`).
+6. **Full internal link map** — `crawl/links.json` records every same-origin URL seen, crawled or not, with edges — the gym's real site graph independent of `--max-pages` (`crawl-graph.ts`).
+7. **Brand extraction** — colors, fonts (computed via Playwright when needed), logo, socials, gym-software fingerprint, analytics from homepage HTML/CSS (`brand.ts`).
+8. **Social scrape (best-effort)** — homepage social links are scraped and the resulting bio/caption text is appended to the homepage body so the LLM sees richer signals (`social.ts`).
+9. **Asset download** — page images + GMB photos are downloaded locally and referenced by local path in generated content (`crawl.ts`).
+10. **Context + business intelligence** — `context.json` via `analyzeContext`, `business.json` + `integrations.json` via deterministic signal mapping + LLM (`classify.ts`, `context.ts`).
+11. **Site generation** — `packages/generate`'s `generateSite()` projects the crawl into `gym.json`, synthesizing any missing archetype pages as placeholders when input is thin.
+12. **Validate + write** — every output is Zod-validated before write; `gym.json` is deep-validated against `GymDocumentsStrict` so malformed sections self-correct inside the LLM retry loop.
 
-### Design choices worth knowing
+## Injected-adapter test strategy
 
-- **Injected I/O, no live HTTP in CI.** `PlacesClient`, `PageFetcher`, and the `chat` function are interfaces; fakes drive a full offline end-to-end test. Mirrors the `packages/publish` adapter pattern.
-- **`llmJson` helper** closes the gap that `@milo/llm` only offers `jsonMode`, not schema enforcement: JSON-mode → Zod validate → retry with the error fed back so the model self-corrects.
-- **`gym.json` targets `GymDocuments` from `@milo/schema`** — not redefined. Section content is deep-validated at synthesis *and* by the renderer's `Section.safeParse` at build (two gates, earliest wins).
+No live HTTP in CI. All external I/O is behind small interfaces with fakes in `packages/intake/test/fakes.ts`:
 
-### Wiring / cross-package
+- `FakePlacesClient` — returns a queued raw Places result and fake photo URIs.
+- `FakePageFetcher` — maps URL/pathname to static HTML, with an optional list of URLs to throw on.
+- `fakeChat(responses)` / `fakeChatWithCapture(responses)` — returns queued LLM JSON and optionally records prompts for assertions.
+- `fakeSocialScraper(profiles)` — returns queued social profiles per platform.
 
-- `milo intake` wired into `apps/cli/src/milo.ts`; `@milo/intake` + `@milo/llm` added to the CLI deps.
-- **`@milo/llm` fix:** `LlmClientError` used TS constructor parameter properties, which Node 24's native type-*stripping* (how the CLI runs `.ts`) can't transform — converted to explicit field assignments. Only surfaced when running the CLI end-to-end; vitest/esbuild had masked it.
+`test/intake.test.ts` runs `runIntake` end-to-end with these fakes, asserts the output files are written, and validates `gym.json` against `GymDocuments`. Additional unit tests cover each pure stage (discover, crawl, crawl-graph, brand, places, classify, context, schemas). Mirrors the `packages/publish` adapter pattern.
 
-## Review-caught bugs fixed (all with regression tests)
-
-The per-task review loop caught real correctness bugs, not just style:
-
-- `discover.buildInventory`: `capped` double-counted filtered pages → now counts survivors beyond `maxPages`.
-- `crawl-graph.buildLinkMap`: no guard on cross-origin `from`-keys → added, prevents graph corruption.
-- `crawl.ts` (four): og:image **and** meta-description regexes required a fixed attribute order (silently dropped data on common CMS output) → order-independent `metaContent` helper; error pages (4xx/5xx) stored as real pages → `res.ok` gate; asset filename collisions (`/en/hero.jpg` vs `/fr/hero.jpg`) → hash-prefixed names.
-- `brand.familyOf`: `tbody { … }` hijacked a `body` font lookup → `\b`-anchored selector.
-- `intake.ts`: per-page fetch failures could crash the whole run → try/catch skip + test; nav provenance collapsed to `sitemap` in rebuilt `pages.json` → preserved.
-
-## Not built (next)
-
-- **Generate** (`milo generate`) — richer `GymDocuments` → `gym.json` via LLM + archetype recipes, for gyms without enough crawlable content. Intake already produces a valid `gym.json`; generate is the from-thin-input path.
-- **Analytics injection into the renderer** — read `integrations.json` at build, inject present tags into `<head>` (spec'd as a separate renderer feature).
-- Web-search enrichment, multi-location intake, video assets (spec §out-of-scope).
-
-## Try it (needs real keys + network)
+## Manual smoke-test command (real keys + network required)
 
 ```bash
 GOOGLE_PLACES_API_KEY=… OPENROUTER_API_KEY=… \
-  node apps/cli/src/milo.ts intake --url https://<a-real-gym>.com --max-pages 10
-# then render what it produced:
-TEMPLATE=modern GYM_JSON=intake-output/gym.json pnpm --filter renderer build
+  node apps/cli/src/milo.ts intake \
+    --url https://<a-real-gym>.com \
+    --name "Gym Name" \
+    --city "City" \
+    --state "ST" \
+    --max-pages 10 \
+    --out ./intake-output
+
+# Reproject from docs without re-crawling (optional):
+OPENROUTER_API_KEY=… node apps/cli/src/milo.ts generate --docs ./intake-output
+
+# Build:
+node apps/cli/src/milo.ts build \
+  --gym ./intake-output/gym.json \
+  --theme modern \
+  --out ./dist
+
+# Publish staging:
+AWS_PROFILE=unicorn node apps/cli/src/milo.ts publish staging --dist ./dist
 ```
 
-Set `MILO_CAPABLE_MODEL` / `MILO_FAST_MODEL` to valid OpenRouter slugs — the defaults (`anthropic/claude-opus-4-8`, `anthropic/claude-haiku-4-5`) may need adjusting to whatever slugs OpenRouter currently exposes.
+Set `MILO_CAPABLE_MODEL` / `MILO_FAST_MODEL` to valid OpenRouter slugs if the defaults need adjustment.
 
-## Branch
+## Status
 
-Work is on `intake` (local only). `phase1a-template-spine` was already merged into `main`; `intake` branches off the current `main` tip. Merge when ready — no remote exists per the repo rule.
+- **Intake — DONE.** `milo intake` is wired into the CLI, fully tested, and documented in `README.md`.
+- **Generate — built and used by intake.** `milo generate` also exists as a standalone reprojection command.
+- **Next target — real-gym end-to-end burn-in.** Run `intake → build → publish staging` against live gyms and harden from real data. See `docs/NEXT-SESSION-PROMPT.md`.

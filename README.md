@@ -27,9 +27,9 @@ deterministic.
 
 ```bash
 pnpm test                                    # all package tests
-pnpm milo intake --url <gym-url>             # crawl a real gym → intake-output/
+pnpm milo intake --url <gym-url> --name "..." --city ... --state ...  # crawl + synthesize a real gym → intake-output/
 pnpm milo generate --docs <intake-output>   # reproject docs → gym.json (no re-crawl)
-pnpm milo build --gym <gym.json> --template modern --out <dir>
+pnpm milo build --gym <gym.json> --theme modern --out <dir>
 pnpm milo preview --template blackout        # serve last build
 pnpm milo studio --url <reference-url>       # capture a reference site
 pnpm milo docs                               # regenerate template docs from manifests
@@ -38,18 +38,28 @@ pnpm milo publish staging|production|rollback|status
 
 ## Intake
 
-`milo intake --url <gym-url>` crawls a gym's real web presence and writes a
-`GymDocuments` fixture plus intelligence docs — the one-time seed that populates
-the docs before a gym joins Milo.
+`milo intake --url <gym-url> --name "..." --city ... --state ...` crawls a
+gym's real web presence and writes a `GymDocuments` fixture plus intelligence docs
+— the one-time seed that populates the docs before a gym joins Milo. Intake
+internally calls `packages/generate` to turn the crawl into `gym.json`.
 
 ```bash
 milo intake --url https://<gym>.com \
+  --name "Iron Anchor CrossFit" \
+  --city "Denver" \
+  --state "CO" \
+  [--country US] \
   [--out ./intake-output] [--max-pages 25] [--concurrency 3] \
   [--include-ugc] [--skip-crawl]        # --skip-crawl re-runs synthesis on an existing crawl/ bundle
+  [--rules path/to/rules.json]
 ```
 
-Requires env `GOOGLE_PLACES_API_KEY` (identity lookup) and `OPENROUTER_API_KEY`
-(LLM synthesis). Optional model overrides: `MILO_CAPABLE_MODEL`, `MILO_FAST_MODEL`.
+Required flags: `--url`, `--name`, `--city`, `--state`. `--country` defaults to
+`US`.
+
+Requires env `GOOGLE_PLACES_API_KEY` (identity + GMB photo lookup) and
+`OPENROUTER_API_KEY` (LLM synthesis). Optional model overrides:
+`MILO_CAPABLE_MODEL`, `MILO_FAST_MODEL`.
 
 Output layout:
 
@@ -59,9 +69,10 @@ intake-output/
   context.json          # ICP, brand voice, positioning, objections, SEO
   business.json         # tech stack, marketing maturity, pricing signals
   integrations.json     # detected analytics + gym software (operator-editable)
-  assets/               # downloaded images + fonts (local paths in gym.json)
+  assets/               # downloaded page images + GMB photos (local paths in gym.json)
   crawl/                # raw bundle: identity.json, brand.json, pages.json,
-                        #   links.json (FULL internal link graph), pages/<slug>.json
+                        #   links.json (FULL internal link graph),
+                        #   gmb-assets.json, pages/<slug>.json
 ```
 
 Every output is Zod-validated before write; `gym.json`'s section content is
@@ -98,7 +109,7 @@ future AI assistant edits and reskin rebuilds deterministic and previewable.
 | `modern` | Friendly bold: Montserrat 900, off-white, electric blue, navy bands | pushpress-site-modern.webflow.io |
 | `blackout` | Brutalist: black ground, Outfit 900 uppercase, skewed buttons, checkerboard | beanburito.github.io free-intro |
 
-Any valid gym.json renders through any template (`--template` is the only
+Any valid gym.json renders through any template (`--theme` is the only
 switch). Adding a template = a Template Studio session: `milo studio --url …`
 to capture, build the 16 components against the capture, write the manifest +
 design-language doc, add nothing else — the registry glob discovers it.
