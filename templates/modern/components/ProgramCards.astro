@@ -43,7 +43,15 @@ const { heading, ctaLabel = "Contact Us For More Info", programs } = Astro.props
 </section>
 <style>
   .program-cards {
-    /* Base rhythm from layout; no padding override needed */
+    padding-top: var(--space-lg);
+    padding-bottom: var(--space-lg);
+  }
+
+  @media (min-width: 768px) {
+    .program-cards {
+      padding-top: var(--space-xl);
+      padding-bottom: var(--space-xl);
+    }
   }
 
   .program-cards__heading {

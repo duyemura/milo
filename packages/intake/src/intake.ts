@@ -392,6 +392,7 @@ export async function runIntake(opts: RunIntakeOptions): Promise<void> {
     context,
     business,
     placeholderArchetypes,
+    gmbAssets,
   });
 
   // --- write outputs

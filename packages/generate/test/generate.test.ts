@@ -121,6 +121,52 @@ describe("generateSite", () => {
     ).rejects.toThrow(/LLM failed to produce valid JSON/);
   });
 
+  it("replaces low-quality program card images with better GMB or page assets", async () => {
+    const tinyGym = {
+      ...GYM_JSON,
+      hierarchy: {
+        pages: [{
+          slug: "index",
+          title: "Iron Anchor",
+          meta: { description: "Strength for real life" },
+          sections: [{
+            section: "program-cards",
+            content: {
+              heading: "Programs",
+              programs: [{
+                slug: "crossfit",
+                name: "CrossFit",
+                description: "High-intensity functional fitness classes.",
+                image: { src: "https://ironanchor.com/tiny.jpg", alt: "crossfit", localPath: "/assets/tiny.avif" },
+              }],
+            },
+          }],
+        }],
+      },
+    };
+    const pageWithTiny: PageDocument = {
+      ...PAGE,
+      images: [{ src: "https://ironanchor.com/tiny.jpg", alt: "crossfit", localPath: "/assets/tiny.avif" }],
+    };
+    const statFile = async (localPath: string) => {
+      if (localPath === "/assets/tiny.avif") return { size: 18_000 };
+      if (localPath === "/assets/gmb-hero.jpg") return { size: 250_000 };
+      return null;
+    };
+    const result = await generateSite({
+      chat: fakeChat([JSON.stringify(tinyGym)]),
+      model: "capable",
+      identity: IDENTITY,
+      brand: BRAND,
+      pages: [pageWithTiny],
+      budgets: new Map([["index", "full"]]),
+      gmbAssets: [{ localPath: "/assets/gmb-hero.jpg", widthPx: 1200, heightPx: 800 }],
+      statFile,
+    });
+    const program = (result.gym.hierarchy.pages[0].sections[0].content as { programs: { image?: { src: string; alt: string; localPath: string | null } }[] }).programs[0];
+    expect(program?.image?.localPath).toBe("/assets/gmb-hero.jpg");
+  });
+
   it("retries and succeeds when the LLM first returns an invalid section", async () => {
     const bad = {
       ...GYM_JSON,

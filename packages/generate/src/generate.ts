@@ -2,6 +2,7 @@ import { z } from "zod";
 import { GymDocuments, Section, SECTION_TYPES } from "@milo/schema";
 import type { GymDocuments as GymDocs, PageDocument, IdentityCrawl, BrandCrawl } from "@milo/schema";
 import { llmJson, type ChatFn } from "@milo/llm";
+import { buildCandidatePool, pickProgramImage, passesGate, type StatFn, type QualityGate, DEFAULT_GATE } from "./images.ts";
 
 export interface GenerateSiteInput {
   chat: ChatFn;
@@ -18,6 +19,12 @@ export interface GenerateSiteInput {
   placeholderArchetypes?: string[];
   /** Default ~400k chars (~100k tokens). */
   charCeiling?: number;
+  /** Downloaded GMB photos with resolution metadata from intake. */
+  gmbAssets?: { localPath: string; widthPx?: number; heightPx?: number; attribution?: string }[];
+  /** Injectable fs.stat for tests; defaults to real stat. */
+  statFile?: StatFn;
+  /** Image quality floor for featured media. */
+  imageGate?: QualityGate;
 }
 
 export interface GenerateSiteResult {
@@ -152,6 +159,46 @@ function pageDigest(pages: PageDocument[]): string {
   ].join("\n")).join("\n\n");
 }
 
+/**
+ * After the LLM emits gym.json, audit featured-media images for quality. If a
+ * program card was assigned a tiny/compressed source thumbnail, swap it for a
+ * better GMB photo or large page asset that matches the program topic.
+ */
+async function ensureQualityImages(
+  gym: GymDocs,
+  pages: PageDocument[],
+  gmbAssets: { localPath: string; widthPx?: number; heightPx?: number; attribution?: string }[] = [],
+  statFile?: StatFn,
+  gate: QualityGate = DEFAULT_GATE,
+): Promise<void> {
+  const pageAssets = pages.flatMap((p) => p.images.map((i) => ({ ...i, topicHint: p.slug })));
+  const candidates = await buildCandidatePool(pageAssets, gmbAssets, statFile);
+  if (candidates.length === 0) return;
+
+  for (const page of gym.hierarchy.pages) {
+    for (const section of page.sections) {
+      if (section.section !== "program-cards" || !section.content) continue;
+      const programs = (section.content as { programs?: { name?: string; description?: string; image?: { src?: string; alt?: string; localPath?: string | null } | null }[] }).programs ?? [];
+      for (const program of programs) {
+        if (!program || !program.name || !program.description) continue;
+        const current = program.image;
+        const currentCandidate = current?.localPath
+          ? candidates.find((c) => c.localPath === current.localPath)
+          : undefined;
+        if (currentCandidate && passesGate(currentCandidate, gate)) continue;
+        const replacement = pickProgramImage(program.name, program.description, candidates, gate);
+        if (replacement) {
+          program.image = {
+            src: replacement.src,
+            alt: current?.alt || replacement.alt || program.name,
+            localPath: replacement.localPath,
+          };
+        }
+      }
+    }
+  }
+}
+
 export async function generateSite(input: GenerateSiteInput): Promise<GenerateSiteResult> {
   const ceiling = input.charCeiling ?? 400_000;
   const budgeted = budgetPages(input.pages, input.budgets, ceiling);
@@ -207,6 +254,8 @@ export async function generateSite(input: GenerateSiteInput): Promise<GenerateSi
     ],
     maxRetries: 4,
   });
+
+  await ensureQualityImages(gym, input.pages, input.gmbAssets ?? [], input.statFile, input.imageGate);
 
   return { gym };
 }

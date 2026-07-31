@@ -3,6 +3,7 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { contrastOk } from "@milo/schema";
 import StatsBand from "../components/StatsBand.astro";
 
 const src = readFileSync(
@@ -33,4 +34,19 @@ test("StatsBand renders all stat values and labels, token-driven", async () => {
   expect(styleBlock).not.toMatch(/\brgba?\s*\(/);
   expect(styleBlock).not.toMatch(/\bhsla?\s*\(/)
   expect(styleBlock).not.toMatch(/:\s*(black|white|red|green|blue|yellow|orange|purple|gray|grey|transparent)\b/i);;
+});
+
+test("StatsBand uses --color-on-primary for stat values and labels with AA contrast", async () => {
+  const container = await AstroContainer.create();
+  await container.renderToString(StatsBand, {
+    props: {
+      stats: [
+        { value: "500+", label: "Members" },
+      ],
+    },
+  });
+  expect(styleBlock).toMatch(/\.stat-value\s*\{[^}]*color:\s*var\(--color-on-primary\)/);
+  expect(styleBlock).toMatch(/\.stat-label\s*\{[^}]*color:\s*var\(--color-on-primary\)/);
+  // on-primary is a semantic alias for surface; verify a representative dark-primary / light-surface pair passes AA.
+  expect(contrastOk("#ffffff", "#0b1f3a")).toBe(true);
 });
