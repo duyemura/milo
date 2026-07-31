@@ -1,0 +1,85 @@
+[
+  {
+    "slug": "buckhead",
+    "url": "https://www.crossfitbuckhead.com/",
+    "name": "CrossFit Buckhead",
+    "city": "Atlanta",
+    "state": "GA",
+    "intake": {
+      "success": true,
+      "exitCode": 0,
+      "pagesCrawled": 10,
+      "pagesMapped": 22,
+      "pagesSkipped": 69,
+      "gmbPhotos": 8,
+      "pageAssets": 44,
+      "gmbReviews": 1,
+      "placeholders": ["programs", "pricing", "contact"],
+      "socialProfiles": ["instagram"]
+    },
+    "build": {
+      "success": true,
+      "exitCode": 0
+    },
+    "publish": {
+      "success": true,
+      "exitCode": 0,
+      "stagingUrl": "https://crossfit-buckhead-e3c5-staging.mygymseo.com"
+    }
+  },
+  {
+    "slug": "invictus",
+    "url": "https://www.crossfitinvictus.com/",
+    "name": "CrossFit Invictus",
+    "city": "San Diego",
+    "state": "CA",
+    "intake": {
+      "success": true,
+      "exitCode": 0,
+      "pagesCrawled": 10,
+      "pagesMapped": 50,
+      "notes": ["sitemap.xml is JS-rendered — used Playwright fallback"],
+      "gmbPhotos": 8,
+      "pageAssets": 76,
+      "placeholders": ["coaches", "pricing"],
+      "socialProfiles": ["instagram"]
+    },
+    "build": {
+      "success": true,
+      "exitCode": 0
+    },
+    "publish": {
+      "success": true,
+      "exitCode": 0,
+      "stagingUrl": "https://invictus-fitness-955c-staging.mygymseo.com"
+    }
+  },
+  {
+    "slug": "cfne",
+    "url": "https://www.crossfitnewengland.com/",
+    "name": "CrossFit New England",
+    "city": "Boston",
+    "state": "MA",
+    "intake": {
+      "success": true,
+      "exitCode": 0,
+      "pagesCrawled": 10,
+      "pagesMapped": 27,
+      "pagesSkipped": 74,
+      "gmbPhotos": 8,
+      "pageAssets": 29,
+      "assetFailures": ["https://cdn.prod.website-files.com/62fe5a916f861f1da108158a/698e19df2a5d35f1c1cb9db4_CFNE-09582%20(1: HTTP 403"],
+      "placeholders": ["programs", "pricing"],
+      "socialProfiles": ["instagram"]
+    },
+    "build": {
+      "success": true,
+      "exitCode": 0
+    },
+    "publish": {
+      "success": true,
+      "exitCode": 0,
+      "stagingUrl": "https://crossfit-boston-3664-staging.mygymseo.com"
+    }
+  }
+]
