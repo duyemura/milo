@@ -1,0 +1,68 @@
+[
+  {
+    "tag": "DIV",
+    "cls": "elementor-element elementor-element-03a7515 e-flex e-con-boxed e-con e-parent e-lazyloaded",
+    "y": 87,
+    "height": 488,
+    "position": "relative",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "0px 20px",
+    "heading": "Awesome for Everyone.\nShame Free.\nMighty Strong.",
+    "childCount": 1
+  },
+  {
+    "tag": "SECTION",
+    "cls": "elementor-section elementor-top-section elementor-element elementor-element-e8b9529 elementor-section-boxed elementor-section-height-default",
+    "y": 575,
+    "height": 2187,
+    "position": "relative",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "40px 20px",
+    "heading": "3 STEPs TO FITNESS GREATNESS WITH Speakeasy of Strength",
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "elementor-element elementor-element-0eba083 e-flex e-con-boxed e-con e-parent e-lazyloaded",
+    "y": 2761,
+    "height": 2399,
+    "position": "relative",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "0px 20px",
+    "heading": "Programs",
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "elementor-element elementor-element-9ccb035 e-flex e-con-boxed e-con e-parent",
+    "y": 5160,
+    "height": 266,
+    "position": "relative",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "0px 20px",
+    "heading": null,
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "elementor-element elementor-element-4955cf7 e-flex e-con-boxed e-con e-parent",
+    "y": 5426,
+    "height": 1055,
+    "position": "relative",
+    "bg": "rgb(15, 15, 15)",
+    "padding": "0px 20px",
+    "heading": "Discover Speakeasy of Strength Locations",
+    "childCount": 1
+  },
+  {
+    "tag": "SECTION",
+    "cls": "elementor-section elementor-top-section elementor-element elementor-element-65555c50 elementor-section-boxed elementor-section-height-defaul",
+    "y": 6481,
+    "height": 1340,
+    "position": "relative",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "60px 10px 40px",
+    "heading": "Stories of Glory",
+    "childCount": 1
+  }
+]

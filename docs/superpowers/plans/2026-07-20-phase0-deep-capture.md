@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Close-out status:** All tasks implemented and the golden-corpus captures refreshed (2026-07-29). The modules exist (`segment.mjs`, `fonts.mjs`, `assets.mjs`), tests pass (13 studio tests including the corpus gate), and all three reference captures (`beanburito.github.io`, `pushpress-site-modern.webflow.io`, `speakeasyofstrength.com`) have `assets/`, `assets.json`, `sections.json`, and `m-sections.json` produced by the current pipeline.
+
 **Goal:** Turn `apps/studio`'s shallow capture into a deep-capture + asset pipeline that emits a DOM-segmented, per-section, self-hosted-asset capture bundle for any URL, validated against the golden corpus.
 
 **Architecture:** Split the monolithic `capture.mjs` into focused, testable modules — `segment.mjs` (DOM-based section segmentation, injected into the page), `fonts.mjs` (resolve `@font-face`/loaded fonts), `assets.mjs` (map + download + rewrite asset refs) — orchestrated by a slimmed `capture.mjs`. Tests are deterministic: they drive real Playwright/Chromium against **checked-in static HTML fixtures** that encode known structures (including the Speakeasy collapse), plus a corpus integration test asserting ground-truth facts on the three reference sites.

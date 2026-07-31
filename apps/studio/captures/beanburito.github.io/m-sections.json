@@ -1,0 +1,123 @@
+[
+  {
+    "tag": "SECTION",
+    "cls": "hero-section",
+    "y": 56,
+    "height": 771,
+    "position": "relative",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "49px 0px",
+    "heading": "CrossFit Gym in New York",
+    "childCount": 3
+  },
+  {
+    "tag": "SECTION",
+    "cls": "three-items-section ti-homepage",
+    "y": 797,
+    "height": 1235,
+    "position": "static",
+    "bg": "rgb(255, 255, 255)",
+    "padding": "70px 0px",
+    "heading": "Reach new heights",
+    "childCount": 1
+  },
+  {
+    "tag": "SECTION",
+    "cls": "main-section",
+    "y": 2025,
+    "height": 2409,
+    "position": "static",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "70px 0px",
+    "heading": "EVERY BODY IS UNIQUE.",
+    "childCount": 1
+  },
+  {
+    "tag": "SECTION",
+    "cls": "three-items-section",
+    "y": 4428,
+    "height": 1223,
+    "position": "static",
+    "bg": "rgb(255, 255, 255)",
+    "padding": "70px 0px",
+    "heading": "Getting Started Is Easy",
+    "childCount": 1
+  },
+  {
+    "tag": "SECTION",
+    "cls": "main-section ms-membership-benefits",
+    "y": 5644,
+    "height": 858,
+    "position": "static",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "70px 0px",
+    "heading": "Everything You Need To Crush Your Fitness Goals",
+    "childCount": 1
+  },
+  {
+    "tag": "SECTION",
+    "cls": "main-section",
+    "y": 6502,
+    "height": 1291,
+    "position": "static",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "70px 0px",
+    "heading": "A community that will keep you going",
+    "childCount": 1
+  },
+  {
+    "tag": "ADDRESS",
+    "cls": "main-section ms-p10",
+    "y": 7793,
+    "height": 1009,
+    "position": "static",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "0px 0px 70px",
+    "heading": "Located on Broadway in the heart of SoHo, steps from the Prince St and Spring St subway stations.",
+    "childCount": 2
+  },
+  {
+    "tag": "SECTION",
+    "cls": "main-section reviews programs",
+    "y": 8802,
+    "height": 1198,
+    "position": "relative",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "70px 0px 140px",
+    "heading": "What our members say",
+    "childCount": 2
+  },
+  {
+    "tag": "SECTION",
+    "cls": "main-section ms-faq home",
+    "y": 10030,
+    "height": 1609,
+    "position": "static",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "56px 0px",
+    "heading": "Questions? We have the answers!",
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "contact-banner",
+    "y": 11739,
+    "height": 98,
+    "position": "static",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "49px 0px",
+    "heading": null,
+    "childCount": 0
+  },
+  {
+    "tag": "SECTION",
+    "cls": "cta-section",
+    "y": 11830,
+    "height": 516,
+    "position": "relative",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "0px",
+    "heading": "Ready to See What We Are About?",
+    "childCount": 1
+  }
+]

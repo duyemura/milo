@@ -1,0 +1,123 @@
+[
+  {
+    "tag": "DIV",
+    "cls": "collection-list-wrapper w-dyn-list",
+    "y": 70,
+    "height": 761,
+    "position": "static",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "0px",
+    "heading": "Strength and Conditioning Gym in Manhattan",
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "hero-cards-grid",
+    "y": 681,
+    "height": 869,
+    "position": "relative",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "0px",
+    "heading": "Feel Supported",
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "programs-section",
+    "y": 1550,
+    "height": 2798,
+    "position": "static",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "200px 0px 0px",
+    "heading": "Every body is unique. Find something that works for YOU",
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "steps-section",
+    "y": 4347,
+    "height": 1222,
+    "position": "static",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "0px 0px 100px",
+    "heading": "Getting started is easy",
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "testimonial-section",
+    "y": 5569,
+    "height": 906,
+    "position": "static",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "100px 0px",
+    "heading": "Trusted and Loved By Hundreds of Manhattan Residents",
+    "childCount": 2
+  },
+  {
+    "tag": "DIV",
+    "cls": "amenitiies-section",
+    "y": 6475,
+    "height": 1962,
+    "position": "static",
+    "bg": "rgb(0, 11, 39)",
+    "padding": "120px 0px 130px",
+    "heading": "Everything you need to crush your fitness goals",
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "community-section",
+    "y": 8437,
+    "height": 1146,
+    "position": "static",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "100px 0px",
+    "heading": "A Community That Will Keep You Going",
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "location-section",
+    "y": 9583,
+    "height": 1269,
+    "position": "static",
+    "bg": "rgb(255, 255, 255)",
+    "padding": "100px 0px",
+    "heading": "Located just off the Brooklyn Bridge in Brooklyn Heights",
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "faqs-section",
+    "y": 10851,
+    "height": 2466,
+    "position": "static",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "120px 0px 180px",
+    "heading": "Questions? We have the answers!",
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "final-offer-collection w-dyn-list",
+    "y": 13318,
+    "height": 430,
+    "position": "static",
+    "bg": "rgba(0, 0, 0, 0)",
+    "padding": "0px",
+    "heading": "Your fitness journey doesn't have to feel long. We're here to make it a lot more fun!",
+    "childCount": 1
+  },
+  {
+    "tag": "DIV",
+    "cls": "footer-section",
+    "y": 13747,
+    "height": 1724,
+    "position": "sticky",
+    "bg": "rgb(0, 4, 13)",
+    "padding": "60px 0px 100px",
+    "heading": null,
+    "childCount": 2
+  }
+]

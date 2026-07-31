@@ -3,6 +3,7 @@
   "desktopHeight": 10438,
   "mobileHeight": 15471,
   "sections": 12,
+  "mobileSections": 11,
   "viewport": [
     1440,
     375

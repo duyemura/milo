@@ -49,12 +49,6 @@
       "alt": "Nutrition Coaching in New York"
     },
     {
-      "src": "assets/asset-007.webp",
-      "w": 1000,
-      "h": 1500,
-      "alt": "Beta Gym"
-    },
-    {
       "src": "assets/asset-000.webp",
       "w": 210,
       "h": 53,
@@ -67,7 +61,7 @@
       "alt": "Beta Gym"
     },
     {
-      "src": "assets/asset-008.svg",
+      "src": "assets/asset-007.svg",
       "w": 118,
       "h": 12,
       "alt": "Made in Webflow"
@@ -771,7 +765,68 @@
     "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b094_Demo%20Site%20Fundamentals.webp": "assets/asset-004.webp",
     "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b095_Demo%20Site%20Strength%20Class.webp": "assets/asset-005.webp",
     "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b096_Demo%20Site%20Nutrition.webp": "assets/asset-006.webp",
-    "https://beanburito.github.io/free-intro-session-self-book-in-person/69e26e65ff0cd2b2ef05af19/69e26e65ff0cd2b2ef05b09e_Community.webp": "assets/asset-007.webp",
-    "https://d3e54v103j8qbb.cloudfront.net/img/webflow-badge-text-d2.c82cec3b78.svg": "assets/asset-008.svg"
+    "https://d3e54v103j8qbb.cloudfront.net/img/webflow-badge-text-d2.c82cec3b78.svg": "assets/asset-007.svg"
+  },
+  "assetFailures": [
+    {
+      "url": "https://beanburito.github.io/69e26e65ff0cd2b2ef05af7d_Outfit-ExtraLight.woff2",
+      "status": 404,
+      "reason": "http"
+    },
+    {
+      "url": "https://beanburito.github.io/69e26e65ff0cd2b2ef05af7b_Outfit-Light.woff2",
+      "status": 404,
+      "reason": "http"
+    },
+    {
+      "url": "https://beanburito.github.io/69e26e65ff0cd2b2ef05af7f_Outfit-Medium.woff2",
+      "status": 404,
+      "reason": "http"
+    },
+    {
+      "url": "https://beanburito.github.io/69e26e65ff0cd2b2ef05af80_Outfit-Black.woff2",
+      "status": 404,
+      "reason": "http"
+    },
+    {
+      "url": "https://beanburito.github.io/69e26e65ff0cd2b2ef05af7c_Outfit-Bold.woff2",
+      "status": 404,
+      "reason": "http"
+    },
+    {
+      "url": "https://beanburito.github.io/69e26e65ff0cd2b2ef05af90_Outfit-ExtraBold.woff2",
+      "status": 404,
+      "reason": "http"
+    },
+    {
+      "url": "https://beanburito.github.io/69e26e65ff0cd2b2ef05af81_Outfit-Thin.woff2",
+      "status": 404,
+      "reason": "http"
+    },
+    {
+      "url": "https://beanburito.github.io/69e26e65ff0cd2b2ef05af7e_Outfit-SemiBold.woff2",
+      "status": 404,
+      "reason": "http"
+    },
+    {
+      "url": "https://beanburito.github.io/69e26e65ff0cd2b2ef05af82_Outfit-Regular.woff2",
+      "status": 404,
+      "reason": "http"
+    },
+    {
+      "url": "https://beanburito.github.io/69e26e65ff0cd2b2ef05af57_Inter-Regular.ttf",
+      "status": 404,
+      "reason": "http"
+    },
+    {
+      "url": "https://beanburito.github.io/69e26e65ff0cd2b2ef05af5a_Inter-ExtraBold.ttf",
+      "status": 404,
+      "reason": "http"
+    }
+  ],
+  "assetStats": {
+    "total": 19,
+    "ok": 8,
+    "failed": 11
   }
 }

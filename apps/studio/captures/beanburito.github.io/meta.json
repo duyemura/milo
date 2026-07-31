@@ -1,8 +1,9 @@
 {
   "url": "https://beanburito.github.io/free-intro-session-self-book-in-person/",
-  "desktopHeight": 9645,
+  "desktopHeight": 9485,
   "mobileHeight": 13324,
   "sections": 11,
+  "mobileSections": 11,
   "viewport": [
     1440,
     375

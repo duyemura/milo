@@ -71,7 +71,31 @@
     "assets/asset-020.otf",
     "assets/asset-021.otf",
     "assets/asset-022.otf",
-    "assets/asset-023.otf"
+    "assets/asset-023.otf",
+    "assets/asset-024.ttf",
+    "assets/asset-025.ttf",
+    "assets/asset-026.ttf",
+    "assets/asset-027.ttf",
+    "assets/asset-028.ttf",
+    "assets/asset-029.ttf",
+    "assets/asset-030.ttf",
+    "assets/asset-031.ttf",
+    "assets/asset-032.ttf",
+    "assets/asset-033.ttf",
+    "assets/asset-034.ttf",
+    "assets/asset-035.ttf",
+    "assets/asset-036.ttf",
+    "assets/asset-037.ttf",
+    "assets/asset-038.ttf",
+    "assets/asset-039.ttf",
+    "assets/asset-040.ttf",
+    "assets/asset-041.ttf",
+    "assets/asset-042.ttf",
+    "assets/asset-043.ttf",
+    "assets/asset-044.ttf",
+    "assets/asset-045.ttf",
+    "assets/asset-046.ttf",
+    "https://pushpress-site-modern.webflow.io/fonts/fontawesome-webfont.eot?v=4.5.0"
   ],
   "faces": [
     {
@@ -169,6 +193,246 @@
       "weight": "300",
       "style": "normal",
       "src": "url(\"https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a351841074c14_Silka-300-Light.otf\") format(\"opentype\")"
+    },
+    {
+      "family": "webflow-icons",
+      "src": "url(data:application/x-font-ttf",
+      "weight": "400",
+      "style": "normal"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a35f07b074c3b_500-Silka-Medium.otf)format(\"opentype\")",
+      "weight": "500",
+      "style": "normal"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a3599f5074c36_Silka-100-ThinItalic.otf)format(\"opentype\")",
+      "weight": "100",
+      "style": "italic"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a353da9074c2f_Silka-100-Thin.otf)format(\"opentype\")",
+      "weight": "100",
+      "style": "normal"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a350160074c1e_Silka-400-RegularItalic.otf)format(\"opentype\")",
+      "weight": "400",
+      "style": "italic"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a350330074c20_Silka-600-SemiBoldItalic.otf)format(\"opentype\")",
+      "weight": "600",
+      "style": "italic"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a351c97074c10_Silka-200-ExtraLight.otf)format(\"opentype\")",
+      "weight": "200",
+      "style": "normal"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a357fbe074c22_Silka-600-SemiBold.otf)format(\"opentype\")",
+      "weight": "600",
+      "style": "normal"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a354b5c074c26_Silka-300-LightItalic.otf)format(\"opentype\")",
+      "weight": "300",
+      "style": "italic"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a3536b5074c18_Silka-500-MediumItalic.otf)format(\"opentype\")",
+      "weight": "500",
+      "style": "italic"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a35459f074c12_Silka-700-BoldItalic.otf)format(\"opentype\")",
+      "weight": "700",
+      "style": "italic"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a3512d3074c16_Silka-200-ExtraLightItalic.otf)format(\"opentype\")",
+      "weight": "200",
+      "style": "italic"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a3556f3074c11_Silka-900-Black.otf)format(\"opentype\")",
+      "weight": "900",
+      "style": "normal"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a357223074c0f_Silka-400-Regular.otf)format(\"opentype\")",
+      "weight": "400",
+      "style": "normal"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a35403b074c17_Silka-700-Bold.otf)format(\"opentype\")",
+      "weight": "700",
+      "style": "normal"
+    },
+    {
+      "family": "Silka",
+      "src": "url(https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a351841074c14_Silka-300-Light.otf)format(\"opentype\")",
+      "weight": "300",
+      "style": "normal"
+    },
+    {
+      "family": "Barlow",
+      "src": "url(https://fonts.gstatic.com/s/barlow/v13/7cHqv4kjgoGqM7E3p-ks51op.ttf) format('truetype')",
+      "weight": "300",
+      "style": "normal"
+    },
+    {
+      "family": "Barlow",
+      "src": "url(https://fonts.gstatic.com/s/barlow/v13/7cHpv4kjgoGqM7E_DMs8.ttf) format('truetype')",
+      "weight": "400",
+      "style": "normal"
+    },
+    {
+      "family": "Barlow",
+      "src": "url(https://fonts.gstatic.com/s/barlow/v13/7cHqv4kjgoGqM7E3_-gs51op.ttf) format('truetype')",
+      "weight": "500",
+      "style": "normal"
+    },
+    {
+      "family": "Barlow",
+      "src": "url(https://fonts.gstatic.com/s/barlow/v13/7cHqv4kjgoGqM7E30-8s51op.ttf) format('truetype')",
+      "weight": "600",
+      "style": "normal"
+    },
+    {
+      "family": "Barlow",
+      "src": "url(https://fonts.gstatic.com/s/barlow/v13/7cHqv4kjgoGqM7E3t-4s51op.ttf) format('truetype')",
+      "weight": "700",
+      "style": "normal"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq6R8WXh0ow.ttf) format('truetype')",
+      "weight": "100",
+      "style": "italic"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jqyR9WXh0ow.ttf) format('truetype')",
+      "weight": "200",
+      "style": "italic"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq_p9WXh0ow.ttf) format('truetype')",
+      "weight": "300",
+      "style": "italic"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq6R9WXh0ow.ttf) format('truetype')",
+      "weight": "400",
+      "style": "italic"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq5Z9WXh0ow.ttf) format('truetype')",
+      "weight": "500",
+      "style": "italic"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq3p6WXh0ow.ttf) format('truetype')",
+      "weight": "600",
+      "style": "italic"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq0N6WXh0ow.ttf) format('truetype')",
+      "weight": "700",
+      "style": "italic"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jqyR6WXh0ow.ttf) format('truetype')",
+      "weight": "800",
+      "style": "italic"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jqw16WXh0ow.ttf) format('truetype')",
+      "weight": "900",
+      "style": "italic"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Xw5aX8.ttf) format('truetype')",
+      "weight": "100",
+      "style": "normal"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvr6Hw5aX8.ttf) format('truetype')",
+      "weight": "200",
+      "style": "normal"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCs16Hw5aX8.ttf) format('truetype')",
+      "weight": "300",
+      "style": "normal"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Hw5aX8.ttf) format('truetype')",
+      "weight": "400",
+      "style": "normal"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtZ6Hw5aX8.ttf) format('truetype')",
+      "weight": "500",
+      "style": "normal"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCu173w5aX8.ttf) format('truetype')",
+      "weight": "600",
+      "style": "normal"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCuM73w5aX8.ttf) format('truetype')",
+      "weight": "700",
+      "style": "normal"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvr73w5aX8.ttf) format('truetype')",
+      "weight": "800",
+      "style": "normal"
+    },
+    {
+      "family": "Montserrat",
+      "src": "url(https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvC73w5aX8.ttf) format('truetype')",
+      "weight": "900",
+      "style": "normal"
+    },
+    {
+      "family": "FontAwesome",
+      "src": "url('../fonts/fontawesome-webfont.eot?v=4.5.0')",
+      "weight": "normal",
+      "style": "normal"
     }
   ],
   "loaded": [
@@ -929,6 +1193,41 @@
     "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a3556f3074c11_Silka-900-Black.otf": "assets/asset-020.otf",
     "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a357223074c0f_Silka-400-Regular.otf": "assets/asset-021.otf",
     "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a35403b074c17_Silka-700-Bold.otf": "assets/asset-022.otf",
-    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a351841074c14_Silka-300-Light.otf": "assets/asset-023.otf"
+    "https://cdn.prod.website-files.com/63caaac34d6a35f37e074c09/63caaac34d6a351841074c14_Silka-300-Light.otf": "assets/asset-023.otf",
+    "https://fonts.gstatic.com/s/barlow/v13/7cHqv4kjgoGqM7E3p-ks51op.ttf": "assets/asset-024.ttf",
+    "https://fonts.gstatic.com/s/barlow/v13/7cHpv4kjgoGqM7E_DMs8.ttf": "assets/asset-025.ttf",
+    "https://fonts.gstatic.com/s/barlow/v13/7cHqv4kjgoGqM7E3_-gs51op.ttf": "assets/asset-026.ttf",
+    "https://fonts.gstatic.com/s/barlow/v13/7cHqv4kjgoGqM7E30-8s51op.ttf": "assets/asset-027.ttf",
+    "https://fonts.gstatic.com/s/barlow/v13/7cHqv4kjgoGqM7E3t-4s51op.ttf": "assets/asset-028.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq6R8WXh0ow.ttf": "assets/asset-029.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jqyR9WXh0ow.ttf": "assets/asset-030.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq_p9WXh0ow.ttf": "assets/asset-031.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq6R9WXh0ow.ttf": "assets/asset-032.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq5Z9WXh0ow.ttf": "assets/asset-033.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq3p6WXh0ow.ttf": "assets/asset-034.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq0N6WXh0ow.ttf": "assets/asset-035.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jqyR6WXh0ow.ttf": "assets/asset-036.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jqw16WXh0ow.ttf": "assets/asset-037.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Xw5aX8.ttf": "assets/asset-038.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvr6Hw5aX8.ttf": "assets/asset-039.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCs16Hw5aX8.ttf": "assets/asset-040.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Hw5aX8.ttf": "assets/asset-041.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtZ6Hw5aX8.ttf": "assets/asset-042.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCu173w5aX8.ttf": "assets/asset-043.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCuM73w5aX8.ttf": "assets/asset-044.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvr73w5aX8.ttf": "assets/asset-045.ttf",
+    "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvC73w5aX8.ttf": "assets/asset-046.ttf"
+  },
+  "assetFailures": [
+    {
+      "url": "https://pushpress-site-modern.webflow.io/fonts/fontawesome-webfont.eot?v=4.5.0",
+      "status": 404,
+      "reason": "http"
+    }
+  ],
+  "assetStats": {
+    "total": 48,
+    "ok": 47,
+    "failed": 1
   }
 }
