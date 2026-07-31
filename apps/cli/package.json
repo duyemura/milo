@@ -10,10 +10,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/signature-v4-crt": "^3.1099.0",
+    "@milo/generate": "workspace:*",
     "@milo/intake": "workspace:*",
     "@milo/llm": "workspace:*",
     "@milo/publish": "workspace:*",
-    "@milo/generate": "workspace:*",
     "@milo/schema": "workspace:*"
   },
   "devDependencies": {

@@ -3,14 +3,16 @@ interface Cta {
   label: string;
   href: string;
 }
+interface Image { src: string; alt: string; localPath?: string | null }
 interface Props {
   heading: string;
   body: string;
-  image: { src: string; alt: string };
+  image: Image;
   mediaSide?: "left" | "right";
   cta?: Cta;
 }
 const { heading, body, image, mediaSide = "right", cta } = Astro.props;
+const imgSrc = image.localPath ?? image.src;
 ---
 <section class:list={["media-block", `media-block--${mediaSide}`]}>
   <div class="media-block__text">
@@ -21,7 +23,7 @@ const { heading, body, image, mediaSide = "right", cta } = Astro.props;
     )}
   </div>
   <div class="media-block__media">
-    <img class="media-block__img" src={image.src} alt={image.alt} loading="lazy" />
+    <img class="media-block__img" src={imgSrc} alt={image.alt} loading="lazy" />
   </div>
 </section>
 <style>

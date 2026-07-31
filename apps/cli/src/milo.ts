@@ -3,7 +3,9 @@
  * milo — operator CLI for the Milo v2 pipeline.
  *
  *   milo studio   --url <url> [--out <dir>]
+ *   milo intake   --url <website-url> --name <gym-name> --city <city> --state <state> [--country <country>] [--out <dir>]
  *   milo generate --docs <dir> [--out <dir>]
+ *   milo build      --gym <path> [--theme modern|blackout] [--site-url <url>] [--out <dir>]
  *   milo publish  staging    [--gym <path>] [--dist <path>]
  *   milo publish  production [--gym <path>]
  *   milo publish  rollback   --env staging|production [--version <id>] [--gym <path>]
@@ -12,6 +14,9 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
+import { cp, mkdir } from "node:fs/promises";
+import "@aws-sdk/signature-v4-crt"; // Load SigV4a signer before CloudFront KVS client
 import { runGenerate } from "./generate.ts";
 import {
   resolveOrInitConfig,
@@ -40,8 +45,8 @@ function requireFlag(name: string, args = rest): string {
   return v;
 }
 
-function run(cmd: string, args: string[], cwd: string): number {
-  const result = spawnSync(cmd, args, { cwd, stdio: "inherit", env: process.env });
+function run(cmd: string, args: string[], cwd: string, env?: NodeJS.ProcessEnv): number {
+  const result = spawnSync(cmd, args, { cwd, stdio: "inherit", env: env ?? process.env });
   return result.status ?? 1;
 }
 
@@ -111,14 +116,22 @@ switch (command) {
     // intake has no subcommand — combine subcommand + rest so flags after "intake" are all visible
     const intakeArgs = subcommand ? [subcommand, ...rest] : rest;
     try {
-      const url = requireFlag("url", intakeArgs);
+      const websiteUrl = requireFlag("url", intakeArgs);
+      if (!/^https?:\/\//i.test(websiteUrl)) {
+        console.error("--url must be a valid http or https URL");
+        process.exit(1);
+      }
+      const gymName = requireFlag("name", intakeArgs);
+      const city = requireFlag("city", intakeArgs);
+      const state = requireFlag("state", intakeArgs);
+      const country = flag("country", intakeArgs) ?? "US";
       const outDir = path.resolve(flag("out", intakeArgs) ?? "./intake-output");
       const placesKey = process.env.GOOGLE_PLACES_API_KEY;
       if (!placesKey) { console.error("GOOGLE_PLACES_API_KEY is required for intake"); process.exit(1); }
       const openrouterKey = process.env.OPENROUTER_API_KEY;
       if (!openrouterKey) { console.error("OPENROUTER_API_KEY is required for intake"); process.exit(1); }
 
-      const { runIntake, createRealPlacesClient, createRealPageFetcher } = await import("@milo/intake");
+      const { runIntake, createRealPlacesClient, createRealPageFetcher, loadCrawlRules } = await import("@milo/intake");
       const { chatCompletion } = await import("@milo/llm");
       const llmConfig = {
         provider: "openrouter" as const,
@@ -126,8 +139,13 @@ switch (command) {
         openrouterApiKey: openrouterKey,
       };
 
+      const rulesPath = flag("rules", intakeArgs);
       await runIntake({
-        url,
+        url: websiteUrl,
+        gymName,
+        city,
+        state,
+        country,
         outDir,
         maxPages: Number(flag("max-pages", intakeArgs) ?? 25),
         includeUgc: intakeArgs.includes("--include-ugc"),
@@ -136,9 +154,10 @@ switch (command) {
         places: createRealPlacesClient(placesKey),
         fetcher: createRealPageFetcher(),
         chat: (o) => chatCompletion(o, llmConfig),
-        capableModel: process.env.MILO_CAPABLE_MODEL ?? "anthropic/claude-opus-4-8",
-        fastModel: process.env.MILO_FAST_MODEL ?? "anthropic/claude-haiku-4-5",
+        capableModel: process.env.MILO_CAPABLE_MODEL ?? "anthropic/claude-sonnet-4-6",
+        fastModel: process.env.MILO_FAST_MODEL ?? "google/gemini-2.5-flash",
         discoveredAt: new Date().toISOString(),
+        ...(rulesPath ? { rules: loadCrawlRules(path.resolve(rulesPath)) } : {}),
       });
     } catch (err: unknown) {
       console.error(err instanceof Error ? err.message : String(err));
@@ -166,7 +185,7 @@ switch (command) {
         docsDir,
         outDir,
         chat: (o) => chatCompletion(o, llmConfig),
-        model: process.env.MILO_CAPABLE_MODEL ?? "anthropic/claude-opus-4-8",
+        model: process.env.MILO_CAPABLE_MODEL ?? "anthropic/claude-sonnet-4-6",
       });
     } catch (err: unknown) {
       console.error(err instanceof Error ? err.message : String(err));
@@ -175,8 +194,42 @@ switch (command) {
     break;
   }
 
+  case "build": {
+    const buildArgs = subcommand ? [subcommand, ...rest] : rest;
+    const gymJsonPath = path.resolve(flag("gym", buildArgs) ?? "./gym.json");
+    if (!existsSync(gymJsonPath)) {
+      console.error(`gym.json not found at ${gymJsonPath}. Run \`milo intake\` or \`milo generate\` first.`);
+      process.exit(1);
+    }
+    const template = flag("theme", buildArgs) ?? process.env.TEMPLATE ?? "modern";
+    const siteUrl = flag("site-url", buildArgs) ?? process.env.SITE_URL ?? "https://example.com";
+    const outDir = path.resolve(flag("out", buildArgs) ?? process.env.OUT_DIR ?? RENDERER_DIST);
+    const rendererRoot = path.join(ROOT, "apps/renderer");
+    const env = {
+      ...process.env,
+      GYM_JSON: gymJsonPath,
+      TEMPLATE: template,
+      SITE_URL: siteUrl,
+      OUT_DIR: outDir,
+    };
+    console.log(`[milo] Building renderer for ${gymJsonPath} (theme: ${template})`);
+    const status = run("pnpm", ["--filter", "renderer", "build"], rendererRoot, env);
+    if (status !== 0) process.exit(status);
+
+    const gymAssetsDir = path.join(path.dirname(gymJsonPath), "assets");
+    if (existsSync(gymAssetsDir)) {
+      const distAssetsDir = path.join(outDir, "assets");
+      await mkdir(distAssetsDir, { recursive: true });
+      await cp(gymAssetsDir, distAssetsDir, { recursive: true, force: true });
+      console.log(`[milo] Copied assets from ${gymAssetsDir} to ${distAssetsDir}`);
+    }
+
+    console.log(`[milo] Renderer dist ready at ${outDir}`);
+    break;
+  }
+
   default: {
-    console.log("Usage: milo <studio|generate|publish|intake> [flags]");
+    console.log("Usage: milo <studio|intake|generate|build|publish> [flags]");
     process.exit(command ? 1 : 0);
   }
 }

@@ -13,6 +13,8 @@ const imageUrl = z.string().min(1);
 export const SectionImage = z.object({
   src: z.string().min(1),
   alt: z.string().default(""),
+  /** Local /assets/... path when the asset was downloaded during intake. */
+  localPath: z.string().nullable().default(null),
 });
 
 const Cta = z.object({ label: z.string().min(1), href: z.string().min(1) });
@@ -197,7 +199,12 @@ export const StatsBandSection = z.object({
 export const LogoStripSection = z.object({
   type: z.literal("logo-strip"),
   heading: z.string().optional(),
-  logos: z.array(z.object({ src: imageUrl, alt: z.string().min(1) })).min(1),
+  logos: z.array(z.object({
+    src: imageUrl,
+    alt: z.string().min(1),
+    /** Local /assets/... path when the logo asset was downloaded during intake. */
+    localPath: z.string().nullable().default(null),
+  })).min(1),
 });
 
 export const Section = z.discriminatedUnion("type", [

@@ -131,7 +131,7 @@ const personSchemas = allCoaches.map((c: any) => ({
   name: c.name,
   ...(c.role ? { jobTitle: c.role } : {}),
   ...(c.bio ? { description: c.bio } : {}),
-  ...(c.photo?.src ? { image: c.photo.src } : {}),
+  ...(c.photo?.src ? { image: c.photo.localPath ?? c.photo.src } : {}),
   worksFor: { "@id": `${siteUrl}/#localbusiness` },
 }));
 

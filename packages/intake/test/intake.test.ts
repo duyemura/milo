@@ -4,7 +4,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { GymDocuments } from "@milo/schema";
 import { runIntake } from "../src/intake.ts";
-import { FakePlacesClient, FakePageFetcher, fakeChat } from "./fakes.ts";
+import { FakePlacesClient, FakePageFetcher, fakeChat, fakeChatWithCapture, fakeSocialScraper } from "./fakes.ts";
+import { sanitizeAssetName } from "../src/crawl.ts";
+
+const fakeFonts = async () => ({ display: "Oswald", body: "Inter" });
+const fakeDownload = async (url: string, _dir: string, preferredName?: string) => `/assets/${preferredName ?? sanitizeAssetName(url)}`;
 
 const HOME = `<!doctype html><html><head><title>Iron Anchor</title>
 <meta name="description" content="Strength for real life"><meta property="og:site_name" content="Iron Anchor">
@@ -42,6 +46,15 @@ const BUSINESS = {
 };
 const CLASS = JSON.stringify({ detectedType: "other", pageArchetype: "other", pageGoal: "inform", primaryKeyword: "", secondaryKeywords: [], topicsAnswered: [], conversionSignals: [] });
 
+const IG_PROFILE = {
+  platform: "instagram",
+  url: "https://instagram.com/ironanchor",
+  handle: "ironanchor",
+  bio: "Strength for real life. CrossFit, personal training, and community in Denver.",
+  profileImage: "https://instagram.com/ironanchor/profile.jpg",
+  recentPosts: ["PR day vibes", "New member Monday"],
+};
+
 let out: string;
 beforeEach(async () => { out = await mkdtemp(path.join(tmpdir(), "intake-")); });
 afterEach(async () => { await rm(out, { recursive: true, force: true }); });
@@ -54,10 +67,13 @@ describe("runIntake", () => {
     const chat = fakeChat([CLASS, CLASS, CLASS, JSON.stringify(BUSINESS), JSON.stringify(CONTEXT), JSON.stringify(GYM)]);
 
     await runIntake({
-      url: "https://ironanchor.com", outDir: out, maxPages: 25, includeUgc: false, concurrency: 3,
+      url: "https://ironanchor.com", gymName: "Iron Anchor", city: "Denver", state: "CO", country: "US", outDir: out, maxPages: 25, includeUgc: false, concurrency: 3,
       places, fetcher, chat, capableModel: "capable", fastModel: "fast",
       normalizeFetch: async () => ({ url: "https://ironanchor.com/" }) as unknown as Response,
       discoveredAt: "2026-07-28T00:00:00Z",
+      captureFonts: fakeFonts,
+      downloadOne: fakeDownload,
+      socialScraper: fakeSocialScraper([]),
     });
 
     const gym = JSON.parse(await readFile(path.join(out, "gym.json"), "utf8"));
@@ -67,6 +83,11 @@ describe("runIntake", () => {
     await readFile(path.join(out, "context.json"), "utf8");
     await readFile(path.join(out, "business.json"), "utf8");
     await readFile(path.join(out, "crawl/pages.json"), "utf8");
+    // Downloaded assets get a localPath; src stays the original URL.
+    const indexDoc = JSON.parse(await readFile(path.join(out, "crawl/pages/index.json"), "utf8"));
+    const heroImg = indexDoc.images.find((i: { src: string }) => i.src.includes("hero.jpg"));
+    expect(heroImg.localPath).toMatch(/^\/assets\//);
+    expect(heroImg.src).toMatch(/^https:\/\/ironanchor\.com\/hero\.jpg$/);
     // Full internal link map is written, with every crawled page as a node.
     const links = JSON.parse(await readFile(path.join(out, "crawl/links.json"), "utf8"));
     expect(links.nodes.map((n: { slug: string }) => n.slug).sort()).toEqual(["about", "index", "pricing"]);
@@ -77,7 +98,7 @@ describe("runIntake", () => {
     const places = new FakePlacesClient(null);
     const fetcher = new FakePageFetcher({});
     await expect(runIntake({
-      url: "https://ironanchor.com", outDir: out, maxPages: 25, includeUgc: false, concurrency: 3,
+      url: "https://ironanchor.com", gymName: "Iron Anchor", city: "Denver", state: "CO", country: "US", outDir: out, maxPages: 25, includeUgc: false, concurrency: 3,
       places, fetcher, chat: fakeChat([]), capableModel: "c", fastModel: "f", skipCrawl: true,
       discoveredAt: "t",
     })).rejects.toThrow(/No crawl bundle found/);
@@ -94,10 +115,13 @@ describe("runIntake", () => {
     const chat = fakeChat([CLASS, CLASS, JSON.stringify(BUSINESS), JSON.stringify(CONTEXT), JSON.stringify(GYM)]);
 
     await runIntake({
-      url: "https://ironanchor.com", outDir: out, maxPages: 25, includeUgc: false, concurrency: 3,
+      url: "https://ironanchor.com", gymName: "Iron Anchor", city: "Denver", state: "CO", country: "US", outDir: out, maxPages: 25, includeUgc: false, concurrency: 3,
       places, fetcher, chat, capableModel: "capable", fastModel: "fast",
       normalizeFetch: async () => ({ url: "https://ironanchor.com/" }) as unknown as Response,
       discoveredAt: "2026-07-28T00:00:00Z",
+      captureFonts: fakeFonts,
+      downloadOne: fakeDownload,
+      socialScraper: fakeSocialScraper([]),
     });
 
     // Run completes and produces the primary output.
@@ -111,5 +135,160 @@ describe("runIntake", () => {
     if (pricingNode) expect(pricingNode.crawled).toBe(false);
     const crawledSlugs = links.nodes.filter((n: { crawled: boolean }) => n.crawled).map((n: { slug: string }) => n.slug).sort();
     expect(crawledSlugs).toEqual(["about", "index"]);
+  });
+
+  it("homepage-only intake still produces a valid gym.json and tells the generator to create placeholders", async () => {
+    const places = new FakePlacesClient(null);
+    const fetcher = new FakePageFetcher({ "https://ironanchor.com/": HOME });
+    const { chat, prompts } = fakeChatWithCapture([
+      CLASS,
+      JSON.stringify(BUSINESS),
+      JSON.stringify(CONTEXT),
+      JSON.stringify(GYM),
+    ]);
+
+    await runIntake({
+      url: "https://ironanchor.com", gymName: "Iron Anchor", city: "Denver", state: "CO", country: "US", outDir: out, maxPages: 1, includeUgc: false, concurrency: 1,
+      places, fetcher, chat, capableModel: "capable", fastModel: "fast",
+      normalizeFetch: async () => ({ url: "https://ironanchor.com/" }) as unknown as Response,
+      discoveredAt: "2026-07-28T00:00:00Z",
+      captureFonts: fakeFonts,
+      downloadOne: fakeDownload,
+      socialScraper: fakeSocialScraper([]),
+    });
+
+    const gym = JSON.parse(await readFile(path.join(out, "gym.json"), "utf8"));
+    expect(() => GymDocuments.parse(gym)).not.toThrow();
+
+    // 4 LLM calls: classify home, business, context, generate.
+    expect(prompts.length).toBe(4);
+    const generatePrompt = prompts[prompts.length - 1].messages;
+    const systemContent = generatePrompt.find((m) => m.role === "system")?.content ?? "";
+    expect(systemContent).toContain("PLACEHOLDER ARCHETYPES");
+    for (const archetype of ["about", "coaches", "programs", "pricing", "contact"]) {
+      expect(systemContent).toContain(archetype);
+    }
+  });
+
+  it("downloads GMB photos and feeds review text into context + business prompts", async () => {
+    const places = new FakePlacesClient({
+      displayName: { text: "Iron Anchor" },
+      formattedAddress: "1 Dock St, Denver, CO 80202, USA",
+      photos: [
+        { name: "places/ChIJfake/photos/1", widthPx: 1200, heightPx: 800, authorAttributions: [{ displayName: "Sam R.", uri: "https://maps.google.com/sam" }] },
+        { name: "places/ChIJfake/photos/2", widthPx: 600, heightPx: 400 },
+      ],
+      reviews: [
+        {
+          name: "reviews/1",
+          relativePublishTimeDescription: "2 weeks ago",
+          rating: 5,
+          text: { text: "Best coaching in Denver. The community is incredibly welcoming." },
+          authorAttribution: { displayName: "Sam R." },
+        },
+      ],
+    });
+    const fetcher = new FakePageFetcher({ "https://ironanchor.com/": HOME });
+    const { chat, prompts } = fakeChatWithCapture([
+      CLASS,
+      JSON.stringify(BUSINESS),
+      JSON.stringify(CONTEXT),
+      JSON.stringify(GYM),
+    ]);
+
+    await runIntake({
+      url: "https://ironanchor.com", gymName: "Iron Anchor", city: "Denver", state: "CO", country: "US",
+      outDir: out, maxPages: 1, includeUgc: false, concurrency: 1,
+      places, fetcher, chat, capableModel: "capable", fastModel: "fast",
+      normalizeFetch: async () => ({ url: "https://ironanchor.com/" }) as unknown as Response,
+      discoveredAt: "2026-07-28T00:00:00Z",
+      captureFonts: fakeFonts,
+      downloadOne: fakeDownload,
+      socialScraper: fakeSocialScraper([]),
+    });
+
+
+    // GMB assets manifest lists both photos but the fake client always resolves URIs,
+    // and fakeDownload always succeeds.
+    const gmbAssets = JSON.parse(await readFile(path.join(out, "crawl/gmb-assets.json"), "utf8"));
+    expect(gmbAssets.count).toBe(2);
+    expect(gmbAssets.assets[0].localPath).toMatch(/^\/assets\/gmb-/);
+
+    // Context prompt includes GMB review highlights.
+    const contextPrompt = prompts.find((p) => p.model === "capable")?.messages ?? [];
+    const contextUser = contextPrompt.find((m) => m.role === "user")?.content ?? "";
+    expect(contextUser).toContain("GMB CONTEXT");
+    expect(contextUser).toContain("Best coaching in Denver");
+
+    // Business prompt includes GMB review highlights (look at the second fast call, not classifyPage).
+    const businessPrompts = prompts.filter((p) => p.model === "fast");
+    const businessCall = businessPrompts[1]; // first fast call is classifyPage, second is classifyBusiness
+    const businessUser = businessCall?.messages.find((m) => m.role === "user")?.content ?? "";
+    expect(businessUser).toContain("DETECTED SIGNALS");
+    expect(businessUser).toContain("Best coaching in Denver");
+
+    // Context prompt carries GMB image metadata (width/height/attribution), not just a count.
+    expect(contextUser).toContain('"widthPx":1200');
+    expect(contextUser).toContain('"heightPx":800');
+    expect(contextUser).toContain('"attribution":"Sam R."');
+  });
+
+  it("persists operator-supplied websiteUrl and addressParts when Places finds no match", async () => {
+    const places = new FakePlacesClient(null);
+    const fetcher = new FakePageFetcher({ "https://ironanchor.com/": HOME });
+    const { chat, prompts } = fakeChatWithCapture([
+      CLASS,
+      JSON.stringify(BUSINESS),
+      JSON.stringify(CONTEXT),
+      JSON.stringify(GYM),
+    ]);
+
+    await runIntake({
+      url: "https://ironanchor.com", gymName: "Iron Anchor", city: "Denver", state: "CO", country: "US",
+      outDir: out, maxPages: 1, includeUgc: false, concurrency: 1,
+      places, fetcher, chat, capableModel: "capable", fastModel: "fast",
+      normalizeFetch: async () => ({ url: "https://ironanchor.com/" }) as unknown as Response,
+      discoveredAt: "2026-07-28T00:00:00Z",
+      captureFonts: fakeFonts,
+      downloadOne: fakeDownload,
+      socialScraper: fakeSocialScraper([]),
+    });
+
+    const identity = JSON.parse(await readFile(path.join(out, "crawl/identity.json"), "utf8"));
+    expect(identity.found).toBe(false);
+    expect(identity.websiteUrl).toBe("https://ironanchor.com/");
+    expect(identity.addressParts).toEqual({ city: "Denver", state: "CO", country: "US" });
+
+    // Business signals block is null when no GMB match, not an empty object.
+    const businessPrompts = prompts.filter((p) => p.model === "fast");
+    const businessCall = businessPrompts[1];
+    const businessUser = businessCall?.messages.find((m) => m.role === "user")?.content ?? "";
+    expect(businessUser).toContain('"gmb":null');
+  });
+
+  it("appends scraped social profile text to the homepage body", async () => {
+    const places = new FakePlacesClient(null);
+    const fetcher = new FakePageFetcher({ "https://ironanchor.com/": HOME });
+    const social = fakeSocialScraper([IG_PROFILE]);
+    const chat = fakeChat([
+      CLASS,
+      JSON.stringify(BUSINESS),
+      JSON.stringify(CONTEXT),
+      JSON.stringify(GYM),
+    ]);
+
+    await runIntake({
+      url: "https://ironanchor.com", gymName: "Iron Anchor", city: "Denver", state: "CO", country: "US", outDir: out, maxPages: 1, includeUgc: false, concurrency: 1,
+      places, fetcher, socialScraper: social, chat, capableModel: "capable", fastModel: "fast",
+      normalizeFetch: async () => ({ url: "https://ironanchor.com/" }) as unknown as Response,
+      discoveredAt: "2026-07-28T00:00:00Z",
+      captureFonts: fakeFonts,
+      downloadOne: fakeDownload,
+    });
+
+    const indexDoc = JSON.parse(await readFile(path.join(out, "crawl/pages/index.json"), "utf8"));
+    expect(indexDoc.bodyText).toContain("--- Social profiles ---");
+    expect(indexDoc.bodyText).toContain(IG_PROFILE.bio);
+    expect(indexDoc.bodyText).toContain(IG_PROFILE.recentPosts[0]);
   });
 });

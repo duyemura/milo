@@ -38,4 +38,18 @@ describe("brand extraction", () => {
     const css = `<style>tbody { font-family: Comic Sans; } body { font-family: Helvetica; }</style>`;
     expect(extractFonts(css).body).toBe("Helvetica");
   });
+  it("prefers Playwright computed fonts over CSS regex", () => {
+    const css = `<style>:root{--font-heading:"Oswald";--font-body:"Inter";}</style>`;
+    const computed = { display: "Anton", body: "Roboto" };
+    const fonts = extractFonts(css, computed);
+    expect(fonts.display).toBe("Anton");
+    expect(fonts.body).toBe("Roboto");
+  });
+  it("falls back through CSS variables, tag rules, and finally Inter", () => {
+    expect(extractFonts("<html><body><h1>Hi</h1>").display).toBe("Inter");
+    expect(extractFonts("<html><body><h1>Hi</h1>").body).toBe("Inter");
+    const withVars = `<style>:root{--font-heading:"Bebas Neue";--font-body:"Open Sans";}</style>`;
+    expect(extractFonts(withVars).display).toBe("Bebas Neue");
+    expect(extractFonts(withVars).body).toBe("Open Sans");
+  });
 });

@@ -1,0 +1,74 @@
+# Living crawl rules for Milo intake.
+#
+# These rules are loaded at runtime and validated by Zod. They replace the
+# hardcoded heuristics in discover.ts/crawl-graph.ts so operators can adapt
+# to new gym-site patterns without shipping code.
+
+version: 1
+
+# URL path segments that signal user-generated / frequently-updated content.
+# Such pages are skipped unless intake is run with --include-ugc.
+ugcSegments:
+  - /blog/
+  - /news/
+  - /wod/
+  - /workout/
+  - /articles/
+  - /posts/
+  - /insights/
+  - /resources/
+
+# Regex that matches date-based archive paths (e.g. /2024/ or /2026/03/).
+datePathRegex: /\/(19|20)\d{2}(\/\d{2})?\//
+
+# Query-string parameters that indicate listing/filter pages (WordPress, etc).
+listingQueryParams:
+  - p
+  - cat
+
+# File extensions we never crawl as pages.
+nonHtmlExtensions:
+  - .pdf
+  - .jpg
+  - .jpeg
+  - .png
+  - .gif
+  - .webp
+  - .svg
+  - .mp4
+  - .mov
+  - .zip
+  - .woff
+  - .woff2
+  - .ttf
+  - .css
+  - .js
+  - .xml
+  - .ico
+
+# Priority ranking for the seed inventory. Lower numbers crawl first.
+# The homepage is always priority 1. Patterns are case-insensitive regex.
+priorityRules:
+  - pattern: /(about|our-story|story|mission)/
+    priority: 2
+  - pattern: /(coaches|team|staff|trainers)/
+    priority: 3
+  - pattern: /(programs|classes|services|training)/
+    priority: 4
+  - pattern: /(pricing|membership|join|rates|plans)/
+    priority: 5
+  - pattern: /(schedule|timetable|calendar)/
+    priority: 6
+  - pattern: /(faq|questions)/
+    priority: 7
+  - pattern: /(contact|location|visit)/
+    priority: 8
+
+# Priority for the homepage (always first in the seed inventory).
+homePriority: 1
+
+# Default priority for pages that don't match any rule.
+defaultPriority: 9
+
+# How many inventory pages get a full LLM context budget; the rest are truncated.
+fullBudgetCount: 8

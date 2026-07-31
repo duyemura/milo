@@ -2,6 +2,7 @@
 interface Logo {
   src: string;
   alt: string;
+  localPath?: string | null;
 }
 interface Props {
   heading?: string;
@@ -15,7 +16,7 @@ const { heading, logos } = Astro.props;
     {logos.map((logo) => (
       <img
         class="logo-strip__img"
-        src={logo.src}
+        src={logo.localPath ?? logo.src}
         alt={logo.alt}
         loading="lazy"
         decoding="async"

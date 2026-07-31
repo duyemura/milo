@@ -70,14 +70,35 @@ export const IdentityCrawl = z.object({
   }).partial().optional(),
   phone: z.string().optional(),
   geoCoordinates: z.object({ lat: z.number(), lng: z.number() }).optional(),
-  mapsUrl: z.string().optional(),
   googleBusinessProfileUrl: z.string().optional(),
+  websiteUrl: z.string().optional(),
   priceLevel: z.string().optional(),
   rating: z.number().optional(),
   reviewCount: z.number().optional(),
   openingHoursSpecification: z.array(z.object({
     dayOfWeek: z.array(z.string()).min(1), opens: z.string(), closes: z.string(),
   })).optional(),
+  /** Google Place photos returned by Places API: resource names only. */
+  photos: z.array(z.object({
+    name: z.string(),
+    widthPx: z.number().optional(),
+    heightPx: z.number().optional(),
+    authorAttributions: z.array(z.object({ displayName: z.string(), uri: z.string().optional() })).optional(),
+  })).optional(),
+  /** Google Place reviews returned by Places API. */
+  reviews: z.array(z.object({
+    name: z.string(),
+    relativePublishTimeDescription: z.string().optional(),
+    rating: z.number().optional(),
+    text: z.object({ text: z.string(), languageCode: z.string().optional() }).optional(),
+    authorAttribution: z.object({ displayName: z.string(), uri: z.string().optional(), photoUri: z.string().optional() }).optional(),
+  })).optional(),
+  /** Short description/attributes from Places. */
+  editorialSummary: z.object({ text: z.string(), languageCode: z.string().optional() }).optional(),
+  businessStatus: z.string().optional(),
+  accessibilityOptions: z.object({ wheelchairAccessibleEntrance: z.boolean().optional(), wheelchairAccessibleParking: z.boolean().optional() }).optional(),
+  primaryType: z.string().optional(),
+  types: z.array(z.string()).optional(),
 });
 export type IdentityCrawl = z.infer<typeof IdentityCrawl>;
 

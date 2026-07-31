@@ -1,5 +1,13 @@
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
+import { loadCrawlRules, type CompiledCrawlRules } from "./rules.ts";
+
+let _defaultRules: CompiledCrawlRules | undefined;
+export function defaultRules(): CompiledCrawlRules {
+  if (!_defaultRules) _defaultRules = loadCrawlRules();
+  return _defaultRules;
+}
+
 /** Follow redirects and return the canonical origin (`https://host/`). */
 export async function normalizeBaseUrl(input: string, fetchLike: FetchLike): Promise<string> {
   try {
@@ -11,21 +19,22 @@ export async function normalizeBaseUrl(input: string, fetchLike: FetchLike): Pro
   }
 }
 
-const UGC_SEGMENTS = ["/blog/", "/news/", "/wod/", "/workout/", "/articles/", "/posts/", "/insights/", "/resources/"];
-const NON_HTML_EXT = [".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".mp4", ".mov", ".zip", ".woff", ".woff2", ".ttf", ".css", ".js", ".xml", ".ico"];
-
-export function isUgc(url: string): boolean {
-  const p = new URL(url).pathname.toLowerCase();
-  const search = new URL(url).search.toLowerCase();
-  if (UGC_SEGMENTS.some((seg) => p.includes(seg))) return true;
-  if (/\/(19|20)\d{2}(\/\d{2})?\//.test(p)) return true;        // /2024/ or /2026/03/
-  if (/[?&](p|cat)=/.test(search)) return true;                  // wordpress
+export function isUgc(url: string, rules: CompiledCrawlRules = defaultRules()): boolean {
+  const u = new URL(url);
+  const p = u.pathname.toLowerCase();
+  const search = u.search.toLowerCase();
+  if (rules.ugcSegments.some((seg) => p.includes(seg))) return true;
+  if (rules.datePathRegex.test(p)) return true;
+  const params = new URLSearchParams(search);
+  for (const key of rules.listingQueryParams) {
+    if (params.has(key)) return true;
+  }
   return false;
 }
 
-export function isNonHtml(url: string): boolean {
+export function isNonHtml(url: string, rules: CompiledCrawlRules = defaultRules()): boolean {
   const p = new URL(url).pathname.toLowerCase();
-  return NON_HTML_EXT.some((ext) => p.endsWith(ext));
+  return rules.nonHtmlExtensions.some((ext) => p.endsWith(ext));
 }
 
 export function slugFor(url: string, baseUrl: string): string {
@@ -34,21 +43,11 @@ export function slugFor(url: string, baseUrl: string): string {
   return path.replace(/\//g, "-").replace(/[^a-z0-9-]/gi, "").toLowerCase() || "index";
 }
 
-const PRIORITY_RULES: Array<[RegExp, number]> = [
-  [/\/(about|our-story|story|mission)/i, 2],
-  [/\/(coaches|team|staff|trainers)/i, 3],
-  [/\/(programs|classes|services|training)/i, 4],
-  [/\/(pricing|membership|join|rates|plans)/i, 5],
-  [/\/(schedule|timetable|calendar)/i, 6],
-  [/\/(faq|questions)/i, 7],
-  [/\/(contact|location|visit)/i, 8],
-];
-
-export function priorityFor(url: string): number {
+export function priorityFor(url: string, rules: CompiledCrawlRules = defaultRules()): number {
   const path = new URL(url).pathname;
-  if (path === "/" || path === "") return 1;
-  for (const [re, score] of PRIORITY_RULES) if (re.test(path)) return score;
-  return 9;
+  if (path === "/" || path === "") return rules.homePriority;
+  for (const rule of rules.priorityRules) if (rule.regex.test(path)) return rule.priority;
+  return rules.defaultPriority;
 }
 
 import type { PagesJson, PageInventoryItem } from "@milo/schema";
@@ -81,9 +80,7 @@ export interface BuildInventoryInput {
   includeUgc?: boolean;
 }
 
-const FULL_BUDGET_COUNT = 8;
-
-export function buildInventory(input: BuildInventoryInput): PagesJson {
+export function buildInventory(input: BuildInventoryInput, rules: CompiledCrawlRules = defaultRules()): PagesJson {
   const origin = new URL(input.baseUrl).origin;
   const sourceOf = new Map<string, "sitemap" | "nav">();
 
@@ -104,8 +101,8 @@ export function buildInventory(input: BuildInventoryInput): PagesJson {
     try { return new URL(u).origin === origin; } catch { return false; }
   });
 
-  const afterNonHtml = allUrls.filter((u) => !isNonHtml(u));
-  const afterUgc = input.includeUgc ? afterNonHtml : afterNonHtml.filter((u) => !isUgc(u));
+  const afterNonHtml = allUrls.filter((u) => !isNonHtml(u, rules));
+  const afterUgc = input.includeUgc ? afterNonHtml : afterNonHtml.filter((u) => !isUgc(u, rules));
   const filtered = afterNonHtml.length - afterUgc.length;
 
   // Dedup by slug (keeps first, homepage wins by priority sort next).
@@ -116,7 +113,7 @@ export function buildInventory(input: BuildInventoryInput): PagesJson {
   }
 
   const ranked = [...bySlug.values()]
-    .map((url) => ({ url, slug: slugFor(url, input.baseUrl), priority: priorityFor(url), source: sourceOf.get(url) ?? "crawl-discovered" }))
+    .map((url) => ({ url, slug: slugFor(url, input.baseUrl), priority: priorityFor(url, rules), source: sourceOf.get(url) ?? "crawl-discovered" }))
     .sort((a, b) => a.priority - b.priority || a.slug.localeCompare(b.slug));
 
   // Pages dropped specifically by the cap = survivors of filtering beyond maxPages.
@@ -129,7 +126,7 @@ export function buildInventory(input: BuildInventoryInput): PagesJson {
     slug: p.slug,
     priority: p.priority,
     source: p.source,
-    llmBudget: i < FULL_BUDGET_COUNT ? "full" : "truncated",
+    llmBudget: i < rules.fullBudgetCount ? "full" : "truncated",
   }));
 
   return {

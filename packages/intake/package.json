@@ -10,10 +10,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@milo/schema": "workspace:*",
-    "@milo/llm": "workspace:*",
     "@milo/generate": "workspace:*",
+    "@milo/llm": "workspace:*",
+    "@milo/schema": "workspace:*",
     "playwright": "^1.49.0",
+    "yaml": "^2.9.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {

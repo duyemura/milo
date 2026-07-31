@@ -7,3 +7,4 @@ dist/
 .DS_Store
 dist-modern/
 dist-blackout/
+cf-*-intake/

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { stripBoilerplate, extractPageDocument, collectAssetUrls, needsPlaywright, metaContent, sanitizeAssetName } from "../src/crawl.ts";
+import { stripBoilerplate, extractPageDocument, collectAssetUrls, needsPlaywright, metaContent, sanitizeAssetName, extensionForAsset } from "../src/crawl.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const about = readFileSync(path.join(dir, "fixtures/about.html"), "utf8");
@@ -90,5 +90,23 @@ describe("sanitizeAssetName", () => {
     expect(a).not.toBe(b);
     expect(a.endsWith("hero.jpg")).toBe(true);
     expect(b.endsWith("hero.jpg")).toBe(true);
+  });
+});
+
+describe("extensionForAsset", () => {
+  it("maps Content-Type to the correct extension", () => {
+    expect(extensionForAsset("image/png", "https://g.com/x.jpg")).toBe(".png");
+    expect(extensionForAsset("image/webp", "https://g.com/x.jpg")).toBe(".webp");
+    expect(extensionForAsset("image/svg+xml", "https://g.com/x.png")).toBe(".svg");
+  });
+
+  it("falls back to the URL extension when Content-Type is missing or unknown", () => {
+    expect(extensionForAsset(null, "https://g.com/hero.jpg")).toBe(".jpg");
+    expect(extensionForAsset("application/octet-stream", "https://g.com/hero.png")).toBe(".png");
+    expect(extensionForAsset(null, "https://g.com/photo")).toBe(".jpg");
+  });
+
+  it("ignores Content-Type parameters like charset", () => {
+    expect(extensionForAsset("image/jpeg; charset=utf-8", "https://g.com/x.png")).toBe(".jpg");
   });
 });

@@ -3,7 +3,7 @@ interface Program {
   slug: string;
   name: string;
   description: string;
-  image?: { src: string; alt: string };
+  image?: { src: string; alt: string; localPath?: string | null };
   href?: string;
 }
 
@@ -23,7 +23,7 @@ const { heading, ctaLabel = "Contact Us For More Info", programs } = Astro.props
         {p.image && (
           <img
             class="program-card__image"
-            src={p.image.src}
+            src={p.image.localPath ?? p.image.src}
             alt={p.image.alt || p.name}
             loading="lazy"
           />

@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { PageDocument, BrandCrawl } from "@milo/schema";
-import type { PageDocument as PageDoc } from "@milo/schema";
+import { PageDocument, BrandCrawl, IdentityCrawl } from "@milo/schema";
+import type { PageDocument as PageDoc, IdentityCrawl as IdentityCrawlType } from "@milo/schema";
 import { BusinessDoc, IntegrationsDoc } from "./schemas.ts";
 import type { BusinessDoc as BusinessDocT, IntegrationsDoc as IntegrationsDocT } from "./schemas.ts";
 import { llmJson, type ChatFn } from "@milo/llm";
+import { budgetGmbReviews } from "./gmb-budget.ts";
 
 /** Deterministic: brand signals -> IntegrationsDoc. No LLM. */
 export function buildIntegrations(brand: BrandCrawl): IntegrationsDocT {
@@ -49,15 +50,34 @@ export interface ClassifyBusinessInput {
   model: string;
   pages: PageDoc[];
   brand: BrandCrawl;
+  identity?: IdentityCrawlType;
+  gmbAssets?: { localPath: string; widthPx?: number; heightPx?: number; attribution?: string }[];
 }
 
 export async function classifyBusiness(input: ClassifyBusinessInput): Promise<BusinessDocT> {
+  const gmb = input.identity;
   const signals = {
     software: input.brand.software,
     analytics: Object.keys(input.brand.analytics),
     social: input.brand.socialLinks,
     pageCount: input.pages.length,
     slugs: input.pages.map((p) => p.slug),
+    gmb: gmb?.found
+      ? {
+          primaryType: gmb.primaryType,
+          types: gmb.types,
+          priceLevel: gmb.priceLevel,
+          rating: gmb.rating,
+          reviewCount: gmb.reviewCount,
+          businessStatus: gmb.businessStatus,
+          accessibilityOptions: gmb.accessibilityOptions,
+          editorialSummary: gmb.editorialSummary?.text,
+        }
+      : null,
+    gmbReviewHighlights: budgetGmbReviews(gmb?.reviews, { maxReviews: 5, maxChars: 2000 })
+      .map((r) => r.text?.text)
+      .filter((t): t is string => Boolean(t)),
+    gmbPhotoCount: input.gmbAssets?.length ?? 0,
   };
   const system = [
     "You assess a gym's business from detected tech signals + page content.",
@@ -74,7 +94,7 @@ export async function classifyBusiness(input: ClassifyBusinessInput): Promise<Bu
     model: input.model,
     messages: [
       { role: "system", content: system },
-      { role: "user", content: `DETECTED SIGNALS: ${JSON.stringify(signals)}\n\nPAGES: ${input.pages.map((p) => `${p.slug}: ${p.bodyText.slice(0, 500)}`).join("\n")}` },
+      { role: "user", content: `DETECTED SIGNALS: ${JSON.stringify(signals)}\n\nPAGES: ${input.pages.map((p) => `${p.slug}: ${p.bodyText.slice(0, 500)}`).join("\n")}\n\nGMB REVIEWS: ${JSON.stringify(budgetGmbReviews(gmb?.reviews, { maxReviews: 8, maxChars: 4000 }).map((r) => ({ rating: r.rating, text: r.text?.text })))}\n\nGMB ASSETS: ${JSON.stringify(input.gmbAssets?.map((a) => ({ localPath: a.localPath, widthPx: a.widthPx, heightPx: a.heightPx, attribution: a.attribution })) ?? [])}` },
     ],
     maxRetries: 3,
   });

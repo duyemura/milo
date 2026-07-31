@@ -14,6 +14,8 @@ export interface GenerateSiteInput {
   context?: Record<string, unknown>;
   /** Business assessment doc produced by intake (optional). */
   business?: Record<string, unknown>;
+  /** Archetypes to create as placeholder pages when no crawl doc covers them. */
+  placeholderArchetypes?: string[];
   /** Default ~400k chars (~100k tokens). */
   charCeiling?: number;
 }
@@ -146,7 +148,7 @@ function pageDigest(pages: PageDocument[]): string {
     `Title: ${p.title}`,
     `Headings: ${p.headings.join(" | ")}`,
     `Body: ${p.bodyText}`,
-    `Images: ${p.images.map((i) => i.localPath ?? i.src).join(", ")}`,
+    `Images: ${p.images.map((i) => `${i.localPath ? `${i.localPath} (source: ${i.src})` : i.src}`).join(", ")}`,
   ].join("\n")).join("\n\n");
 }
 
@@ -177,9 +179,14 @@ export async function generateSite(input: GenerateSiteInput): Promise<GenerateSi
     "- Use ONLY these section types. content must contain exactly these fields (a trailing ? = optional):",
     sectionShapeGuide(),
     "- All colors are 6-digit hex (#rrggbb). Prefer the BRAND SIGNALS colors; map them to the 5 slots with good contrast (surface = light background, text = dark).",
-    "- Every hero/media/logo image needs an image object {src, alt}. Use an image URL from that page's Images list; if none, use the gym logo URL from BRAND SIGNALS.",
+    "- Every hero/media/logo/coach image needs an image object {src, alt, localPath?}. Set `src` to the original URL from the page's Images list and `localPath` to the matching downloaded local path under /assets/... when present. Templates prefer localPath over src, so keeping src as the canonical/original URL preserves the source reference while the renderer uses the local copy.",
     "- identity.name and tagline come from the crawled homepage / provided identity doc.",
     "- Build one page per meaningful archetype the crawl supports (home/index, about, programs, pricing, contact). Preserve the gym's own words wherever possible.",
+    ...(input.placeholderArchetypes?.length ? [
+      `PLACEHOLDER ARCHETYPES (create these pages with obvious placeholder content if no crawl doc covers them): ${input.placeholderArchetypes.join(", ")}`,
+      "- Placeholder copy must clearly signal it is awaiting real content (e.g. 'Add coach bio here', 'Pricing details to be added') so an operator knows to edit or delete the page.",
+      "- Still create the page slug, title, meta.description, and a single appropriate section for each placeholder archetype.",
+    ] : []),
   ].join("\n");
 
   const userParts = [

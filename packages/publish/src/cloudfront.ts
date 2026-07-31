@@ -9,6 +9,7 @@ import {
   DescribeKeyValueStoreCommand,
 } from "@aws-sdk/client-cloudfront-keyvaluestore";
 import { fromIni } from "@aws-sdk/credential-provider-ini";
+import "@aws-sdk/signature-v4-crt"; // Register SigV4a signer required by CloudFront KVS
 
 export function createRealKvsAdapter(opts: {
   kvsArn: string;

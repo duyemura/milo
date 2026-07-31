@@ -1,14 +1,17 @@
 ---
+import { marked } from "marked";
+
 interface Props {
   heading?: string;
   body: string;
 }
 const { heading, body } = Astro.props;
+const htmlBody = marked.parse(body, { async: false }) as string;
 ---
 <section class="content-block">
   <div class="content-block__inner">
     {heading && <h2 class="content-block__heading">{heading}</h2>}
-    <div class="content-block__body" set:html={body} />
+    <div class="content-block__body" set:html={htmlBody} />
   </div>
 </section>
 <style>

@@ -4,6 +4,7 @@ import type { PageDocument, IdentityCrawl, BrandCrawl } from "@milo/schema";
 import type { ChatFn } from "@milo/llm";
 import { llmJson } from "@milo/llm";
 import { budgetPages } from "@milo/generate";
+import { budgetGmbReviews } from "./gmb-budget.ts";
 
 export interface AnalyzeContextInput {
   chat: ChatFn;
@@ -12,6 +13,7 @@ export interface AnalyzeContextInput {
   budgets: Map<string, "full" | "truncated">;
   identity: IdentityCrawl;
   brand: BrandCrawl;
+  gmbAssets?: { localPath: string; widthPx?: number; heightPx?: number; attribution?: string }[];
   charCeiling?: number;
 }
 
@@ -51,6 +53,31 @@ export async function analyzeContext(input: AnalyzeContextInput): Promise<Contex
     "siteArchitecture MUST have one entry per crawled page archetype, and EACH entry MUST include all three keys: slug, archetype, goal. Never emit a bare string or an entry missing archetype/goal.",
   ].join("\n");
 
+  const gmb = input.identity;
+  const gmbContext = gmb?.found ? {
+    summary: gmb.editorialSummary?.text,
+    primaryType: gmb.primaryType,
+    types: gmb.types,
+    rating: gmb.rating,
+    reviewCount: gmb.reviewCount,
+    hours: gmb.openingHoursSpecification,
+    priceLevel: gmb.priceLevel,
+    accessibility: gmb.accessibilityOptions,
+    address: gmb.formattedAddress,
+    addressParts: gmb.addressParts,
+    reviewHighlights: budgetGmbReviews(gmb.reviews, { maxReviews: 10, maxChars: 8000 }).map((r) => ({
+      rating: r.rating,
+      text: r.text?.text,
+      time: r.relativePublishTimeDescription,
+    })),
+    images: input.gmbAssets?.map((a) => ({
+      localPath: a.localPath,
+      widthPx: a.widthPx,
+      heightPx: a.heightPx,
+      attribution: a.attribution,
+    })) ?? [],
+  } : null;
+
   return llmJson(ContextDoc, {
     chat: input.chat,
     model: input.model,
@@ -59,6 +86,7 @@ export async function analyzeContext(input: AnalyzeContextInput): Promise<Contex
       { role: "user", content: [
         `IDENTITY: ${JSON.stringify(input.identity)}`,
         `BRAND SIGNALS: ${JSON.stringify(input.brand)}`,
+        ...(gmbContext ? [`GMB CONTEXT: ${JSON.stringify(gmbContext)}`] : []),
         `CRAWLED PAGES:\n${digest}`,
       ].join("\n\n") },
     ],

@@ -3,7 +3,7 @@ interface Coach {
   name: string;
   role?: string;
   bio?: string;
-  photo?: { src: string; alt: string };
+  photo?: { src: string; alt: string; localPath?: string | null };
   certs?: string[];
 }
 interface Props {
@@ -23,7 +23,7 @@ function initials(name: string): string {
       <li class="coach-grid__card">
         <div class="coach-grid__media">
           {coach.photo ? (
-            <img src={coach.photo.src} alt={coach.photo.alt || coach.name} class="coach-grid__photo" loading="lazy" decoding="async" />
+            <img src={coach.photo.localPath ?? coach.photo.src} alt={coach.photo.alt || coach.name} class="coach-grid__photo" loading="lazy" decoding="async" />
           ) : (
             <div class="coach-grid__avatar" aria-hidden="true">{initials(coach.name)}</div>
           )}

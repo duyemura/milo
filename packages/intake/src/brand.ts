@@ -27,9 +27,12 @@ function familyOf(html: string, selector: string): string | null {
   return first.startsWith("var(") ? null : first;
 }
 
-export function extractFonts(html: string): { display: string; body: string } {
-  const display = fontVar(html, "heading") ?? fontVar(html, "display") ?? familyOf(html, "h1") ?? "Inter";
-  const body = fontVar(html, "body") ?? familyOf(html, "body") ?? "Inter";
+export function extractFonts(
+  html: string,
+  computed?: { display: string | null; body: string | null },
+): { display: string; body: string } {
+  const display = computed?.display ?? fontVar(html, "heading") ?? fontVar(html, "display") ?? familyOf(html, "h1") ?? "Inter";
+  const body = computed?.body ?? fontVar(html, "body") ?? familyOf(html, "body") ?? "Inter";
   return { display, body };
 }
 

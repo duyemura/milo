@@ -1,6 +1,7 @@
 import { LinkMap } from "@milo/schema";
 import type { LinkMap as LinkMapT } from "@milo/schema";
-import { isUgc, slugFor } from "./discover.ts";
+import { isUgc, slugFor, defaultRules } from "./discover.ts";
+import type { CompiledCrawlRules } from "./rules.ts";
 
 function sameOrigin(url: string, origin: string): boolean {
   try { return new URL(url).origin === origin; } catch { return false; }
@@ -15,7 +16,10 @@ export interface NextToCrawlInput {
 }
 
 /** Pure planner: which newly-seen links should join the crawl queue this round. */
-export function nextToCrawl(input: NextToCrawlInput): string[] {
+export function nextToCrawl(
+  input: NextToCrawlInput,
+  rules: CompiledCrawlRules = defaultRules(),
+): string[] {
   const origin = new URL(input.baseUrl).origin;
   const out: string[] = [];
   const seen = new Set(input.alreadyQueued);
@@ -23,7 +27,7 @@ export function nextToCrawl(input: NextToCrawlInput): string[] {
     if (out.length >= input.remaining) break;
     if (!sameOrigin(link, origin)) continue;
     if (seen.has(link)) continue;
-    if (!input.includeUgc && isUgc(link)) continue;
+    if (!input.includeUgc && isUgc(link, rules)) continue;
     seen.add(link);
     out.push(link);
   }
@@ -38,7 +42,10 @@ export interface BuildLinkMapInput {
 }
 
 /** Build the full internal link graph — every same-origin URL seen, crawled or not. */
-export function buildLinkMap(input: BuildLinkMapInput): LinkMapT {
+export function buildLinkMap(
+  input: BuildLinkMapInput,
+  rules: CompiledCrawlRules = defaultRules(),
+): LinkMapT {
   const origin = new URL(input.baseUrl).origin;
   const nodeUrls = new Set<string>();
   const edges: { from: string; to: string }[] = [];
@@ -61,7 +68,7 @@ export function buildLinkMap(input: BuildLinkMapInput): LinkMapT {
     url,
     slug: input.crawledSlugs.get(url) ?? slugFor(url, input.baseUrl),
     crawled: input.crawledSlugs.has(url),
-    isUgc: isUgc(url),
+    isUgc: isUgc(url, rules),
   }));
 
   return LinkMap.parse({ baseUrl: input.baseUrl, discoveredAt: input.discoveredAt, nodes, edges });

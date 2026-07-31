@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { normalizeBaseUrl, isUgc, isNonHtml, slugFor, priorityFor } from "../src/discover.ts";
 import { parseSitemap, extractNavLinks, buildInventory } from "../src/discover.ts";
+import { compileCrawlRules } from "../src/rules.ts";
+import type { CrawlRules } from "../src/rules.ts";
 
 describe("normalizeBaseUrl", () => {
   it("follows redirects and returns the final origin with trailing slash", async () => {
@@ -71,6 +73,40 @@ describe("extractNavLinks", () => {
     const html = `<header><nav><a href="/about">About</a><a href="https://g.com/coaches">Coaches</a>
       <a href="https://facebook.com/g">FB</a></nav></header>`;
     expect(extractNavLinks(html, "https://g.com/")).toEqual(["https://g.com/about", "https://g.com/coaches"]);
+  });
+});
+
+const CUSTOM_RULES = compileCrawlRules({
+  version: 1,
+  ugcSegments: ["/podcast/"],
+  datePathRegex: "/\\/(19|20)\\d{2}(\\/\\d{2})?\\//",
+  listingQueryParams: ["page"],
+  nonHtmlExtensions: [".pdf"],
+  priorityRules: [{ pattern: "/(nutrition|meal-plan)/", priority: 2 }],
+  homePriority: 1,
+  defaultPriority: 9,
+  fullBudgetCount: 4,
+} as CrawlRules);
+
+describe("custom crawl rules", () => {
+  it("uses configured UGC segments and non-html extensions", () => {
+    expect(isUgc("https://g.com/podcast/episode-1", CUSTOM_RULES)).toBe(true);
+    expect(isUgc("https://g.com/blog/post", CUSTOM_RULES)).toBe(false); // not in custom rules
+    expect(isNonHtml("https://g.com/menu.pdf", CUSTOM_RULES)).toBe(true);
+    expect(isNonHtml("https://g.com/hero.jpg", CUSTOM_RULES)).toBe(false); // not in custom rules
+  });
+  it("uses configured priority rules and full-budget count", () => {
+    expect(priorityFor("https://g.com/nutrition", CUSTOM_RULES)).toBe(2);
+    expect(priorityFor("https://g.com/", CUSTOM_RULES)).toBe(1);
+    expect(priorityFor("https://g.com/random", CUSTOM_RULES)).toBe(9);
+    const inv = buildInventory({
+      baseUrl: "https://g.com/",
+      sitemapUrls: Array.from({ length: 10 }, (_, i) => `https://g.com/p${i}`),
+      navUrls: [],
+      maxPages: 10,
+      discoveredAt: "t",
+    }, CUSTOM_RULES);
+    expect(inv.pages.filter((p) => p.llmBudget === "full").length).toBe(4);
   });
 });
 

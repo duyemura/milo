@@ -24,7 +24,7 @@ interface PublishJson {
 const DEFAULTS = {
   bucket: "pushpress-marketing-dev",
   region: "us-east-1",
-  siteDomain: "sites.pushpress.com",
+  siteDomain: "mygymseo.com",
   awsProfile: "unicorn",
 };
 
