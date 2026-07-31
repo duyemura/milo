@@ -13,11 +13,20 @@ describe("brand extraction", () => {
     expect(colors["#0b1f3a"]).toBeGreaterThanOrEqual(1);
     expect(colors["#ffffff"]).toBeGreaterThanOrEqual(1);
   });
-  it("maps display + body font slots from CSS variables", () => {
-    const fonts = extractFonts(html);
+
+  it("uses Playwright computed fonts when available", () => {
+    const computed = { display: "Oswald", body: "Inter" };
+    const fonts = extractFonts(html, computed);
     expect(fonts.display).toBe("Oswald");
     expect(fonts.body).toBe("Inter");
   });
+
+  it("ignores static CSS font variables and falls back to Inter when no computed fonts are provided", () => {
+    const fonts = extractFonts(html);
+    expect(fonts.display).toBe("Inter");
+    expect(fonts.body).toBe("Inter");
+  });
+
   it("finds the header logo", () => {
     expect(extractLogo(html, "https://g.com/")).toBe("https://g.com/logo.svg");
   });
@@ -33,23 +42,5 @@ describe("brand extraction", () => {
     const a = detectAnalytics(html);
     expect(a.gtm).toBe("GTM-ABC123");
     expect(a.facebookPixel).toBe("detected");   // pixel present, id parsed separately if available
-  });
-  it("body font-family lookup is not hijacked by a tbody rule", () => {
-    const css = `<style>tbody { font-family: Comic Sans; } body { font-family: Helvetica; }</style>`;
-    expect(extractFonts(css).body).toBe("Helvetica");
-  });
-  it("prefers Playwright computed fonts over CSS regex", () => {
-    const css = `<style>:root{--font-heading:"Oswald";--font-body:"Inter";}</style>`;
-    const computed = { display: "Anton", body: "Roboto" };
-    const fonts = extractFonts(css, computed);
-    expect(fonts.display).toBe("Anton");
-    expect(fonts.body).toBe("Roboto");
-  });
-  it("falls back through CSS variables, tag rules, and finally Inter", () => {
-    expect(extractFonts("<html><body><h1>Hi</h1>").display).toBe("Inter");
-    expect(extractFonts("<html><body><h1>Hi</h1>").body).toBe("Inter");
-    const withVars = `<style>:root{--font-heading:"Bebas Neue";--font-body:"Open Sans";}</style>`;
-    expect(extractFonts(withVars).display).toBe("Bebas Neue");
-    expect(extractFonts(withVars).body).toBe("Open Sans");
   });
 });

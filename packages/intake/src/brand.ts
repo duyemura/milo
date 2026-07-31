@@ -14,26 +14,17 @@ export function extractColors(html: string): Record<string, number> {
   return counts;
 }
 
-function fontVar(html: string, name: string): string | null {
-  const m = html.match(new RegExp(`--font-${name}\\s*:\\s*["']?([^;"'}]+)`, "i"));
-  return m ? m[1].trim() : null;
-}
-
-function familyOf(html: string, selector: string): string | null {
-  // \b anchors the selector so a lookup for `body` doesn't match `tbody { … }`.
-  const block = html.match(new RegExp(`\\b${selector}\\b\\s*\\{[^}]*font-family\\s*:\\s*([^;}]+)`, "i"));
-  if (!block) return null;
-  const first = block[1].split(",")[0].trim().replace(/["']/g, "");
-  return first.startsWith("var(") ? null : first;
-}
-
 export function extractFonts(
-  html: string,
+  _html: string,
   computed?: { display: string | null; body: string | null },
 ): { display: string; body: string } {
-  const display = computed?.display ?? fontVar(html, "heading") ?? fontVar(html, "display") ?? familyOf(html, "h1") ?? "Inter";
-  const body = computed?.body ?? fontVar(html, "body") ?? familyOf(html, "body") ?? "Inter";
-  return { display, body };
+  // Brand fonts are resolved via Playwright computed styles on the rendered
+  // homepage. The static HTML body is intentionally ignored — external CSS,
+  // @font-face, and JS-driven font loading are only visible to the browser.
+  return {
+    display: computed?.display ?? "Inter",
+    body: computed?.body ?? "Inter",
+  };
 }
 
 export function extractLogo(html: string, baseUrl: string): string | null {
