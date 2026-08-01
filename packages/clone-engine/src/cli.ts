@@ -10,8 +10,8 @@
  *   build    (whole-site orchestrator; runs from cwd)
  *   deploy   --dist <distDir> --slug <slug>
  *
- * --engine defaults to "mjs" (the frozen, proven spike scripts).
- * --engine ts calls the ported TypeScript functions directly.
+ * --engine defaults to "ts" (the ported TypeScript engine, at parity with the .mjs spike).
+ * --engine mjs falls back to the frozen, proven spike scripts.
  */
 import { capture } from "./capture.ts";
 import { project } from "./project.ts";
@@ -81,7 +81,7 @@ function findSubcommand(): string | undefined {
 }
 
 const subcommand = findSubcommand();
-const engine = arg("engine", "mjs");
+const engine = arg("engine", "ts");
 
 if (!subcommand) {
   console.error("Usage: node src/cli.ts <capture|project|build|deploy> [--engine <ts|mjs>] [flags]");
