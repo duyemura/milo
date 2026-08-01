@@ -96,7 +96,7 @@ Two auth modes, deliberately only two principals — **no RBAC**:
 
 | Principal | Auth | Sees | Controls |
 |---|---|---|---|
-| **Team member** | WorkOS AuthKit hosted login; sealed session cookie; server enforces `@pushpress.com` | all workspaces/companies/sites | everything |
+| **Team member** | **Google sign-in ONLY** (WorkOS `provider=GoogleOAuth` — skips AuthKit, straight to Google); sealed session cookie; server enforces `@pushpress.com` at callback | all workspaces/companies/sites | everything |
 | **Client API key** | opaque key, one per workspace (phase 4; team issues/rotates) | only that workspace's companies/sites | that workspace only |
 
 Access control = tenant filtering, not a permission system: client-key requests are scoped

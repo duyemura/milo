@@ -24,8 +24,11 @@ export function createWorkosAuth(config: AdminConfig): WorkosAuth {
 
   return {
     loginUrl() {
+      // Google is the ONLY accepted provider (Dan, 2026-08-01): the authorize URL
+      // skips the AuthKit page and goes straight to Google. Email/password users
+      // simply cannot get a code, and @pushpress.com is enforced again at callback.
       return workos.userManagement.getAuthorizationUrl({
-        provider: "authkit",
+        provider: "GoogleOAuth",
         clientId,
         redirectUri: config.workosRedirectUri,
       });
