@@ -20,6 +20,29 @@ import type { AdminConfig } from "../config.ts";
 import type { JobRow, SiteRow } from "../db/types.ts";
 import { appendLog } from "./dispatch.ts";
 
+/** Ensure GSC before a deploy so the meta tag rides the FIRST served bytes (either seed path). */
+export async function gscEnsureBeforeDeploy(opts: {
+  db: AdminDb;
+  config: AdminConfig;
+  site: SiteRow;
+  schemeUrl: string;
+  fetchFn?: FetchLike;
+}): Promise<{ issued: boolean; reason: string | null }> {
+  const { db, config, site, schemeUrl, fetchFn } = opts;
+  if (!config.googleServiceAccountJson) return { issued: false, reason: "no service account" };
+  try {
+    const sa = loadServiceAccount(config.googleServiceAccountJson);
+    const prop = await gscEnsureProperty({ sa, schemeUrl, fetchFn });
+    await upsertConnection(db, site, "gsc", prop.propertyUrl, {
+      metaTagToken: prop.metaTagToken,
+      verified: prop.verified,
+    });
+    return { issued: prop.metaTagToken !== null || prop.verified, reason: null };
+  } catch (err) {
+    return { issued: false, reason: err instanceof Error ? err.message.split("\n")[0] : String(err) };
+  }
+}
+
 export interface MeasureDeps {
   fetchFn?: FetchLike;
   loadSa?: (path: string) => ServiceAccount;
@@ -29,7 +52,7 @@ function stagingUrl(site: SiteRow): string | null {
   return site.slug ? `https://${site.slug}-staging.mygymseo.com/` : null;
 }
 
-async function upsertConnection(
+export async function upsertConnection(
   db: AdminDb,
   site: SiteRow,
   kind: "gsc" | "ga4" | "gbp" | "places",
