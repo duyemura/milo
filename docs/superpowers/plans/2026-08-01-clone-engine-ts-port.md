@@ -133,12 +133,24 @@ Expected: installs without error; `@milo/clone-engine` appears in the workspace.
 Run: `cd /Users/dan/pushpress/milo && node packages/clone-engine/src/index.ts && echo "clone-engine parses"`
 Expected: `clone-engine parses` (modules have no side effects, exit 0).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Graduate the doctrine into the permanent package**
+
+The doctrine is a permanent artifact currently in the transitional `page-clone-spike/` folder.
+Move it to the package (its permanent home) and leave a pointer behind:
 
 ```bash
 cd /Users/dan/pushpress/milo
-git add packages/clone-engine
-git commit -m "scaffold(clone-engine): @milo/clone-engine package + capture types"
+git mv page-clone-spike/DOCTRINE.md packages/clone-engine/DOCTRINE.md
+```
+
+Update references to the new path: `grep -rl "page-clone-spike/DOCTRINE.md" docs .claude ~/.claude 2>/dev/null` and fix each to `packages/clone-engine/DOCTRINE.md`. Add a one-line stub `page-clone-spike/DOCTRINE.md` → "Moved to `packages/clone-engine/DOCTRINE.md` (engine graduated from spike to workspace package)." so the spike folder still points to it.
+
+- [ ] **Step 6: Commit**
+
+```bash
+cd /Users/dan/pushpress/milo
+git add packages/clone-engine page-clone-spike/DOCTRINE.md
+git commit -m "scaffold(clone-engine): @milo/clone-engine package + types; graduate DOCTRINE to package"
 ```
 
 ---
