@@ -79,13 +79,35 @@ function tagSeq(node: TreeNode, acc: string[] = []): string[] {
   return acc;
 }
 
+const ASSET_RE = /assets\/[af]\d+\.\w+/g;
+/** Distinct rehosted asset refs a capture embeds: tree src/srcset/poster, style
+ *  url() values (all widths), fontCss, and head icon hrefs. Names are the only
+ *  nondeterministic bit, but the COUNT of distinct refs is deterministic. */
+function collectAssetRefs(cap: CaptureJson): Set<string> {
+  const refs = new Set<string>();
+  const add = (s: string | undefined) => { if (s) for (const m of s.match(ASSET_RE) ?? []) refs.add(m); };
+  const walk = (node: TreeNode) => {
+    if ((node as { t?: string }).t !== undefined) return;
+    const el = node as TreeEl;
+    for (const key of ["src", "srcset", "poster"]) add(el.attrs[key]);
+    el.children.forEach(walk);
+  };
+  walk(cap.tree);
+  for (const w of Object.keys(cap.styles)) for (const id in cap.styles[w]) for (const v of Object.values(cap.styles[w][id])) add(v);
+  add(cap.fontCss);
+  for (const ic of cap.head.icons) add(ic.href);
+  return refs;
+}
+
 /** head normalized for comparison: any content/href referencing assets/ has its
- *  nondeterministic aN filename placeholdered. title/lang/metas keys are exact. */
+ *  nondeterministic aN filename placeholdered. title/lang/metas/icons compared
+ *  exactly (icons by rel + normalized href) so a dropped favicon is caught. */
 function normHead(h: Head) {
   return {
     title: h.title,
     lang: h.lang,
-    metas: h.metas.map((m) => ({ key: m.key, content: m.content.includes("assets/") ? normAssetName(m.content) : m.content })),
+    metas: h.metas.map((m) => ({ key: m.key, content: normAssetName(m.content) })),
+    icons: h.icons.map((ic) => ({ rel: ic.rel, href: normAssetName(ic.href), sizes: ic.sizes, type: ic.type })),
   };
 }
 
@@ -111,62 +133,40 @@ describe("capture parity vs frozen .mjs capture-of-clone", () => {
         for (const id of idsA) {
           // 3. Per-id style property KEYS identical.
           expect(Object.keys(sa[id]).sort(), `${site} pc-${id} prop keys @${w}`).toEqual(Object.keys(sb[id]).sort());
-          // 4. Per-id style VALUES identical, EXCLUDING any value containing url()
-          //    (those embed nondeterministic aN asset names — the only nondeterminism).
+          // 4. Per-id style VALUES identical after NORMALIZING the nondeterministic
+          //    asset filename inside url(assets/aN.ext) → url(assets/<A>). We normalize
+          //    rather than skip on url() so a real regression (e.g. TS emitting
+          //    background-image:none where .mjs has url(assets/a5.png)) still fails —
+          //    only the aN/fN filename numbering is nondeterministic, nothing else.
           for (const k of Object.keys(sa[id])) {
-            if (sa[id][k].includes("url(") || sb[id][k].includes("url(")) continue;
-            expect(sa[id][k], `${site} pc-${id}.${k} @${w}`).toEqual(sb[id][k]);
+            expect(normAssetName(sa[id][k]), `${site} pc-${id}.${k} @${w}`).toEqual(normAssetName(sb[id][k]));
           }
         }
       }
 
-      // 5. head equal on title, lang, metas (asset filenames normalized).
+      // 5. head equal on title, lang, metas, AND icons (asset filenames normalized).
+      //    Explicit icon-count check first so a total favicon drop is unmissable.
+      expect(a.head.icons.length, `${site} icon count`).toEqual(b.head.icons.length);
       expect(normHead(a.head)).toEqual(normHead(b.head));
 
       // 6. interactions structurally equal. Static clones have no live nav JS,
       //    so both are null here (asserted; documented if that ever changes).
       expect(a.interactions).toEqual(b.interactions);
 
-      // 7. asset integrity: same COUNT of rehosted assets, and every assets/aN.*
-      //    ref in the TS output resolves to a file on disk.
-      const aAssets = fs.readdirSync(path.join(a.__outDir, "assets"));
-      const bDir = path.join(goldenDir, "assets"); // note: b's out dir is gone; but the ref JSON tells us its assets via tree/styles.
-      // TS asset count vs .mjs ref asset count: recover .mjs count from its capture
-      // by counting distinct assets/aN|fN refs it embedded.
-      const bRefs = new Set<string>();
-      const collectRefs = (node: TreeNode) => {
-        if ((node as { t?: string }).t !== undefined) return;
-        const el = node as TreeEl;
-        for (const key of ["src", "srcset", "poster"]) {
-          const val = el.attrs[key];
-          if (val) for (const part of String(val).split(",")) { const m = part.trim().split(/\s+/)[0].match(/assets\/[af]\d+\.\w+/); if (m) bRefs.add(m[0]); }
-        }
-        el.children.forEach(collectRefs);
-      };
-      collectRefs(b.tree);
-      for (const wq of WIDTHS) for (const idq in b.styles[wq]) for (const v of Object.values(b.styles[wq][idq])) { const mm = v.match(/assets\/[af]\d+\.\w+/g); if (mm) mm.forEach((x) => bRefs.add(x)); }
-      { const mm = b.fontCss.match(/assets\/[af]\d+\.\w+/g); if (mm) mm.forEach((x) => bRefs.add(x)); }
-
-      const aRefs = new Set<string>();
-      const collectA = (node: TreeNode) => {
-        if ((node as { t?: string }).t !== undefined) return;
-        const el = node as TreeEl;
-        for (const key of ["src", "srcset", "poster"]) {
-          const val = el.attrs[key];
-          if (val) for (const part of String(val).split(",")) { const m = part.trim().split(/\s+/)[0].match(/assets\/[af]\d+\.\w+/); if (m) aRefs.add(m[0]); }
-        }
-        el.children.forEach(collectA);
-      };
-      collectA(a.tree);
-      for (const wq of WIDTHS) for (const idq in a.styles[wq]) for (const v of Object.values(a.styles[wq][idq])) { const mm = v.match(/assets\/[af]\d+\.\w+/g); if (mm) mm.forEach((x) => aRefs.add(x)); }
-      { const mm = a.fontCss.match(/assets\/[af]\d+\.\w+/g); if (mm) mm.forEach((x) => aRefs.add(x)); }
-
-      // Same number of distinct rehosted asset refs (filenames differ; count is deterministic).
+      // 7. asset integrity: same COUNT of distinct rehosted refs (filenames differ
+      //    but the COUNT is deterministic), and every ref in the TS output resolves
+      //    to a file on disk. Covers tree src/srcset/poster, style url(), fontCss,
+      //    and head icon hrefs.
+      const aRefs = collectAssetRefs(a);
+      const bRefs = collectAssetRefs(b);
       expect(aRefs.size, `${site} distinct rehosted asset refs`).toEqual(bRefs.size);
       // Every asset file the TS capture wrote exists on disk, and every ref resolves.
       for (const ref of aRefs) expect(fs.existsSync(path.join(a.__outDir, ref)), `${site} ${ref} missing on disk`).toBe(true);
-      // Files on disk >= referenced (some rehosted-but-unreferenced is impossible; equal is the norm).
+      // Files on disk >= referenced (rehosted-but-unreferenced is impossible; equal is the norm).
+      const aAssets = fs.readdirSync(path.join(a.__outDir, "assets"));
       expect(aAssets.length, `${site} assets on disk`).toBeGreaterThanOrEqual(aRefs.size);
+      // The golden clone we captured genuinely has an assets/ dir (input sanity).
+      expect(fs.existsSync(path.join(goldenDir, "assets")), `${site} golden assets/`).toBe(true);
     }, 300_000);
   }
 });

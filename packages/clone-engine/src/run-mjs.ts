@@ -5,6 +5,8 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
+// Anchored to the workspace layout: packages/clone-engine/src → repo root → page-clone-spike.
+// If this package ever moves, update the "../" depth to match.
 const SPIKE = path.resolve(import.meta.dirname, "../../../page-clone-spike");
 
 export function mjsCapture(url: string, out: string): void {
