@@ -76,6 +76,12 @@ stack (strict `typescript-eslint`, Vitest). The port is gated by the fidelity or
 regress. The admin side depends on engines **only** through the A+B contract + typed CLI
 entrypoints.
 
+**Go-back path (before porting):** the `.mjs` engine is frozen and runnable throughout the port
+(TS built alongside, never over it); git tag `mjs-engine-proven` marks the last known-good state;
+a committed golden baseline + a `.mjs`-vs-TS parity harness (byte + 0-px) is the objective
+tripwire; and the CLI is engine-selectable (`.mjs` default until TS holds parity on all three
+proven sites). If TS regresses, fall back — one flag, or `git checkout mjs-engine-proven`.
+
 ## Coding rule: never regress — continually eval
 
 The engine is already a very strong page-clone system. **We do not go backwards on eval or

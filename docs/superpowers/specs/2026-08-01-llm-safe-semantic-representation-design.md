@@ -93,6 +93,30 @@ cannot regress fidelity (the `.mjs` output is the reference during the port). Ne
 the engine only through the A+B contract + typed CLI entrypoints, and treats clone-seed triggers
 as gated on this port landing.
 
+## Rollback (go-back) path for the TS migration
+
+The port must never leave us worse off. Five layers, in place **before** any porting starts:
+
+1. **Freeze, don't rewrite-in-place.** The proven `.mjs` engine stays fully runnable and
+   untouched throughout the port. TS is built *alongside* it, not over it. Falling back is always
+   possible because the working engine never left.
+2. **Git anchor (done):** annotated tag **`mjs-engine-proven`** marks the last known-good
+   pre-migration commit. Ultimate go-back = `git checkout mjs-engine-proven`.
+3. **Golden baseline (plan step 0):** before porting, snapshot the current `.mjs` outputs for the
+   three proven sites (Torrance / Speakeasy / Sweatshed) — `index.html`, `capture.json`, projected
+   components, and the recon/oracle screenshots — into a committed `fixtures/golden/`. This is the
+   objective regression baseline the TS port must reproduce.
+4. **Parity harness (plan step 0):** a check that runs `.mjs` vs TS on the same inputs and asserts
+   **byte parity** on emitted HTML/CSS/manifest and **0-px parity** on the oracle screenshots vs
+   the goldens. Green = the TS port is safe to advance; red = it regressed → stay on `.mjs`. This
+   is what makes "go back" a decision backed by evidence, not a guess.
+5. **Flag-selectable engine during migration.** The CLI entrypoint selects engine (`--engine=mjs`
+   default until TS reaches parity, then flips). Fallback is a one-flag change, not a code revert;
+   the flag is removed only once TS has held parity on all three sites.
+
+This directly serves the never-regress rule below: the eval floor is the automatic tripwire, and
+every layer above is a way to step back to the proven engine the moment the tripwire fires.
+
 ## Architecture
 
 Pipeline gains one stage; capture and deploy are unchanged.
