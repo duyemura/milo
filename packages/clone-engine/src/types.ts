@@ -33,3 +33,27 @@ export interface CaptureJson {
 }
 
 export const WIDTHS = [1440, 768, 390] as const;
+
+// ---- Semantic labeling (Plan 2 / A+B) ----
+
+export const SECTION_ROLES = [
+  "hero", "faq", "program-cards", "coach-grid", "testimonials", "pricing",
+  "cta-band", "feature-grid", "location-map", "schedule", "stats-band",
+  "logo-strip", "media-block", "content-block", "contact-form", "lead-form", "unknown",
+] as const;
+
+export const BRAND_COLOR_SLOTS = ["primary", "accent", "surface", "text", "muted"] as const;
+export const BRAND_FONT_SLOTS = ["display", "body"] as const;
+
+export interface SectionLabel { id: number; name: string; role: string; }
+export interface ElementLabel { id: number; role: string; }
+export interface AssetLabel { file: string; alias: string; }
+export interface BrandSlotColor { slot: string; canon: string; }  // canon = "r,g,b,a"
+export interface BrandSlotFont { slot: string; family: string; }
+export interface Labels {
+  site: { name: string; purpose: string };
+  brand: { colors: BrandSlotColor[]; fonts: BrandSlotFont[] };
+  sections: SectionLabel[];
+  elements: ElementLabel[];
+  assets: AssetLabel[];
+}
