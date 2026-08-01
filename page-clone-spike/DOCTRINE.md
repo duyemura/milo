@@ -45,6 +45,15 @@ confirm it makes results better, not worse.**
 
 This rule applies to *every* engineer/agent touching this code, on *every* change.
 
+## Design principle: semantic DOM attributes for agent precision
+
+Anywhere a DOM attribute can make the agent's editing more precise, correct, and safe, **stamp
+it.** Semantic `data-*` attributes (element role, section role, owning component, asset alias,
+copy key, …) are render-neutral — they move no pixel, so the eval floor is untouched — and
+cheap on plain-HTML hosting. They let the agent address exactly the right thing in the live
+DOM *and* know which source file owns it. Prefer explicit inline semantics over forcing the
+agent to infer structure. Mirror the same semantics in the site manifest.
+
 ## Scope decomposition
 
 What "LLM-editable site" requires is six subsystems, not one feature. Each gets its own

@@ -111,11 +111,29 @@ there).
 1. **Semantic components** — `TestimonialsSection.astro`, `HeroSection.astro`, … named from
    `labels.sections`, each carrying its `role` in frontmatter. Replaces junk `S3Section`.
    Fallback names (`Section{i}`) when unlabeled.
-2. **Element roles in the DOM (decided)** — the projector stamps `data-role="primary-cta"` etc.
-   on labeled elements, *and* records role→id in the manifest. Agent addresses by role in the
-   manifest or the live DOM. Cost is a few bytes/element; pages stay well under MB (we host
-   plain HTML — size budget confirmed acceptable).
-3. **Asset aliases** — `logo → assets/a3.png` in the manifest so "swap the logo" resolves.
+2. **Semantic DOM attributes (decided — use them everywhere they help).** Guiding principle:
+   *anywhere a DOM attribute makes the agent's editing more precise, correct, and safe, stamp
+   it.* Attributes are render-neutral (they change no pixel, so the oracle stays 0) and cheap
+   (a few bytes/element; pages stay well under MB on plain-HTML hosting). The full set:
+   - `data-role="primary-cta"` — semantic **element** role on labeled elements (CTA, logo,
+     headline, nav, …). The agent targets `[data-role=primary-cta]` directly.
+   - `data-section="testimonials"` — section **role** on each section wrapper, so the agent
+     can find a section's boundary in the live DOM, matching `site.json`.
+   - `data-component="TestimonialsSection"` — the **owning component file** on the wrapper, so
+     an agent that finds an element in rendered HTML knows *which `.astro` file to edit*.
+   - `data-asset="logo"` — the **asset alias** on `<img>`/`<video>`/backgrounds, so "swap the
+     logo" is addressable at the element (mirrors the asset-alias map).
+   - `data-copy="hero.headline"` — a stable **copy key** on text-bearing elements, tying the
+     rendered text back to its entry in the component's editable `content[]` array, so a copy
+     edit resolves to an exact array slot rather than a fuzzy string match.
+   - *(Forward-compat, populated by later subsystems, reserved now:)* `data-page-role` /
+     `data-goal` at page level for D.
+
+   Every attribute is also mirrored in `site.json` — the DOM carries the semantics inline for
+   in-place work; the manifest carries them as a queryable index. Attributes are additive and
+   value-preserving; they never gate below the 0-px oracle.
+3. **Asset aliases** — `logo → assets/a3.png` in the manifest (and `data-asset` in the DOM) so
+   "swap the logo" resolves both ways.
 4. **`site.json` manifest** — the agent's map of the whole site and **A's core deliverable**:
    ```jsonc
    { "brand": "brand.json",
