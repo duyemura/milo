@@ -102,7 +102,7 @@ export async function ensureStream(opts: {
     scope: GA_EDIT,
     url: `${ADMIN}/${propertyName}/dataStreams`,
     method: "POST",
-    body: { webStreamData: { defaultUri: siteUrl }, description: slug },
+    body: { type: "WEB_DATA_STREAM", displayName: slug, webStreamData: { defaultUri: siteUrl } },
     fetchFn,
   });
   const stream = requireOk("ga4/dataStreams:create", createdStream, [200]) as {
