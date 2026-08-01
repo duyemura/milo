@@ -6,7 +6,9 @@
 
 **Doctrine:** `packages/clone-engine/DOCTRINE.md`. Governing invariant everywhere: **never regress** — the fidelity oracle (0-px on the un-edited projection) stays the floor; new capabilities are additive.
 
-**The North-Star product outcome (from the vision):** whichever seed produced the site (clone or template), a gym owner / PushPress team member makes natural-language requests, an **LLM agent edits the site through the one shared contract**, the site **evolves**, and its **goals are measured**.
+**The North-Star product outcome (from the vision):** whichever seed produced the site (clone or template), a gym owner / PushPress team member makes natural-language requests, an **LLM agent edits *that one site* through the one shared contract**, the site **evolves**, and its **goals are measured**.
+
+**Scope guardrail (Dan, 2026-08-01):** every edit is **per-site, one site at a time**, driven by that gym's own requests or a per-site optimization the agent proposes *for that site*. "At scale" = the same capability works reliably on *any individual* site (breadth of applicability + reliability), **NOT** batch/fleet-wide mutation. There is **no "edit 1000 sites with one command"** operation — do not build cross-site "apply to all" into C. See `project_agent_editing_scope` memory.
 
 ---
 
@@ -32,7 +34,9 @@ C and the template-creation system are the two highest-value next moves — one 
 
 ## C — Edit operations / agent tools
 
-**Goal:** the *felt* "easy to edit" experience. Agent-callable operations over the A+B contract that a human requests in natural language (or the agent initiates as an optimization).
+**Goal:** the *felt* "easy to edit" experience. Agent-callable operations over the A+B contract that a human requests in natural language (or the agent initiates as an optimization). **Scoped to one site at a time** — no batch/fleet operations (see scope guardrail above).
+
+**Acceptance definition:** an agent reliably makes the correct requested change to an *arbitrary* site — structurally, repeatably, and generally — while the scoped-diff oracle guarantees everything it didn't intend to touch stays pixel-identical, so unsafe edits are *caught, not shipped*. (Per-site; reliability/safety is the axis that decides shippability.)
 
 **Delivers:** a typed set of edit ops, each targeting the `site.json` manifest + `data-*` handles and re-projecting/re-rendering:
 - `editCopy(copyKey, text)` — edit a `data-copy` slot (already half-wired via the `content[]` array).
