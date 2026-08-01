@@ -61,10 +61,11 @@ async function neutralizeAndTag(keepAttrs) {
     if (el.tagName === "IMG") { node.attrs.src = el.currentSrc || el.src; }
     else if (el.src) node.attrs.src = el.src;
     if (el.tagName === "A" && el.href) node.attrs.href = el.href;
+    const pre = getComputedStyle(el).whiteSpace.startsWith("pre"); // preserve literal whitespace (schedules, addresses, <pre>)
     for (const cn of el.childNodes) {
       if (cn.nodeType === 3) {
         const raw = cn.textContent;
-        if (raw && /\S/.test(raw)) node.children.push({ t: raw.replace(/\s+/g, " ") });
+        if (raw && (pre || /\S/.test(raw))) node.children.push({ t: pre ? raw : raw.replace(/\s+/g, " ") });
         else if (raw && /\s/.test(raw) && el.childNodes.length > 1) node.children.push({ t: " " }); // preserve inter-element space
       } else if (cn.nodeType === 1) { const c = walk(cn); if (c) node.children.push(c); }
     }
@@ -91,7 +92,9 @@ function grabStyles() {
   for (const el of document.querySelectorAll("[data-pc-id]")) {
     const cs = getComputedStyle(el);
     const m = {};
-    for (const p of cs) m[p] = cs.getPropertyValue(p);
+    // skip CSS custom properties (--*): getComputedStyle already resolved var() into standard props,
+    // so they're pure inherited duplication (Squarespace/Wix inject 1000s → multi-100MB bloat). Lossless.
+    for (const p of cs) if (!p.startsWith("--")) m[p] = cs.getPropertyValue(p);
     out[el.getAttribute("data-pc-id")] = m;
   }
   return out;
@@ -219,12 +222,12 @@ async function settle(page) {
   }
 
   // ---- capture INTERACTIONS: click-toggles (hamburger + desktop dropdowns) + hover states ----
-  const toggles = [], hovers = [];
-  const grabSub = (id) => { const root = document.querySelector(`[data-pc-id="${id}"]`); const out = {}; if (root) for (const el of [root, ...root.querySelectorAll("[data-pc-id]")]) { const cs = getComputedStyle(el); const m = {}; for (const p of cs) m[p] = cs.getPropertyValue(p); out[el.getAttribute("data-pc-id")] = m; } return out; };
+  const toggles = [], hovers = []; let navigated = false;
+  const grabSub = (id) => { const root = document.querySelector(`[data-pc-id="${id}"]`); const out = {}; if (root) for (const el of [root, ...root.querySelectorAll("[data-pc-id]")]) { const cs = getComputedStyle(el); const m = {}; for (const p of cs) if (!p.startsWith("--")) m[p] = cs.getPropertyValue(p); out[el.getAttribute("data-pc-id")] = m; } return out; };
   const diffMap = (before, after) => { const d = {}; for (const id in after) { const base = before[id] || {}; const x = {}; for (const k in after[id]) if (after[id][k] !== base[k]) x[k] = after[id][k]; if (Object.keys(x).length) d[id] = x; } return d; };
   // 1. mobile hamburger (page is at 390) — whole-page delta
   try {
-    const togId = await page.evaluate(() => { const t = document.querySelector(".elementor-menu-toggle, [class*='menu-toggle'], [aria-label*='menu' i][role='button'], button[aria-expanded]"); return t ? t.getAttribute("data-pc-id") : null; });
+    const togId = await page.evaluate(() => { const t = document.querySelector(".elementor-menu-toggle, [class*='menu-toggle'], [class*='hamburger'], [class*='burger'], .nav-toggle, [aria-label*='menu' i][role='button'], button[aria-controls][aria-expanded], button[aria-expanded]"); return t ? t.getAttribute("data-pc-id") : null; });
     if (togId != null) {
       await page.click(`[data-pc-id="${togId}"]`, { timeout: 3000 }).catch(() => {});
       await page.waitForTimeout(500);
@@ -237,21 +240,21 @@ async function settle(page) {
     await page.setViewportSize({ width: WIDTHS[0], height: 900 });
     await settle(page); await page.evaluate(forceOpacity);
     const u0 = page.url();
-    const parents = await page.evaluate(() => [...document.querySelectorAll("li.menu-item-has-children, li[class*='has-children']")].map((li) => { const a = li.querySelector("a"); return { clickId: (a || li).getAttribute("data-pc-id"), scopeId: li.getAttribute("data-pc-id") }; }).filter((x) => x.clickId && x.scopeId).slice(0, 6));
+    const parents = await page.evaluate(() => [...document.querySelectorAll("li.menu-item-has-children, li[class*='has-children'], nav li:has(ul), header li:has(ul)")].map((li) => { const a = li.querySelector("a"); return { clickId: (a || li).getAttribute("data-pc-id"), scopeId: li.getAttribute("data-pc-id") }; }).filter((x) => x.clickId && x.scopeId).slice(0, 6));
     let dd = 0;
     for (const { clickId, scopeId } of parents) {
       const before = await page.evaluate(grabSub, scopeId);
       await page.click(`[data-pc-id="${clickId}"]`, { timeout: 2000 }).catch(() => {});
       await page.waitForTimeout(300);
-      if (page.url() !== u0) { await page.goto(u0, { waitUntil: "domcontentloaded" }).catch(() => {}); break; } // navigated → bail (tagging lost)
+      if (page.url() !== u0) { navigated = true; await page.goto(u0, { waitUntil: "domcontentloaded" }).catch(() => {}); break; } // navigated → bail (tagging lost)
       const d = diffMap(before, await page.evaluate(grabSub, scopeId));
       if (Object.values(d).some((v) => "display" in v || "opacity" in v || "visibility" in v)) { toggles.push({ toggleId: clickId, openDelta: d, prevent: true }); dd++; }
     }
     if (dd) console.log(`  captured ${dd} desktop dropdown(s)`);
   } catch {}
-  // 3. hover highlights (desktop) — pure CSS :hover
-  try {
-    const items = [...new Set(await page.evaluate(() => [...document.querySelectorAll("li.menu-item-has-children, li[class*='has-children'], nav a, .menu-item > a")].map((el) => el.getAttribute("data-pc-id")).filter(Boolean)))].slice(0, 10);
+  // 3. hover highlights (desktop) — pure CSS :hover (skipped if a dropdown click navigated: tags are gone)
+  if (!navigated) try {
+    const items = [...new Set(await page.evaluate(() => [...document.querySelectorAll("li.menu-item-has-children, li[class*='has-children'], nav a, header a, .menu-item > a")].map((el) => el.getAttribute("data-pc-id")).filter(Boolean)))].slice(0, 10);
     for (const pid of items) {
       const h = await page.$(`[data-pc-id="${pid}"]`); if (!h) continue;
       await page.mouse.move(2, 2); await page.waitForTimeout(70);
@@ -263,6 +266,7 @@ async function settle(page) {
     }
     if (hovers.length) console.log(`  captured ${hovers.length} hover state(s)`);
   } catch {}
+  if (!toggles.length && !hovers.length) console.log(`  note: no interactive nav elements detected — nav will render static (non-standard builder?)`);
   const interactions = (toggles.length || hovers.length) ? { toggles, hovers } : null;
 
   // ---- rehost ----
