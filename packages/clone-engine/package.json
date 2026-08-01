@@ -6,17 +6,19 @@
   "exports": {
     ".": "./src/index.ts",
     "./capture": "./src/capture.ts",
-    "./project": "./src/project.ts"
+    "./project": "./src/project.ts",
+    "./orchestrate": "./src/orchestrate.ts"
   },
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "typescript": "^5.5.0",
     "vitest": "^3.0.0"
   },
   "dependencies": {
     "@milo/publish": "workspace:*",
-    "playwright": "^1.48.0",
-    "zod": "^3.23.0"
+    "playwright": "^1.48.0"
   }
 }

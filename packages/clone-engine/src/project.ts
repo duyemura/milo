@@ -13,6 +13,8 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 import type { CaptureJson, TreeNode, TreeEl } from "./types.ts";
+import { esc, escA, diff } from "./html.ts";
+import { pixelDiff } from "./pixel.ts";
 
 export interface ProjectOpts {
   dir: string;
@@ -44,8 +46,6 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   const rewriteHref = (h: string) => normMap[normUrl(h)] ?? h;
   fs.mkdirSync(COMP, { recursive: true });
 
-  const esc = (s: string) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const escA = (s: string) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
   const VOID = new Set(["img", "br", "hr", "input", "source", "use", "path", "circle", "rect", "line", "polygon", "polyline", "ellipse", "col", "area"]);
   const SVG = new Set(["svg", "path", "g", "circle", "rect", "line", "polygon", "polyline", "ellipse", "use", "defs", "text", "tspan", "clippath", "lineargradient", "radialgradient", "stop", "mask", "symbol", "marker", "pattern", "filter", "image"]);
   const ALWAYS_KEEP = new Set(["text-decoration", "text-decoration-line", "text-decoration-color", "text-decoration-style", "text-decoration-thickness",
@@ -125,7 +125,6 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   }
   const tok = (k: string, v: string) => { let o = v.replace(COLOR_RE, (m) => { const t = colorTok.get(canon(m)); return t ? `var(${t.token})` : m; }); if (k === "font-family" && fontTok.has(v)) o = `var(${fontTok.get(v)})`; return o; };
   const declTok = (m: Record<string, string>) => Object.entries(m).map(([k, v]) => `${k}:${tok(k, v)}`).join(";");
-  const diff = (base: Record<string, string>, over: Record<string, string>) => { const d: Record<string, string> = {}; for (const k in over) if (over[k] !== base[k]) d[k] = over[k]; return d; };
   const tokenRoot = `:root{\n${[...colorTok.values()].map(({ token, repr }) => `  ${token}: ${repr};`).join("\n")}\n${[...fontTok].map(([f, t]) => `  ${t}: ${f};`).join("\n")}\n}`;
 
   // ---- css: trimmed base + responsive deltas (deltas from full styles) ----
@@ -243,24 +242,8 @@ ${interCss}</style></head><body class="p${CAP.tree.id}">${CAP.tree.children.map(
     await p.waitForTimeout(500);
     await p.screenshot({ path: path.join(OUT, name), fullPage: true }); await p.close();
   }
-  async function pdiff(a: string, b: string) {
-    const dp = await browser.newPage(); const b64 = (f: string) => fs.readFileSync(path.join(OUT, f)).toString("base64");
-    const r = await dp.evaluate(async ([x, y]) => {
-      const load = (s: string) => new Promise<HTMLImageElement>((res) => { const i = new Image(); i.onload = () => res(i); i.src = s; });
-      const [ia, ib] = await Promise.all([load("data:image/png;base64," + x), load("data:image/png;base64," + y)]);
-      const w = Math.min(ia.width, ib.width), h = Math.min(ia.height, ib.height);
-      // diff in horizontal strips so a tall page never decodes its whole ImageData at once (bounds memory)
-      const STRIP = 1000, c = document.createElement("canvas"); c.width = w; c.height = Math.min(STRIP, h); const ctx = c.getContext("2d", { willReadFrequently: true })!;
-      let d = 0;
-      for (let y0 = 0; y0 < h; y0 += STRIP) {
-        const sh = Math.min(STRIP, h - y0);
-        ctx.clearRect(0, 0, w, sh); ctx.drawImage(ia, 0, y0, w, sh, 0, 0, w, sh); const da = ctx.getImageData(0, 0, w, sh).data;
-        ctx.clearRect(0, 0, w, sh); ctx.drawImage(ib, 0, y0, w, sh, 0, 0, w, sh); const db = ctx.getImageData(0, 0, w, sh).data;
-        for (let i = 0; i < da.length; i += 4) if (Math.abs(da[i] - db[i]) > 8 || Math.abs(da[i + 1] - db[i + 1]) > 8 || Math.abs(da[i + 2] - db[i + 2]) > 8) d++;
-      }
-      return { d, total: w * h, pct: +(d / (w * h) * 100).toFixed(4), dimMatch: ia.width === ib.width && ia.height === ib.height, ah: ia.height, bh: ib.height };
-    }, [b64(a), b64(b)]); await dp.close(); return r;
-  }
+  // strip-diff two on-disk PNGs (in OUT) via the shared oracle — same fn the parity test uses.
+  const pdiff = (a: string, b: string) => pixelDiff(browser, fs.readFileSync(path.join(OUT, a)), fs.readFileSync(path.join(OUT, b)));
   console.log(`trim: ${TRIM ? "ON" : "off"} — kept ${keptProps}/${fullProps} props (${(100 - keptProps / fullProps * 100).toFixed(1)}% dropped)`);
   if (!opts.noDiff) for (const w of [1440, 390]) {
     await shoot(path.join(DIR, "index.html"), `clone-${w}.png`, w);

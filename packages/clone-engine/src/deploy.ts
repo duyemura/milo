@@ -17,18 +17,19 @@ export interface DeployOpts {
 }
 
 export async function deploy(opts: DeployOpts): Promise<void> {
+  const kvsArn = process.env.CLOUDFRONT_KVS_ARN;
+  if (!kvsArn) throw new Error("CLOUDFRONT_KVS_ARN not set");
+
   const config = {
     slug: opts.slug,
     bucket: "pushpress-marketing-dev",
     region: process.env.S3_REGION ?? "us-east-1",
-    kvsArn: process.env.CLOUDFRONT_KVS_ARN,
+    kvsArn,
     siteDomain: "mygymseo.com",
     awsProfile: process.env.AWS_PROFILE ?? "unicorn",
     gymJsonPath: "",
     publishJsonPath: "",
   };
-
-  if (!config.kvsArn) throw new Error("CLOUDFRONT_KVS_ARN not set");
 
   const s3 = createRealS3Adapter({
     bucket: config.bucket,

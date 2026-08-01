@@ -22,6 +22,13 @@ export interface PageSpec {
   dir: string;
 }
 
+/** A PageSpec with the two fields the build derives internally: the absolute
+ *  source URL and the per-page projection output dir. */
+interface AugmentedPage extends PageSpec {
+  url: string;
+  out: string;
+}
+
 export interface BuildSiteOpts {
   origin: string;
   pages: PageSpec[];
@@ -29,12 +36,19 @@ export interface BuildSiteOpts {
   cwd?: string;
 }
 
-export async function buildSite(opts: BuildSiteOpts): Promise<{ ok: PageSpec[] }> {
+export interface BuildSiteResult {
+  /** Pages that captured, projected, and built successfully (in `full-site/`). */
+  ok: PageSpec[];
+  /** Pages that were skipped after a failure (logged, excluded from `full-site/`). */
+  failed: PageSpec[];
+}
+
+export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
   const { origin, pages } = opts;
   const cwd = opts.cwd ?? process.cwd();
 
   // Augment pages with derived url + out fields (mirrors build-site.mjs PAGES.forEach).
-  const augmented = pages.map((p) => ({
+  const augmented: AugmentedPage[] = pages.map((p) => ({
     ...p,
     url: origin + p.route,
     out: p.route === "/" ? "sp-home" : "sp-" + p.route.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, ""),
@@ -49,7 +63,8 @@ export async function buildSite(opts: BuildSiteOpts): Promise<{ ok: PageSpec[] }
   const linksFile = path.join(cwd, "links-site.json");
   fs.writeFileSync(linksFile, JSON.stringify(links, null, 1));
 
-  const ok: PageSpec[] = [];
+  const ok: AugmentedPage[] = [];
+  const failed: AugmentedPage[] = [];
 
   for (const p of augmented) {
     try {
@@ -82,7 +97,14 @@ export async function buildSite(opts: BuildSiteOpts): Promise<{ ok: PageSpec[] }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.log(`!!! FAILED ${p.route}: ${msg.split("\n")[0]}`);
+      failed.push(p);
     }
+  }
+
+  // Every page failed → don't silently emit an empty full-site/; surface a hard error
+  // so the CLI exits non-zero (programmatic callers get the throw too).
+  if (ok.length === 0) {
+    throw new Error(`buildSite: all ${augmented.length} page(s) failed — no site to assemble`);
   }
 
   // Assemble full-site/ from all successful page builds.
@@ -105,5 +127,5 @@ export async function buildSite(opts: BuildSiteOpts): Promise<{ ok: PageSpec[] }
     `\n✓ assembled full-site/ with ${ok.length}/${augmented.length} pages: ${ok.map((p) => p.route).join("  ")}`,
   );
 
-  return { ok };
+  return { ok, failed };
 }

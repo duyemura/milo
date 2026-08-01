@@ -18,7 +18,9 @@ import { chromium } from "playwright";
 import type { Browser, Page } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
-import type { CaptureJson, TreeEl, TreeNode, StylesByWidth, Head } from "./types.ts";
+import type { CaptureJson, TreeEl, TreeNode, StylesByWidth, Head, ToggleInteraction, HoverInteraction } from "./types.ts";
+import { WIDTHS } from "./types.ts";
+import { esc, escA, diff } from "./html.ts";
 
 export interface CaptureOpts {
   url: string;
@@ -30,7 +32,6 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
   const SRC_URL = opts.url;
   const OUT = path.resolve(opts.out);
   const ASSETS = path.join(OUT, "assets");
-  const WIDTHS = [1440, 768, 390];
   const BP: Record<number, number> = { 768: 768, 390: 480 };
   const KEEP_ATTRS = ["src", "srcset", "sizes", "alt", "href", "role", "loading", "type", "viewBox", "d", "fill", "stroke", "points", "xmlns", "preserveAspectRatio", "target", "rel", "poster", "controls"];
   // verify defaults ON (matches .mjs default-on `!args["no-verify"]`); only opts.verify === false disables it
@@ -199,11 +200,8 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
   const rewriteStyleVal = (v: string, map: Map<string, string>) => v.includes("url(") ? v.replace(URL_RE, (m, _q, u) => { const r = map.get(absolutize(u)!); return r ? `url(${r})` : m; }) : v;
 
   // ---------- node: css + html emit ----------
-  const esc = (s: any) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const escA = (s: any) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
   const VOID = new Set(["img", "br", "hr", "input", "source", "use", "path", "circle", "rect", "line", "polygon", "polyline", "ellipse", "col", "area", "meta", "link"]);
   const decl = (m: Record<string, string>) => Object.entries(m).map(([k, v]) => `${k}:${v}`).join(";");
-  const diff = (base: Record<string, string>, over: Record<string, string>) => { const d: Record<string, string> = {}; for (const k in over) if (over[k] !== base[k]) d[k] = over[k]; return d; };
   function render(node: TreeNode): string {
     if ((node as any).t !== undefined) return esc((node as any).t);
     const el = node as TreeEl;
@@ -242,7 +240,7 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
     }
 
     // ---- capture INTERACTIONS: click-toggles (hamburger + desktop dropdowns) + hover states ----
-    const toggles: any[] = [], hovers: any[] = []; let navigated = false;
+    const toggles: ToggleInteraction[] = [], hovers: HoverInteraction[] = []; let navigated = false;
     const grabSub = (id: string) => { const root = document.querySelector(`[data-pc-id="${id}"]`); const out: Record<string, Record<string, string>> = {}; if (root) for (const el of [root, ...root.querySelectorAll("[data-pc-id]")]) { const cs = getComputedStyle(el); const m: Record<string, string> = {}; for (const p of cs) if (!p.startsWith("--")) m[p] = cs.getPropertyValue(p); out[el.getAttribute("data-pc-id")!] = m; } return out; };
     const diffMap = (before: Record<string, Record<string, string>>, after: Record<string, Record<string, string>>) => { const d: Record<string, Record<string, string>> = {}; for (const id in after) { const base = before[id] || {}; const x: Record<string, string> = {}; for (const k in after[id]) if (after[id][k] !== base[k]) x[k] = after[id][k]; if (Object.keys(x).length) d[id] = x; } return d; };
     // 1. mobile hamburger (page is at 390) — whole-page delta
@@ -260,7 +258,7 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
       await page.setViewportSize({ width: WIDTHS[0], height: 900 });
       await settle(page); await page.evaluate(forceOpacity);
       const u0 = page.url();
-      const parents = await page.evaluate(() => [...document.querySelectorAll("li.menu-item-has-children, li[class*='has-children'], nav li:has(ul), header li:has(ul)")].map((li) => { const a = li.querySelector("a"); return { clickId: (a || li).getAttribute("data-pc-id"), scopeId: li.getAttribute("data-pc-id") }; }).filter((x) => x.clickId && x.scopeId).slice(0, 6));
+      const parents = await page.evaluate(() => [...document.querySelectorAll("li.menu-item-has-children, li[class*='has-children'], nav li:has(ul), header li:has(ul)")].map((li) => { const a = li.querySelector("a"); return { clickId: (a || li).getAttribute("data-pc-id"), scopeId: li.getAttribute("data-pc-id") }; }).filter((x): x is { clickId: string; scopeId: string } => !!x.clickId && !!x.scopeId).slice(0, 6));
       let dd = 0;
       for (const { clickId, scopeId } of parents) {
         const before = await page.evaluate(grabSub, scopeId!);
@@ -274,7 +272,7 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
     } catch {}
     // 3. hover highlights (desktop) — pure CSS :hover (skipped if a dropdown click navigated: tags are gone)
     if (!navigated) try {
-      const items = [...new Set(await page.evaluate(() => [...document.querySelectorAll("li.menu-item-has-children, li[class*='has-children'], nav a, header a, .menu-item > a")].map((el) => el.getAttribute("data-pc-id")).filter(Boolean)))].slice(0, 10);
+      const items = [...new Set(await page.evaluate(() => [...document.querySelectorAll("li.menu-item-has-children, li[class*='has-children'], nav a, header a, .menu-item > a")].map((el) => el.getAttribute("data-pc-id")).filter((id): id is string => id !== null)))].slice(0, 10);
       for (const pid of items) {
         const h = await page.$(`[data-pc-id="${pid}"]`); if (!h) continue;
         await page.mouse.move(2, 2); await page.waitForTimeout(70);
