@@ -10,6 +10,7 @@ export interface ChatAction {
     | "createWorkspace"
     | "createCompany"
     | "createSite"
+    | "updateSite"
     | "triggerJob"
     | "setStage"
     | "addTodo"
@@ -124,6 +125,61 @@ export async function executeAction(
         payload: { sourceUrl: a["sourceUrl"], name: a["name"], city: a["city"], state: a["state"], templateId: a["templateId"] ?? "modern" },
       });
       return { type: action.type, ok: true, detail: `Site for ${company.name} queued for build (seed job started).` };
+    }
+
+    case "updateSite": {
+      // Chat-learned state changes: "that URL was wrong — it's torrancegym.com, retry".
+      // Updates the site, optionally re-seeds with the corrected payload.
+      const site = await findSite(db, a["site"] ?? "");
+      if (!site) return { type: action.type, ok: false, detail: `Couldn't find site “${a["site"] ?? ""}”.` };
+      const updates: Record<string, string> = {};
+      if (a["sourceUrl"]) updates["sourceUrl"] = a["sourceUrl"];
+      await db.updateTable("sites").set(updates).where("id", "=", site.id).execute();
+      const changed = Object.keys(updates).length > 0;
+      if (!changed && !a["reseed"]) {
+        return { type: action.type, ok: false, detail: "Nothing to update — pass sourceUrl (and/or reseed)." };
+      }
+
+      if (!a["reseed"]) {
+        return { type: action.type, ok: true, detail: `Updated site — sourceUrl is now ${a["sourceUrl"]}.` };
+      }
+
+      // Re-seed needs a full payload; inherit the last seed job's and overlay corrections.
+      const lastSeed = await db
+        .selectFrom("jobs")
+        .selectAll()
+        .where("siteId", "=", site.id)
+        .where("type", "=", "seed")
+        .orderBy("createdAt", "desc")
+        .executeTakeFirst();
+      const base = lastSeed ? (JSON.parse(lastSeed.payload) as Record<string, string>) : {};
+      const payload = {
+        sourceUrl: a["sourceUrl"] ?? base["sourceUrl"] ?? site.sourceUrl ?? "",
+        name: a["name"] ?? base["name"],
+        city: a["city"] ?? base["city"],
+        state: a["state"] ?? base["state"],
+        templateId: a["templateId"] ?? base["templateId"] ?? "modern",
+      };
+      if (!payload.sourceUrl || !payload.name || !payload.city || !payload.state) {
+        return {
+          type: action.type,
+          ok: false,
+          detail: "Re-seed needs sourceUrl, name, city, and state — tell me the missing values.",
+        };
+      }
+      await db.updateTable("sites").set({ status: "seeding", stage: "onboarding" }).where("id", "=", site.id).execute();
+      await enqueueJob(db, queue, {
+        siteId: site.id,
+        workspaceId: site.workspaceId,
+        companyId: site.companyId,
+        type: "seed",
+        payload,
+      });
+      return {
+        type: action.type,
+        ok: true,
+        detail: `Re-seeding ${site.companyName ?? site.id} with ${payload.sourceUrl}.`,
+      };
     }
 
     case "triggerJob": {

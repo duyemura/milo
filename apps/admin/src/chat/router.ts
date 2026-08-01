@@ -13,6 +13,7 @@ const IntentSchema = z.object({
           "createWorkspace",
           "createCompany",
           "createSite",
+          "updateSite",
           "triggerJob",
           "setStage",
           "addTodo",
@@ -56,29 +57,55 @@ async function stateSummary(db: AdminDb): Promise<string> {
       .execute(),
     db
       .selectFrom("jobs")
-      .select(["type"])
+      .select(["id", "siteId", "type", "error"])
       .where("status", "=", "failed")
       .orderBy("createdAt", "desc")
-      .limit(5)
+      .limit(3)
       .execute(),
   ]);
+
+  // Ground the diagnosis: last few log lines for the most recent failed jobs.
+  const recentLogs: string[] = [];
+  for (const j of failedJobs) {
+    const lines = await db
+      .selectFrom("job_logs")
+      .select(["line"])
+      .where("jobId", "=", j.id)
+      .orderBy("seq", "desc")
+      .limit(4)
+      .execute();
+    if (lines.length > 0) {
+      recentLogs.push(
+        `  ${j.type} (siteId=${j.siteId}) error: ${j.error ?? ""} | last logs: ${lines
+          .reverse()
+          .map((l) => l.line)
+          .join(" || ")}`,
+      );
+    }
+  }
+
   return [
     `WORKSPACES: ${workspaces.map((w) => `${w.name} (${w.id})`).join("; ") || "none"}`,
     `GYMS: ${companies.map((c) => `${c.name} [${c.workspaceName}] (${c.id})`).join("; ") || "none"}`,
-    `SITES: ${sites.map((s) => `${s.companyName}: ${s.slug ?? s.sourceUrl} status=${s.status} stage=${s.stage} (siteId=${s.id})`).join("; ") || "none"}`,
+    `SITES: ${sites.map((s) => `${s.companyName}: ${s.slug ?? s.sourceUrl} status=${s.status} stage=${s.stage} sourceUrl=${s.sourceUrl} (siteId=${s.id})`).join("; ") || "none"}`,
     `ACTIVE JOBS: ${activeJobs.map((j) => `${j.type}:${j.status}`).join(", ") || "none"}`,
-    `RECENT FAILURES: ${failedJobs.map((j) => j.type).join(", ") || "none"}`,
+    recentLogs.length > 0 ? `RECENT FAILURES (with logs):\n${recentLogs.join("\n")}` : "RECENT FAILURES: none",
   ].join("\n");
 }
 
 const SYSTEM = `You are the Milo admin assistant. The admin's job: launch gym websites, watch builds,
-deploy, move sites through the pipeline (onboarding → building → in-review → live), and track todos.
+deploy, move sites through the pipeline (onboarding → building → in-review → live), and track tasks.
 
 Respond with JSON: {"reply": string (concise, sentence case), "actions": [{type, args}]}.
+If required information is missing (names, URLs, company IDs), ask ONE short follow-up question
+in reply and leave actions EMPTY — never invent values. When the user answers, act.
 Action vocabulary (execute at most what the user asked; empty list when nothing to do):
 - createWorkspace {name} — register a client org
 - createCompany {name, companyId, workspaceId?} — register a gym (PushPress company ID required)
 - createSite {company, sourceUrl, name, city, state, templateId?} — build a template site for a gym
+- updateSite {site, sourceUrl?, reseed?} — correct site state after a diagnosis (e.g. a wrong
+  source URL) and optionally re-seed with the corrected payload. When an investigation
+  reveals bad seed input, FIX it and RETRY in the same turn: updateSite with reseed=true.
 - triggerJob {site, jobType} — jobType ∈ seed | build | deploy-staging | promote | rollback; "site" may be id, slug, URL fragment, or gym name
 - setStage {site, stage} — stage ∈ onboarding | building | in-review | live
 - addTodo {title, site?} — track something for the team
@@ -155,6 +182,29 @@ export async function ruleFallback(db: AdminDb, message: string, summary: string
   const done = /^(?:done|complete)\s+(.+)$/i.exec(m);
   if (done) {
     return { reply: "Marked done.", actions: [{ type: "completeTodo", args: { title: done[1] } }] };
+  }
+
+  // Quick-action starters: elicit the missing info, then the next message acts on it.
+  if (/^(?:add|new|create)\s+(?:a\s+)?(?:new\s+)?client/i.test(m)) {
+    return { reply: "Sure — what's the client's name?", actions: [] };
+  }
+  if (/^(?:add|new|create)\s+(?:a\s+)?(?:new\s+)?(website|site)/i.test(m)) {
+    return {
+      reply: "Which gym is it for, and what's their current site URL? (Also their name, city, and state if I don't have them.)",
+      actions: [],
+    };
+  }
+  if (/^(?:add|new|create)\s+(?:a\s+)?(?:new\s+)?task/i.test(m) && !/^task\s*:/i.test(m)) {
+    return { reply: "What's the task?", actions: [] };
+  }
+  const taskCreate = /^(?:create (?:a )?client|add (?:a )?client)\s+(?:named?\s+)?(.+)$/i.exec(m);
+  if (taskCreate) {
+    return { reply: "Client created.", actions: [{ type: "createWorkspace", args: { name: taskCreate[1].trim() } }] };
+  }
+
+  const taskBody = /^(?:task|add task)\s*:?\s+(.+)$/i.exec(m);
+  if (taskBody) {
+    return { reply: "Tracked.", actions: [{ type: "addTodo", args: { title: taskBody[1] } }] };
   }
 
   if (/status|what'?s (running|happening)|summary/i.test(m)) {

@@ -146,6 +146,7 @@ a { color: #2563eb; }
 .msg.assistant .bubble { background: #f3f4f6; border-bottom-left-radius: 4px; }
 .effect { display: flex; align-items: center; gap: 8px; padding-left: 4px; }
 .chat-input { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); }
+.quick-actions { display: flex; gap: 8px; padding: 12px 12px 0; flex-wrap: wrap; }
 .chat-input input {
   flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 14px;
 }

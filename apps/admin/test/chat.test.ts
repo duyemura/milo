@@ -93,6 +93,68 @@ describe("chat route — rule fallback (no LLM key)", () => {
   });
 });
 
+describe("chat — updateSite (chat-learned state changes)", () => {
+  it("updates a bad sourceUrl and re-seeds with the corrected payload", async () => {
+    const queue = fakeQueue();
+    const { app, db } = await testApp(queue);
+    await seedRegistry(db);
+    await makeSite(db, "error", "onboarding");
+    // original failed seed payload to inherit from
+    await db
+      .insertInto("jobs")
+      .values({
+        id: "seed-orig",
+        workspaceId: "ws1",
+        companyId: "co1",
+        siteId: "cs1",
+        type: "seed",
+        status: "failed",
+        payload: JSON.stringify({ sourceUrl: "https://torrancetl.example.com", name: "Torrance TL", city: "Torrance", state: "CA", templateId: "modern" }),
+        error: "engine exited 1",
+        createdAt: new Date().toISOString(),
+        startedAt: null,
+        finishedAt: null,
+      })
+      .execute();
+
+    const fakeChat: ChatFn = async () =>
+      ({
+        content: JSON.stringify({
+          reply: "Fixed the URL and re-seeding now.",
+          actions: [{ type: "updateSite", args: { site: "torrance-training-lab", sourceUrl: "https://torrancerealgym.com", reseed: "true" } }],
+        }),
+      }) as never;
+    const config = testConfig();
+    const app2 = await buildApp({ config, db: db as never, queue, chat: fakeChat });
+
+    const res = await app2.inject({
+      method: "POST",
+      url: "/api/v1/chat",
+      payload: { message: "the url was wrong, it's torrancerealgym.com — retry", history: [] },
+    });
+    const body = res.json() as { effects: { ok: boolean; detail: string }[] };
+    expect(body.effects[0]?.ok).toBe(true);
+
+    const site = await db.selectFrom("sites").selectAll().where("id", "=", "cs1").executeTakeFirstOrThrow();
+    expect(site.sourceUrl).toBe("https://torrancerealgym.com");
+    expect(site.status).toBe("seeding");
+    expect(queue.added).toHaveLength(1);
+    const newSeed = await db
+      .selectFrom("jobs")
+      .selectAll()
+      .where("siteId", "=", "cs1")
+      .where("type", "=", "seed")
+      .where("status", "in", ["waiting", "queued"])
+      .executeTakeFirstOrThrow();
+    const payload = JSON.parse(newSeed.payload) as { sourceUrl: string; city: string };
+    expect(payload.sourceUrl).toBe("https://torrancerealgym.com");
+    expect(payload.city).toBe("Torrance"); // inherited from the failed seed
+
+    await app.close();
+    await app2.close();
+  });
+});
+
 describe("chat route — LLM path with injected fake", () => {
   it("executes actions parsed from the model's JSON", async () => {
     const queue = fakeQueue();

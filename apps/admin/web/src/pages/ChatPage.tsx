@@ -42,11 +42,17 @@ export function ChatPage() {
     {
       role: "assistant",
       content:
-        "What do you want to get done? I can launch or rebuild sites, push staging to production, move sites through the pipeline, and keep todos for the team. Try “launch Torrance Training Lab”.",
+        "What do you want to get done? I can launch or rebuild sites, push staging to production, move sites through the pipeline, and track tasks for the team. Try “launch Torrance Training Lab”.",
     },
   ]);
   const [input, setInput] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
+
+  const QUICK_ACTIONS: { label: string; message: string }[] = [
+    { label: "Add new client", message: "Add a new client" },
+    { label: "Add new website to client", message: "Add a new website to a client" },
+    { label: "Add new task", message: "Add a new task" },
+  ];
 
   const { data: todosData } = useQuery({
     queryKey: ["todos"],
@@ -115,6 +121,13 @@ export function ChatPage() {
             </div>
           ))}
         </div>
+        <div className="quick-actions">
+          {QUICK_ACTIONS.map((a) => (
+            <button key={a.label} className="chip" disabled={send.isPending} onClick={() => dispatch(a.message)}>
+              {a.label}
+            </button>
+          ))}
+        </div>
         <form
           className="chat-input"
           onSubmit={(e) => {
@@ -150,7 +163,7 @@ export function ChatPage() {
         ))}
         {suggestions.length === 0 && <p className="muted small">Nothing on fire. Nice.</p>}
 
-        <h3 style={{ marginTop: 16 }}>Team todos ({todos.length})</h3>
+        <h3 style={{ marginTop: 16 }}>Tasks ({todos.length})</h3>
         {todos.map((t) => (
           <div key={t.id} className="todo-card">
             <strong className="todo-title">{t.title}</strong>
