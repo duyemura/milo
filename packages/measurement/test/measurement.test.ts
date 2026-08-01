@@ -52,7 +52,7 @@ describe("gsc.ensureProperty (with scripted fetch)", () => {
     const calls: { url: string; method?: string }[] = [];
     const fetchFn: FetchLike = withToken(async (url, init) => {
       calls.push({ url, method: init?.method });
-      if (url.includes("siteverification/v1/token")) {
+      if (url.includes("siteverification.googleapis.com/v1/token") || url.includes("siteverification/v1/token")) {
         return { ok: true, status: 200, json: async () => ({ token: "META-TAG-X" }) };
       }
       if (url.includes("webmasters/v3/sites") && init?.method === "PUT") {
@@ -67,7 +67,7 @@ describe("gsc.ensureProperty (with scripted fetch)", () => {
     expect(p.metaTagToken).toBe("META-TAG-X");
     expect(p.propertyUrl).toBe("https://gym-staging.mygymseo.com/");
     expect(p.verified).toBe(false);
-    expect(calls.some((c) => c.url.includes("siteverification/v1/token"))).toBe(true);
+    expect(calls.some((c) => c.url.includes("siteverification.googleapis.com/v1/token") || c.url.includes("siteverification/v1/token"))).toBe(true);
   });
 });
 

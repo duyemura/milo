@@ -54,7 +54,7 @@ export async function ensureProperty(opts: {
   const tok = await apiCall({
     sa,
     scope: SC_SCOPE,
-    url: "https://www.googleapis.com/siteverification/v1/token",
+    url: "https://siteverification.googleapis.com/v1/token",
     method: "POST",
     body: { site: { type: "URL_PREFIX", identifier: schemeUrl }, verificationMethod: "META_TAG" },
     fetchFn,
@@ -74,7 +74,7 @@ export async function verifyNow(opts: {
   const r = await apiCall({
     sa: opts.sa,
     scope: SC_SCOPE,
-    url: "https://www.googleapis.com/siteverification/v1/webResource?verificationMethod=META_TAG",
+    url: "https://siteverification.googleapis.com/v1/webResource?verificationMethod=META_TAG",
     method: "POST",
     body: { site: { type: "URL_PREFIX", identifier: opts.schemeUrl } },
     fetchFn: opts.fetchFn,
