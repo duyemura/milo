@@ -6,16 +6,18 @@ import { runJob } from "./runner.ts";
 
 /**
  * Queue seam: dev runs jobs in-process (zero infra); production swaps BullMQ.
- * Both execute the same runJob path and finalize via finishJob → promote.
+ * Both execute the same runJob path and finalize via finishJob → promote. On finish,
+ * the next waiting job for the site is promoted onto the SAME queue (never a local
+ * executor in distributed mode).
  */
 export function localQueue(deps: { db: AdminDb; config: AdminConfig }): EngineQueue {
-  return {
+  const self: EngineQueue = {
     async add(jobId: string) {
       // Fire-and-forget inline executor; errors are recorded on the job row.
-      void execute(deps, jobId).catch(async (err) => {
+      void execute(deps, jobId, self).catch(async (err) => {
         try {
           await appendLog(deps.db, jobId, `executor crash: ${String(err)}`);
-          await finishJob(deps.db, this as EngineQueue, jobId, {
+          await finishJob(deps.db, self, jobId, {
             status: "failed",
             error: String(err),
           });
@@ -25,13 +27,17 @@ export function localQueue(deps: { db: AdminDb; config: AdminConfig }): EngineQu
       });
     },
   };
+  return self;
 }
 
-async function execute(deps: { db: AdminDb; config: AdminConfig }, jobId: string): Promise<void> {
+async function execute(
+  deps: { db: AdminDb; config: AdminConfig },
+  jobId: string,
+  queue: EngineQueue,
+): Promise<void> {
   const { db, config } = deps;
   const job = await db.selectFrom("jobs").selectAll().where("id", "=", jobId).executeTakeFirstOrThrow();
   const site = await db.selectFrom("sites").selectAll().where("id", "=", job.siteId).executeTakeFirstOrThrow();
-  const queue = localQueue(deps);
   await markRunning(db, jobId);
   try {
     await runJob({ db, config, job, site });
@@ -57,17 +63,19 @@ export async function bullmqQueue(deps: {
   const connection = new IORedis(deps.config.redisUrl, { maxRetriesPerRequest: null });
   const queue = new Queue("milo-admin-jobs", { connection });
 
+  const self: EngineQueue = {
+    add: (jobId) => queue.add("engine-job", { jobId }).then(() => undefined),
+  };
+
   if (deps.mode === "worker") {
-    const self: EngineQueue = { add: (jobId) => queue.add("engine-job", { jobId }).then(() => undefined) };
     new Worker(
       "milo-admin-jobs",
       async (j) => {
         const { jobId } = j.data as { jobId: string };
-        await execute(deps, jobId);
+        await execute(deps, jobId, self);
       },
       { connection, concurrency: 4 },
     );
-    return self;
   }
-  return { add: (jobId) => queue.add("engine-job", { jobId }).then(() => undefined) };
+  return self;
 }
