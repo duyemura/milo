@@ -167,6 +167,47 @@ describe("llmLabels (mocked LLM — no real API)", () => {
     expect(labels.assets.map((a) => a.file)).not.toContain("assets/does-not-exist.png");
   });
 
+  it("font guard: a hallucinated font family snaps to a captured font (never leaks into brand.json)", async () => {
+    const cap = loadCapture("torrance");
+    // The set of font-families that actually appear in the 1440 capture.
+    const capturedFamilies = new Set(
+      Object.values(cap.styles["1440"] ?? {})
+        .map((s) => s["font-family"])
+        .filter((f): f is string => Boolean(f)),
+    );
+
+    const canned: Labels = {
+      site: { name: "Torrance", purpose: "gym" },
+      brand: {
+        colors: [],
+        // A font the capture never used — must NOT survive into the labels.
+        fonts: [{ slot: "display", family: "Totally Made Up Font 9000" }],
+      },
+      sections: [],
+      elements: [],
+      assets: [],
+    };
+
+    const labels = await llmLabels(cap, fakeChat([JSON.stringify(canned)]), "mock-model");
+    expect(() => LabelSchema.parse(labels)).not.toThrow();
+
+    const display = labels.brand.fonts.find((f) => f.slot === "display");
+    if (display) {
+      // If a display slot survives, its family MUST be a real captured font (snapped),
+      // never the hallucinated string.
+      expect(display.family).not.toBe("Totally Made Up Font 9000");
+      expect(capturedFamilies.has(display.family)).toBe(true);
+    }
+    // A real captured family passes through unchanged.
+    const realFamily = [...capturedFamilies][0];
+    const canned2: Labels = {
+      ...canned,
+      brand: { colors: [], fonts: [{ slot: "body", family: realFamily }] },
+    };
+    const labels2 = await llmLabels(cap, fakeChat([JSON.stringify(canned2)]), "mock-model");
+    expect(labels2.brand.fonts.find((f) => f.slot === "body")?.family).toBe(realFamily);
+  });
+
   it("throws when the LLM never produces valid JSON (caller handles fallback)", async () => {
     const cap = loadCapture("torrance");
     await expect(

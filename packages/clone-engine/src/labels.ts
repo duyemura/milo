@@ -720,12 +720,24 @@ function repairLabels(llm: Labels, cap: CaptureJson): Labels {
     return [{ slot: c.slot, canon: canonVal }];
   });
 
-  // Fonts: no capture id to check — schema already constrains the slot enum. De-dupe by slot.
+  // Fonts: the schema constrains the slot enum, but NOT that `family` is a real captured
+  // font. A hallucinated family would leak into brand.json (metadata-only, but keep labels
+  // honest). Validate each family against the captured font-families; if it doesn't match,
+  // snap to the heuristic's font for that slot (which is drawn from the capture), else drop.
+  const S1 = cap.styles["1440"] ?? {};
+  const capturedFamilies = new Set(buildFontStats(S1).keys());
+  const heuristicFontOfSlot = new Map(assignFontSlots(buildFontStats(S1)).map((f) => [f.slot, f.family] as const));
   const usedFontSlots = new Set<string>();
-  const fonts = llm.brand.fonts.filter((f) => {
-    if (usedFontSlots.has(f.slot)) return false;
+  const fonts = llm.brand.fonts.flatMap((f) => {
+    if (usedFontSlots.has(f.slot)) return [];
+    let family = f.family;
+    if (!capturedFamilies.has(family)) {
+      const fallback = heuristicFontOfSlot.get(f.slot);
+      if (!fallback) return []; // no captured font for this slot — drop rather than hallucinate
+      family = fallback;
+    }
     usedFontSlots.add(f.slot);
-    return true;
+    return [{ slot: f.slot, family }];
   });
 
   return {
@@ -777,7 +789,10 @@ function configFromEnv(): { config: LlmConfig; model: string } | null {
   const provider = process.env.LLM_PROVIDER;
   if (provider !== "openrouter" && provider !== "ollama") return null;
   const model = process.env.DEFAULT_LLM_MODEL;
-  if (!model) return null;
+  if (!model) {
+    console.warn(`[labels] LLM_PROVIDER=${provider} is set but DEFAULT_LLM_MODEL is missing; falling back to heuristic labeling`);
+    return null;
+  }
   const config: LlmConfig = {
     provider,
     openrouterBaseUrl: process.env.OPENROUTER_BASE_URL,
