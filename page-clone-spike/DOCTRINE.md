@@ -36,13 +36,25 @@ There are two ways to produce the starting state, both valid, chosen by the gym'
 2. **Build me a better/new site (template path, Milo v2)** — for a gym with no site, a bad
    site, or one wanting a PushPress-owned design. Seed = a template hydrated from `gym.json`.
 
-**Both seeds converge into the same downstream substrate: the A+B semantic representation.**
-Whichever seed produced the site, C/D/E/F (edit ops, page types, section generation,
-measurement) operate over one shared shape. A+B is therefore the shared investment — and
-**A is defined as the canonical, seed-agnostic representation both seeds emit into**, not a
-clone-only output. Build/prove it on the clone seed first (higher-fidelity, harder case); the
-template path is rebuilt to target the same shape (the old template code can be thrown away and
-rebuilt onto this substrate).
+**Non-negotiable end goal (Dan, 2026-08-01):** whichever seed produced the site, the end result
+is an editable Astro site an agent edits through the **exact same semantic structure.**
+
+"Same semantic structure" = the **same editable *contract*, not the same section internals.**
+The two seeds represent a section differently in kind — the template seed uses `@milo/schema`
+*content* sections (layout owned by the template component); the clone seed uses *layout
+transcription* (captured DOM + computed styles, pixel-faithful). Forcing identical internals
+would make the clone extract content and discard the captured layout — destroying fidelity.
+Rejected. Instead: **both seeds emit the same contract; the section body underneath may be a
+template component or a faithful capture.** The agent's edit surface is identical either way.
+
+The shared contract = **`@milo/schema` as the canonical vocabulary** (its closed 16-type section
+set as `data-section` roles; `BrandTokens` + `tokensToCss` as the brand doc) **+ the
+addressability layer** (`site.json` manifest + `data-*` attributes + copy keys). Reuse the
+schema — do not invent a parallel shape. C/D/E/F operate over this one contract. Build/prove on
+the clone seed first (higher-fidelity, harder case); the template seed already emits schema
+sections + brand tokens and needs only the addressability layer added. The clone conforms to the
+schema. **Ownership: this session owns website building/coding — the template-generation code is
+ours to reuse or discard in service of this non-negotiable end goal.**
 
 **Source of truth after the seed phase = the semantic site itself.** The agent edits it and it
 evolves; there is no re-projection from documents. (This resolves the prior cross-system

@@ -27,22 +27,53 @@ Per the doctrine's coding rule: the existing eval floor must keep passing.
 - Every change is eval'd before/after. If drift regresses, we stop and report — we do not ship
   a worse clone.
 
-## Seed-agnostic constraint
+## Seed-agnostic constraint — the shared editable contract
 
-A is the **canonical semantic representation both seeds emit into** — the clone seed (this
-engine) and the template seed (Milo v2, hydrated from `gym.json`). See the doctrine's
-"Two seeds, one substrate." Practical implications for this spec:
+**Non-negotiable end goal (Dan, 2026-08-01):** whichever seed produces a site — clone, or
+template hydrated from business info — the end result is an editable Astro site that an agent
+edits through the **exact same semantic structure.**
 
-- `site.json`, the semantic component model, `brand.json`, and the `data-*` attribute set are
-  defined as the **shared target shape**, not "the clone's output format." Nothing in A may
-  assume a captured-DOM origin (e.g. don't hard-couple to `.pN` capture IDs in the *manifest*
-  contract, even though the clone's CSS binding uses them internally).
-- We **build and prove A+B on the clone seed first** (higher-fidelity, harder case). Rebuilding
-  the template path to emit this shape is **downstream work, not in this spec** — but A's
-  contract must be expressible by a template generator too (sections, roles, brand roles, copy
-  keys, asset aliases are all things a template can produce natively).
-- **Source of truth after seeding is the semantic site**, per the doctrine — A does not carry a
-  "re-project from docs" affordance.
+The critical distinction: "same semantic structure" means the **same editable contract, not the
+same section internals.** The two seeds represent sections differently *in kind* — the template
+seed uses `@milo/schema` *content* sections (`hero = {heading, sub?, cta?, image}`, layout owned
+by the template component); the clone seed uses *layout transcription* (captured DOM + computed
+styles, pixel-faithful). Forcing identical internals (Option 1) would require the clone to
+extract content and **discard the captured layout** — destroying the faithful replica and
+violating the clone doctrine. Rejected. Instead (**Option 2, decided**): both seeds emit the
+same **contract**; the section *body* underneath may be a template component *or* a faithful
+capture. The agent's edit surface is identical either way.
+
+The shared contract = `@milo/schema` as the canonical vocabulary + the addressability layer:
+
+- **Section roles** — `data-section` uses `@milo/schema`'s closed 16-type vocabulary
+  (`hero`, `faq`, `program-cards`, `coach-grid`, `testimonials`, `pricing`, `cta-band`,
+  `feature-grid`, `location-map`, `schedule`, `stats-band`, `logo-strip`, `media-block`,
+  `content-block`, `contact-form`, `lead-form`). The clone's labeling maps captured sections
+  onto this vocabulary (nearest role; `unknown` allowed). The template already emits it.
+- **Brand doc** — reconciled to `BrandTokens` (`packages/schema/src/brand-tokens.ts`):
+  colors `primary/accent/surface/text/muted`, fonts `display/body`, `space`, `radius`, rendered
+  by the existing `tokensToCss`. B on the clone side maps its extracted palette onto these
+  canonical slots; extra captured colors are preserved as non-canonical palette tokens (fidelity)
+  but the canonical five are what cascade + what the agent edits as "the brand."
+- **Addressability** — `site.json` manifest + `data-*` (`data-section`/`data-role`/`data-asset`/
+  `data-copy`) are identical across seeds. Edit operations (C) target this contract, so
+  "change the hero heading" / "use my brand color" run the **same op on either seed.**
+
+Practical implications:
+
+- Reuse `@milo/schema` and `tokensToCss` as the canonical contract — do **not** define a
+  parallel shape. The clone conforms to the schema; the schema is extended only if a real
+  clone need can't be expressed.
+- Nothing in A's *manifest* contract may assume a captured-DOM origin (don't leak `.pN` capture
+  IDs into the manifest, though the clone's CSS binding uses them internally).
+- Build/prove A+B on the clone seed first (higher-fidelity, harder case). Rebuilding the template
+  path to emit the full contract (`data-*` + manifest; it already emits schema sections + brand
+  tokens) is **downstream, not in this spec** — but the contract is defined so it drops in.
+- **Source of truth after seeding is the semantic site** — A carries no "re-project from docs"
+  affordance.
+- *Opt-in later (not default):* a per-section "promote to structured content" transform can lift
+  a faithful-captured section into a `@milo/schema` content section, consciously trading fidelity
+  for full restyle. Subsystem E territory.
 
 ## Architecture
 
@@ -77,11 +108,13 @@ context; assets with alt-text + placement context (`<img>` in `<header>` ⇒ log
 ```jsonc
 {
   "site":    { "name": "Speakeasy of Strength", "purpose": "boutique gym landing + locations" },
-  "brand":   {
-    "colors": [{ "role": "brand-primary", "canon": "236,0,140,1" }, …],   // role → captured color
-    "fonts":  [{ "role": "heading", "family": "'Bebas Neue',sans-serif" }, …]
+  "brand":   {                                        // slots = @milo/schema BrandTokens
+    "colors": [{ "slot": "primary", "canon": "236,0,140,1" },   // slot ∈ primary|accent|surface|text|muted
+               { "slot": "surface", "canon": "255,255,255,1" }, …],
+    "fonts":  [{ "slot": "display", "family": "'Bebas Neue',sans-serif" },   // slot ∈ display|body
+               { "slot": "body", "family": "'Inter',sans-serif" }]
   },
-  "sections":[{ "id": 42, "name": "Testimonials", "role": "testimonials" }, …],  // top-level sections
+  "sections":[{ "id": 42, "name": "Testimonials", "role": "testimonials" }, …],  // role ∈ schema's 16 types | "unknown"
   "elements":[{ "id": 47, "role": "primary-cta" }, { "id": 3, "role": "logo" }, …],
   "assets":  [{ "file": "assets/a3.png", "alias": "logo" }, …]
 }
@@ -98,23 +131,31 @@ pipeline always produces a valid semantic site.
 
 ### 2. B — Global brand/style document (`brand.json`) + cascade
 
-`project-page.mjs` generates a per-site `brand.json` from `labels.json`:
+`project-page.mjs` generates a per-site `brand.json` in the **canonical `BrandTokens` shape**
+(`packages/schema/src/brand-tokens.ts`) from `labels.json` — same shape the template seed's
+`docs.brand` already uses, so `tokensToCss` renders both:
 
 ```json
-{ "colors": { "brand-primary": "#EC008C", "brand-secondary": "#730A8D",
-              "brand-accent": "#B5DF0D", "ink": "#1D1D1D", "surface": "#FFFFFF" },
-  "fonts":  { "heading": "'Bebas Neue',sans-serif", "body": "'Inter',sans-serif" } }
+{ "colors": { "primary": "#EC008C", "accent": "#B5DF0D",
+              "surface": "#FFFFFF", "text": "#1D1D1D", "muted": "#8A8A8A" },
+  "fonts":  { "display": "'Bebas Neue',sans-serif", "body": "'Inter',sans-serif" },
+  "space":  { "sm": "…", "md": "…", "lg": "…" },
+  "radius": { "button": "…", "card": "…" } }
 ```
 
-- Generated into `:root{ --brand-primary:#EC008C; … }` (the brand-driven successor to today's
-  auto-`--magenta-ec008c` tokens.css).
-- The projector rewrites CSS: a literal the labeler mapped to a role → `var(--brand-primary)`.
-  Literals with **no** role keep their existing per-literal token (raw palette) — nothing lost.
+- Rendered via the existing **`tokensToCss`** into `:root{ --color-primary:#EC008C; … }` (the
+  canonical token names, shared with the template seed — replaces the clone's ad-hoc
+  `--magenta-ec008c` tokens).
+- The projector rewrites CSS: a literal the labeler mapped to a canonical slot →
+  `var(--color-primary)`. Captured colors **outside** the five canonical slots keep a
+  per-literal palette token (raw palette) so nothing is lost — but the canonical five are what
+  cascade and what the agent edits as "the brand." Space/radius default from captured values
+  when not confidently inferable.
 - **Variant handling — derived tokens (decided).** A brand color at multiple opacities/tints
-  becomes derived tokens computed from the base: `rgba(236,0,140,0.6)` → `--brand-primary-60`,
-  defined as the exact captured value but *documented as a derivation of* `--brand-primary`.
+  becomes derived tokens computed from the base: `rgba(236,0,140,0.6)` → `--color-primary-60`,
+  defined as the exact captured value but *documented as a derivation of* `--color-primary`.
   (Explicit derived tokens over CSS relative-color, for browser compat.) Editing the base
-  value is the single-edit cascade; variants are regenerated from it.
+  value is the single-edit cascade; variants regenerate from it.
 - **Result:** editing `brand.json` and regenerating `:root` recolors the whole site from one
   place — "don't change one button at a time," structurally guaranteed.
 - **Fidelity:** because each role/variant token's default value **is** the exact captured
