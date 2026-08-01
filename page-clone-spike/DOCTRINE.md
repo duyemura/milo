@@ -27,6 +27,29 @@ guarantee — it is only the **capture guarantee**: the clone *starts* faithful 
 The moment the agent edits, drift is the point. Fidelity is the starting state, never the
 end goal.
 
+## Two seeds, one substrate
+
+There are two ways to produce the starting state, both valid, chosen by the gym's situation:
+
+1. **Clone my site (page-clone path)** — for a gym with a site it likes. Seed = a faithful
+   replica of their brand. (This engine.)
+2. **Build me a better/new site (template path, Milo v2)** — for a gym with no site, a bad
+   site, or one wanting a PushPress-owned design. Seed = a template hydrated from `gym.json`.
+
+**Both seeds converge into the same downstream substrate: the A+B semantic representation.**
+Whichever seed produced the site, C/D/E/F (edit ops, page types, section generation,
+measurement) operate over one shared shape. A+B is therefore the shared investment — and
+**A is defined as the canonical, seed-agnostic representation both seeds emit into**, not a
+clone-only output. Build/prove it on the clone seed first (higher-fidelity, harder case); the
+template path is rebuilt to target the same shape (the old template code can be thrown away and
+rebuilt onto this substrate).
+
+**Source of truth after the seed phase = the semantic site itself.** The agent edits it and it
+evolves; there is no re-projection from documents. (This resolves the prior cross-system
+conflict: the template path's old "docs are truth, site is a re-runnable deterministic
+projection" model is dropped — it is incompatible with "the site evolves via agent edits." Seed
+once, then evolve.)
+
 ## Coding rule: never regress — continually eval
 
 The engine is already a very strong page-clone system. **We do not go backwards on eval or

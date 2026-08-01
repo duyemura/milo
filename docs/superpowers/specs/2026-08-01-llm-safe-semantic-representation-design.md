@@ -27,6 +27,23 @@ Per the doctrine's coding rule: the existing eval floor must keep passing.
 - Every change is eval'd before/after. If drift regresses, we stop and report — we do not ship
   a worse clone.
 
+## Seed-agnostic constraint
+
+A is the **canonical semantic representation both seeds emit into** — the clone seed (this
+engine) and the template seed (Milo v2, hydrated from `gym.json`). See the doctrine's
+"Two seeds, one substrate." Practical implications for this spec:
+
+- `site.json`, the semantic component model, `brand.json`, and the `data-*` attribute set are
+  defined as the **shared target shape**, not "the clone's output format." Nothing in A may
+  assume a captured-DOM origin (e.g. don't hard-couple to `.pN` capture IDs in the *manifest*
+  contract, even though the clone's CSS binding uses them internally).
+- We **build and prove A+B on the clone seed first** (higher-fidelity, harder case). Rebuilding
+  the template path to emit this shape is **downstream work, not in this spec** — but A's
+  contract must be expressible by a template generator too (sections, roles, brand roles, copy
+  keys, asset aliases are all things a template can produce natively).
+- **Source of truth after seeding is the semantic site**, per the doctrine — A does not carry a
+  "re-project from docs" affordance.
+
 ## Architecture
 
 Pipeline gains one stage; capture and deploy are unchanged.
