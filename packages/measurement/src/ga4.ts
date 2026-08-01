@@ -47,41 +47,54 @@ export interface Ga4Asset {
   measurementId: string;
 }
 
-/** Ensure ga property + web data stream for a site; return its measurement ID. */
-export async function ensureProperty(opts: {
+/**
+ * Ensure the SHARED measurement property exists (fleet-wide roll-up), then ensure this
+ * site's web data stream inside it. One property per environment; one stream per site —
+ * GA4 partitions natively by stream, and every site's events still carry its own ID.
+ *
+ * NOTE: GA4 caps properties at ~50 data streams. At real fleet scale we shard by
+ * cohort (pushpress-sites-staging-001, -002 …) — the call site stays identical.
+ */
+export async function ensureSharedProperty(opts: {
   sa: ServiceAccount;
   accountName: string;
+  propertyDisplay: string;
+  fetchFn?: FetchLike;
+}): Promise<string> {
+  const { sa, accountName, propertyDisplay, fetchFn } = opts;
+  const filter = encodeURIComponent(`parent:${accountName}`);
+  const list = await apiCall({ sa, scope: GA_EDIT, url: `${ADMIN}/properties?filter=${filter}&pageSize=200`, fetchFn });
+  if (list.status === 200) {
+    const props = ((list.data as { properties?: unknown[] }).properties ?? []) as { name: string; displayName: string }[];
+    const found = props.find((p) => p.displayName === propertyDisplay);
+    if (found) return found.name;
+  }
+  const created = await apiCall({
+    sa,
+    scope: GA_EDIT,
+    url: `${ADMIN}/properties`,
+    method: "POST",
+    body: { parent: accountName, displayName: propertyDisplay, timeZone: "America/Los_Angeles", currencyCode: "USD" },
+    fetchFn,
+  });
+  const acc = requireOk("ga4/properties:create", created, [200]) as { name: string };
+  return acc.name;
+}
+
+export async function ensureStream(opts: {
+  sa: ServiceAccount;
+  propertyName: string;
   slug: string;
   siteUrl: string;
   fetchFn?: FetchLike;
-}): Promise<Ga4Asset> {
-  const { sa, accountName, slug, siteUrl, fetchFn } = opts;
-  const filter = encodeURIComponent(`parent:${accountName}`);
-  const list = await apiCall({ sa, scope: GA_EDIT, url: `${ADMIN}/properties?filter=${filter}&pageSize=200`, fetchFn });
-  let propertyName: string | null = null;
-  if (list.status === 200) {
-    const props = ((list.data as { properties?: unknown[] }).properties ?? []) as { name: string; displayName: string }[];
-    propertyName = props.find((p) => p.displayName === slug)?.name ?? null;
-  }
-  if (!propertyName) {
-    const created = await apiCall({
-      sa,
-      scope: GA_EDIT,
-      url: `${ADMIN}/properties`,
-      method: "POST",
-      body: { parent: accountName, displayName: slug, timeZone: "America/Los_Angeles", currencyCode: "USD" },
-      fetchFn,
-    });
-    propertyName = (requireOk("ga4/properties:create", created, [200]) as { name: string }).name;
-  }
-
-  // Data stream (existing first): measurementId lives on webStreamData.
-  const streams = await apiCall({ sa, scope: GA_EDIT, url: `${ADMIN}/${propertyName}/dataStreams?pageSize=50`, fetchFn });
+}): Promise<{ measurementId: string; streamName: string }> {
+  const { sa, propertyName, slug, siteUrl, fetchFn } = opts;
+  const streams = await apiCall({ sa, scope: GA_EDIT, url: `${ADMIN}/${propertyName}/dataStreams?pageSize=200`, fetchFn });
   const existing =
     (streams.status === 200 ? (((streams.data as { dataStreams?: unknown[] }).dataStreams ?? []) as { name: string; webStreamData?: { measurementId?: string; defaultUri?: string } }[]) : []);
   const reusable = existing.find((s) => s.webStreamData?.defaultUri === siteUrl && s.webStreamData.measurementId);
   if (reusable?.webStreamData?.measurementId) {
-    return { accountName, propertyName, measurementId: reusable.webStreamData.measurementId };
+    return { measurementId: reusable.webStreamData.measurementId, streamName: reusable.name };
   }
 
   const createdStream = await apiCall({
@@ -89,27 +102,45 @@ export async function ensureProperty(opts: {
     scope: GA_EDIT,
     url: `${ADMIN}/${propertyName}/dataStreams`,
     method: "POST",
-    body: { webStreamData: { defaultUri: siteUrl } },
+    body: { webStreamData: { defaultUri: siteUrl }, description: slug },
     fetchFn,
   });
   const stream = requireOk("ga4/dataStreams:create", createdStream, [200]) as {
+    name: string;
     webStreamData: { measurementId: string };
   };
-  return { accountName, propertyName, measurementId: stream.webStreamData.measurementId };
+  return { measurementId: stream.webStreamData.measurementId, streamName: stream.name };
+}
+
+/**
+ * Back-compat single-call entry (legacy): shared-property flow with the slug as the
+ * property display when no shared name is provided by the caller.
+ */
+export async function ensureProperty(opts: {
+  sa: ServiceAccount;
+  accountName: string;
+  slug: string;
+  siteUrl: string;
+  fetchFn?: FetchLike;
+}): Promise<Ga4Asset> {
+  void opts.accountName;
+  throw new Error("ensureProperty is retired — call ensureSharedProperty + ensureStream (one shared property per environment, one stream per site).");
 }
 
 const GTAG_RE = /googletagmanager\.com\/gtag\/js\?id=[A-Z0-9-]+/;
 
 /**
  * Idempotently inject gtag into an HTML page's <head>. Deterministic; safe to run N times.
+ * `siteId` is carried on every event as the site_id parameter (fleet partitioning).
  */
-export function injectGtag(html: string, measurementId: string): { html: string; changed: boolean } {
+export function injectGtag(html: string, measurementId: string, siteId?: string): { html: string; changed: boolean } {
   if (html.includes(measurementId) && GTAG_RE.test(html)) {
     return { html, changed: false };
   }
+  const siteParam = siteId ? `, { site_id: '${siteId.replace(/'/g, "")}' }` : "";
   const block = [
     `<script async src="https://www.googletagmanager.com/gtag/js?id=${measurementId}"></script>`,
-    `<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','${measurementId}');</script>`,
+    `<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','${measurementId}'${siteParam});</script>`,
   ].join("\n");
   const m = /<head(\s[^>]*)?>/i.exec(html);
   if (!m) return { html, changed: false };

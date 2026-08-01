@@ -4,7 +4,7 @@ export { apiCall, requireOk, ApiError } from "./http.ts";
 export type { FetchLike, HttpResponse } from "./http.ts";
 export { ensureProperty as gscEnsureProperty, verifyNow as gscVerifyNow, fetchQueries as gscFetchQueries, SC_SCOPE } from "./gsc.ts";
 export type { GscProperty, GscQueryRow } from "./gsc.ts";
-export { ensureAccount as ga4EnsureAccount, ensureProperty as ga4EnsureProperty, injectGtag, injectMeta, GA_EDIT } from "./ga4.ts";
+export { ensureAccount as ga4EnsureAccount, ensureSharedProperty as ga4EnsureSharedProperty, ensureStream as ga4EnsureStream, injectGtag, injectMeta, GA_EDIT } from "./ga4.ts";
 export type { Ga4Asset } from "./ga4.ts";
 export { fetchPlaceMetrics } from "./places.ts";
 export type { PlaceMetrics } from "./places.ts";

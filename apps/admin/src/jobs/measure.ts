@@ -4,7 +4,8 @@ import {
   gscFetchQueries,
   gscEnsureProperty,
   ga4EnsureAccount,
-  ga4EnsureProperty,
+  ga4EnsureSharedProperty,
+  ga4EnsureStream,
   fetchPlaceMetrics,
   loadServiceAccount,
   injectGtag,
@@ -118,7 +119,7 @@ export async function injectIntoDist(opts: {
         let html = fs.readFileSync(p, "utf-8");
         let changed = false;
         if (measurementId) {
-          const r = injectGtag(html, measurementId);
+          const r = injectGtag(html, measurementId, site.slug ?? site.id);
           if (r.changed) changed = true;
           html = r.html;
         }
@@ -215,16 +216,26 @@ export async function runMeasureJob(opts: {
         accountNameProvided: config.gaAccountName,
         fetchFn: deps?.fetchFn,
       });
-      const asset = await ga4EnsureProperty({
+      const propertyName = await ga4EnsureSharedProperty({
         sa,
         accountName,
+        propertyDisplay: config.gaPropertyDisplay,
+        fetchFn: deps?.fetchFn,
+      });
+      const stream = await ga4EnsureStream({
+        sa,
+        propertyName,
         slug: site.slug ?? site.companyId,
         siteUrl: siteUrl ?? site.sourceUrl ?? "https://unknown/",
         fetchFn: deps?.fetchFn,
       });
-      await upsertConnection(db, site, "ga4", asset.measurementId, { account: asset.accountName, property: asset.propertyName });
-      await log(`ga4: measurement id ${asset.measurementId} (account ${accountName})`);
-      digest.push(`GA4 wired (${asset.measurementId})`);
+      await upsertConnection(db, site, "ga4", stream.measurementId, {
+        account: accountName,
+        property: propertyName,
+        stream: stream.streamName,
+      });
+      await log(`ga4: stream ${stream.streamName} → measurement id ${stream.measurementId} (shared property ${propertyName})`);
+      digest.push(`GA4 wired in the shared sites property (${stream.measurementId})`);
     } catch (err) {
       await log(`ga4 failed: ${err instanceof Error ? err.message.split("\n")[0] : "unknown"}`);
     }

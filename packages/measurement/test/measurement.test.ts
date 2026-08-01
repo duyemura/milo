@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { decodeUnverifiedJwt, loadServiceAccount, accessToken } from "../src/googleAuth.ts";
 import { ensureProperty as gscEnsureProperty } from "../src/gsc.ts";
-import { ensureAccount as ga4EnsureAccount, ensureProperty as ga4EnsureProperty, injectGtag, injectMeta } from "../src/ga4.ts";
+import { ensureAccount as ga4EnsureAccount, ensureSharedProperty as ga4EnsureSharedProperty, ensureStream as ga4EnsureStream, injectGtag, injectMeta } from "../src/ga4.ts";
 import { fetchPlaceMetrics } from "../src/places.ts";
 import type { FetchLike } from "../src/http.ts";
 import { generateKeyPairSync } from "node:crypto";
@@ -85,24 +85,27 @@ describe("ga4 ensure + inject", () => {
     expect(await ga4EnsureAccount({ sa: SA, displayName: "PushPress sites", fetchFn })).toBe("accounts/123");
   });
 
-  it("creates property + web stream and returns the measurement id", async () => {
+  it("reuses the shared property and creates/reuses the site's stream", async () => {
+    const calls: string[] = [];
     const fetchFn: FetchLike = withToken(async (url, init) => {
-      if (url.includes("/properties?filter=")) {
-        return { ok: true, status: 200, json: async () => ({ properties: [] }) };
-      }
-      if (url.endsWith("/properties") && init?.method === "POST") {
-        return { ok: true, status: 200, json: async () => ({ name: "properties/456" }) };
+      calls.push(`${init?.method ?? "GET"} ${url}`);
+      if (url.includes("/properties?filter=") && init?.method !== "POST") {
+        return { ok: true, status: 200, json: async () => ({ properties: [{ name: "properties/shared", displayName: "PushPress sites · staging" }] }) };
       }
       if (url.includes("/dataStreams") && init?.method !== "POST") {
         return { ok: true, status: 200, json: async () => ({ dataStreams: [] }) };
       }
       if (url.includes("/dataStreams") && init?.method === "POST") {
-        return { ok: true, status: 200, json: async () => ({ webStreamData: { measurementId: "G-ABC123" } }) };
+        return { ok: true, status: 200, json: async () => ({ name: "properties/shared/dataStreams/9", webStreamData: { measurementId: "G-SHARED1" } }) };
       }
       throw new Error("unexpected " + url);
     });
-    const asset = await ga4EnsureProperty({ sa: SA, accountName: "accounts/123", slug: "gym-x", siteUrl: "https://x/", fetchFn });
-    expect(asset.measurementId).toBe("G-ABC123");
+    const prop = await ga4EnsureSharedProperty({ sa: SA, accountName: "accounts/123", propertyDisplay: "PushPress sites · staging", fetchFn });
+    expect(prop).toBe("properties/shared");
+    expect(calls.some((c) => c.startsWith("POST") && c.includes("/properties"))).toBe(false);
+    const stream = await ga4EnsureStream({ sa: SA, propertyName: prop, slug: "gym-x", siteUrl: "https://x/", fetchFn });
+    expect(stream.measurementId).toBe("G-SHARED1");
+    expect(stream.streamName).toBe("properties/shared/dataStreams/9");
   });
 
   it("injectGtag is idempotent and head-anchored", () => {
