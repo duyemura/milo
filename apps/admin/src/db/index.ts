@@ -1,13 +1,13 @@
-import SQLite from "better-sqlite3";
-import { Kysely, Migrator, SqliteDialect, type MigrationProvider, type Migration } from "kysely";
+import { Kysely, Migrator, type MigrationProvider, type Migration } from "kysely";
 import type { Database } from "./types.ts";
 import { migrations } from "./migrations.ts";
+import { NodeSqliteDialect } from "./node-sqlite-dialect.ts";
 
 export type AdminDb = Kysely<Database>;
 
 export function createDb(dbPath: string): AdminDb {
   return new Kysely<Database>({
-    dialect: new SqliteDialect({ database: new SQLite(dbPath) }),
+    dialect: new NodeSqliteDialect(dbPath),
   });
 }
 
