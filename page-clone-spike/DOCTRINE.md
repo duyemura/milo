@@ -47,20 +47,34 @@ would make the clone extract content and discard the captured layout — destroy
 Rejected. Instead: **both seeds emit the same contract; the section body underneath may be a
 template component or a faithful capture.** The agent's edit surface is identical either way.
 
-The shared contract = **`@milo/schema` as the canonical vocabulary** (its closed 16-type section
-set as `data-section` roles; `BrandTokens` + `tokensToCss` as the brand doc) **+ the
-addressability layer** (`site.json` manifest + `data-*` attributes + copy keys). Reuse the
-schema — do not invent a parallel shape. C/D/E/F operate over this one contract. Build/prove on
-the clone seed first (higher-fidelity, harder case); the template seed already emits schema
-sections + brand tokens and needs only the addressability layer added. The clone conforms to the
-schema. **Ownership: this session owns website building/coding — the template-generation code is
-ours to reuse or discard in service of this non-negotiable end goal.**
+**Direction (Dan, 2026-08-01): the clone engine's design patterns ARE the canonical source of
+truth.** We will build a *new* template-creation system that **adheres to these patterns —
+later.** The existing `@milo/schema` / renderer templates are **not a constraint** and not a
+concern now; borrow their good ideas or discard them. A defines the contract on its own
+LLM-edit-safety merits; the future template seed conforms to A, not the reverse.
+
+The contract A owns = a **section-role vocabulary** (`data-section`; seeded from a sensible
+gym-site taxonomy — the existing 16-type set is fine prior art — but A owns and extends it) + a
+**brand-token doc** (`BrandTokens` shape is compatible prior art we may reuse) + the
+**addressability layer** (`site.json` manifest + `data-*` + copy keys). C/D/E/F operate over this
+one contract. **Scope now = the clone seed only**; the template-creation system is deferred.
+**Ownership: this session owns website building/coding — the template-generation code is ours to
+reuse or discard in service of this non-negotiable end goal.**
 
 **Source of truth after the seed phase = the semantic site itself.** The agent edits it and it
 evolves; there is no re-projection from documents. (This resolves the prior cross-system
 conflict: the template path's old "docs are truth, site is a re-runnable deterministic
 projection" model is dropped — it is incompatible with "the site evolves via agent edits." Seed
 once, then evolve.)
+
+## Build rule: TypeScript in the workspace, not `.mjs`
+
+The `.mjs` spike scripts here stay as spike history, but **no production surface may run untyped
+JS** (Dan, 2026-08-01, cross-session). The engine is ported to **TypeScript — typed packages +
+CLI entrypoints in the pnpm workspace**, matching `milo`'s `packages/*` and the pushpress-services
+stack (strict `typescript-eslint`, Vitest). The port is gated by the fidelity oracle so it can't
+regress. The admin side depends on engines **only** through the A+B contract + typed CLI
+entrypoints.
 
 ## Coding rule: never regress — continually eval
 

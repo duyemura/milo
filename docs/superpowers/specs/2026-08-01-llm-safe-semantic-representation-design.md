@@ -27,53 +27,71 @@ Per the doctrine's coding rule: the existing eval floor must keep passing.
 - Every change is eval'd before/after. If drift regresses, we stop and report — we do not ship
   a worse clone.
 
-## Seed-agnostic constraint — the shared editable contract
+## The contract — A's canonical patterns; templates adhere later
 
-**Non-negotiable end goal (Dan, 2026-08-01):** whichever seed produces a site — clone, or
-template hydrated from business info — the end result is an editable Astro site that an agent
-edits through the **exact same semantic structure.**
+**Non-negotiable end goal (Dan, 2026-08-01):** whichever seed produces a site, the end result is
+an editable Astro site an agent edits through the **exact same semantic structure.**
 
-The critical distinction: "same semantic structure" means the **same editable contract, not the
-same section internals.** The two seeds represent sections differently *in kind* — the template
-seed uses `@milo/schema` *content* sections (`hero = {heading, sub?, cta?, image}`, layout owned
-by the template component); the clone seed uses *layout transcription* (captured DOM + computed
-styles, pixel-faithful). Forcing identical internals (Option 1) would require the clone to
-extract content and **discard the captured layout** — destroying the faithful replica and
-violating the clone doctrine. Rejected. Instead (**Option 2, decided**): both seeds emit the
-same **contract**; the section *body* underneath may be a template component *or* a faithful
-capture. The agent's edit surface is identical either way.
+**Direction (Dan, 2026-08-01):** the clone engine's design patterns **are the canonical source of
+truth.** We will build a *new* template-creation system that **adheres to these patterns —
+later.** The existing `@milo/schema` / renderer templates are **not a constraint** and are not a
+concern now; borrow their good ideas or discard them. So A defines the contract on its own
+LLM-edit-safety merits; the future template seed conforms to A, not the reverse.
 
-The shared contract = `@milo/schema` as the canonical vocabulary + the addressability layer:
+"Same semantic structure" = same editable **contract, not identical section internals.** A
+section can be represented two ways *in kind*: a *content model* (`hero = {heading, sub?, cta?,
+image}`, layout owned by a component) or a *layout transcription* (captured DOM + computed
+styles, pixel-faithful — what the clone produces). Forcing identical internals would require the
+clone to extract content and **discard its captured layout** — destroying the faithful replica.
+Rejected. Instead: emit **one contract**; the section *body* underneath may be a captured
+transcription (clone) or, later, a component (template). The agent's edit surface is identical.
 
-- **Section roles** — `data-section` uses `@milo/schema`'s closed 16-type vocabulary
-  (`hero`, `faq`, `program-cards`, `coach-grid`, `testimonials`, `pricing`, `cta-band`,
-  `feature-grid`, `location-map`, `schedule`, `stats-band`, `logo-strip`, `media-block`,
-  `content-block`, `contact-form`, `lead-form`). The clone's labeling maps captured sections
-  onto this vocabulary (nearest role; `unknown` allowed). The template already emits it.
-- **Brand doc** — reconciled to `BrandTokens` (`packages/schema/src/brand-tokens.ts`):
-  colors `primary/accent/surface/text/muted`, fonts `display/body`, `space`, `radius`, rendered
-  by the existing `tokensToCss`. B on the clone side maps its extracted palette onto these
-  canonical slots; extra captured colors are preserved as non-canonical palette tokens (fidelity)
-  but the canonical five are what cascade + what the agent edits as "the brand."
+**The contract A defines** (owned by A, extensible):
+
+- **Section roles** — a semantic section-role vocabulary used as `data-section`. Seeded from a
+  sensible gym-site taxonomy (`hero`, `faq`, `program-cards`, `coach-grid`, `testimonials`,
+  `pricing`, `cta-band`, `feature-grid`, `location-map`, `schedule`, `stats-band`, `logo-strip`,
+  `media-block`, `content-block`, `contact-form`, `lead-form` — the existing 16-type set is fine
+  prior art), but **A owns it**; `unknown` allowed. The clone's labeling maps captured sections
+  onto the nearest role.
+- **Brand doc** — a canonical brand-token model (colors `primary/accent/surface/text/muted`,
+  fonts `display/body`, `space`, `radius` — the existing `BrandTokens` shape is compatible prior
+  art we may reuse), owned by A, flattened to `:root` (reuse or reimplement `tokensToCss`). B
+  maps the clone's extracted palette onto these canonical slots; extra captured colors stay as
+  non-canonical palette tokens (fidelity), but the canonical set is what cascades + what the
+  agent edits as "the brand."
 - **Addressability** — `site.json` manifest + `data-*` (`data-section`/`data-role`/`data-asset`/
-  `data-copy`) are identical across seeds. Edit operations (C) target this contract, so
-  "change the hero heading" / "use my brand color" run the **same op on either seed.**
+  `data-copy`). Edit ops (C) target this, so "change the hero heading" / "use my brand color"
+  are one op regardless of seed.
 
 Practical implications:
 
-- Reuse `@milo/schema` and `tokensToCss` as the canonical contract — do **not** define a
-  parallel shape. The clone conforms to the schema; the schema is extended only if a real
-  clone need can't be expressed.
+- **Scope now = the clone seed only.** The template-creation system is **deferred** and will be
+  built to adhere to this contract — explicitly out of this spec.
+- A owns the canonical shape; the existing schema is prior art to borrow from, not a dependency
+  to conform to.
 - Nothing in A's *manifest* contract may assume a captured-DOM origin (don't leak `.pN` capture
   IDs into the manifest, though the clone's CSS binding uses them internally).
-- Build/prove A+B on the clone seed first (higher-fidelity, harder case). Rebuilding the template
-  path to emit the full contract (`data-*` + manifest; it already emits schema sections + brand
-  tokens) is **downstream, not in this spec** — but the contract is defined so it drops in.
 - **Source of truth after seeding is the semantic site** — A carries no "re-project from docs"
   affordance.
 - *Opt-in later (not default):* a per-section "promote to structured content" transform can lift
-  a faithful-captured section into a `@milo/schema` content section, consciously trading fidelity
-  for full restyle. Subsystem E territory.
+  a faithful-captured section into a content model, consciously trading fidelity for full
+  restyle. Subsystem E territory.
+
+## Build target: TypeScript in the workspace (not `.mjs`)
+
+**Engine-code decision (Dan, 2026-08-01, cross-session):** the `.mjs` spike scripts stay as spike
+history, but **no production surface may run untyped JS.** A+B is the production foundation (the
+contract the admin side and C/D/E/F depend on), so it is built in **TypeScript, as typed packages
++ CLI entrypoints in the pnpm workspace** — matching `milo`'s own `packages/*` and the
+pushpress-services stack (strict `typescript-eslint`, Vitest), not more `.mjs`.
+
+Implication for this plan: the proven `page-clone.mjs` (capture) and `project-page.mjs`
+(projection) are **ported to TypeScript as part of A+B**, gated by the existing oracle so the port
+cannot regress fidelity (the `.mjs` output is the reference during the port). New A+B code
+(`label`, brand doc, manifest, `data-*`) is written in TS from the start. The admin side consumes
+the engine only through the A+B contract + typed CLI entrypoints, and treats clone-seed triggers
+as gated on this port landing.
 
 ## Architecture
 
@@ -108,13 +126,13 @@ context; assets with alt-text + placement context (`<img>` in `<header>` ⇒ log
 ```jsonc
 {
   "site":    { "name": "Speakeasy of Strength", "purpose": "boutique gym landing + locations" },
-  "brand":   {                                        // slots = @milo/schema BrandTokens
+  "brand":   {                                        // canonical brand slots (A-owned; BrandTokens-compatible)
     "colors": [{ "slot": "primary", "canon": "236,0,140,1" },   // slot ∈ primary|accent|surface|text|muted
                { "slot": "surface", "canon": "255,255,255,1" }, …],
     "fonts":  [{ "slot": "display", "family": "'Bebas Neue',sans-serif" },   // slot ∈ display|body
                { "slot": "body", "family": "'Inter',sans-serif" }]
   },
-  "sections":[{ "id": 42, "name": "Testimonials", "role": "testimonials" }, …],  // role ∈ schema's 16 types | "unknown"
+  "sections":[{ "id": 42, "name": "Testimonials", "role": "testimonials" }, …],  // role ∈ A's section vocabulary | "unknown"
   "elements":[{ "id": 47, "role": "primary-cta" }, { "id": 3, "role": "logo" }, …],
   "assets":  [{ "file": "assets/a3.png", "alias": "logo" }, …]
 }
@@ -131,9 +149,9 @@ pipeline always produces a valid semantic site.
 
 ### 2. B — Global brand/style document (`brand.json`) + cascade
 
-`project-page.mjs` generates a per-site `brand.json` in the **canonical `BrandTokens` shape**
-(`packages/schema/src/brand-tokens.ts`) from `labels.json` — same shape the template seed's
-`docs.brand` already uses, so `tokensToCss` renders both:
+`project-page.mjs` generates a per-site `brand.json` in **A's canonical brand-token shape**
+(the existing `BrandTokens` in `packages/schema/src/brand-tokens.ts` is compatible prior art we
+may reuse) from `labels.json`:
 
 ```json
 { "colors": { "primary": "#EC008C", "accent": "#B5DF0D",
@@ -143,9 +161,9 @@ pipeline always produces a valid semantic site.
   "radius": { "button": "…", "card": "…" } }
 ```
 
-- Rendered via the existing **`tokensToCss`** into `:root{ --color-primary:#EC008C; … }` (the
-  canonical token names, shared with the template seed — replaces the clone's ad-hoc
-  `--magenta-ec008c` tokens).
+- Flattened to `:root{ --color-primary:#EC008C; … }` via a `tokensToCss`-style flattener (reuse
+  the existing helper or reimplement) — canonical token names, replacing the clone's ad-hoc
+  `--magenta-ec008c` tokens.
 - The projector rewrites CSS: a literal the labeler mapped to a canonical slot →
   `var(--color-primary)`. Captured colors **outside** the five canonical slots keep a
   per-literal palette token (raw palette) so nothing is lost — but the canonical five are what
