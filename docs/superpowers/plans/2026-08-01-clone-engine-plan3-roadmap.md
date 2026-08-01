@@ -112,6 +112,31 @@ C and the template-creation system are the two highest-value next moves — one 
 
 ---
 
+## Beyond Plan 3 — the horizon (named, not yet planned)
+
+Deliberately shallow: these get concrete plans only *after* C proves the core edit bet, because C's
+results should reshape them. Naming them so nothing is lost.
+
+- **Fleet operations & serving at scale** — hosting/publishing/state for the ~2000-site plane, per-site
+  data, the management surface. Largely the **admin side's** domain; the engine exposes typed
+  entrypoints + the A+B contract.
+- **AI data loop / Head Coach Agent** — the editable sites are a structured **data source** and a
+  **surface** for PushPress's broader AI-first vision (every section/edit/goal is data). Sites feed the
+  agent; the agent proposes per-site improvements.
+- **Cross-site *learning* without cross-site *editing*** — aggregate patterns across the fleet →
+  *per-site suggestions* ("gyms like yours convert better with X"). Respects the hard scope guardrail:
+  learn broadly, **edit one site at a time**. Never a batch mutation.
+- **Platform / distribution** — how these editable sites fit the PushPress "WordPress-like app
+  ecosystem" and the member/marketing funnel (installed capability? part of onboarding?).
+- **Codebase consolidation** — the two seeds + engine under one shared codebase (see
+  `project_milo_consolidation_plan` memory).
+- **Monetization / packaging** — how gyms get and pay for this. Product, not engineering — flagged for
+  completeness.
+
+The one discipline that carries all the way through: **the scoped-diff oracle stays the floor at every
+horizon** — a static clone, a mutable edited site, a fleet of them. Never-regress is the invariant that
+makes each next layer safe to attempt.
+
 ## Cross-cutting notes
 
 - **Ownership seam:** the engine (this session's domain) exposes C/D/E as operations over the A+B contract + typed CLI/library entrypoints; the **admin side** (other session) drives them and owns F's surfacing + the ~2000-site management plane. Keep the A+B contract + typed entrypoints the *only* coupling.
