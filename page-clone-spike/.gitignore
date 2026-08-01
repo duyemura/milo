@@ -1,0 +1,19 @@
+# dependencies (symlinked to ../apps/studio/node_modules)
+node_modules
+
+# generated capture / projection / build / deploy artifacts (regenerate from the .mjs engine)
+out*/
+dist*/
+sp-*/
+sw-*/
+site-*/
+full-site/
+test-inter/
+cf-*/
+*/capture.json
+capture.json
+
+# screenshots, logs, generated link maps
+*.png
+*.log
+links*.json
