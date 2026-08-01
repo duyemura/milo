@@ -1,4 +1,5 @@
 import path from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
@@ -9,9 +10,12 @@ export const AdminConfigSchema = z.object({
   dataDir: z.string().default("./admin-data"),
   redisUrl: z.string().default("redis://localhost:6379"),
   queueDriver: z.enum(["local", "bullmq"]).default("local"),
-  authMode: z.enum(["dev", "google"]).default("dev"),
-  jwtSecret: z.string().default("admin-dev-secret"),
-  googleClientId: z.string().optional(),
+  authMode: z.enum(["dev", "workos"]).default("dev"),
+  workosApiKey: z.string().optional(),
+  workosClientId: z.string().optional(),
+  workosCookiePassword: z.string().optional(),
+  workosRedirectUri: z.string().default("http://127.0.0.1:4100/auth/callback"),
+  allowedEmailDomain: z.string().default("pushpress.com"),
   repoRoot: z.string(),
 });
 
@@ -20,8 +24,19 @@ export type AdminConfig = z.infer<typeof AdminConfigSchema>;
 /** Repo root = apps/admin/src/config.ts → ../../.. */
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, "..", "..", "..");
+const ADMIN_DIR = path.resolve(HERE, "..");
+
+/** Minimal .env loader: KEY=VALUE lines, doesn't override existing env. */
+export function loadDotEnv(file: string, env: NodeJS.ProcessEnv = process.env): void {
+  if (!existsSync(file)) return;
+  for (const line of readFileSync(file, "utf-8").split("\n")) {
+    const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+    if (m && env[m[1]] === undefined) env[m[1]] = m[2];
+  }
+}
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AdminConfig {
+  loadDotEnv(path.join(ADMIN_DIR, ".env"), env);
   return AdminConfigSchema.parse({
     port: env["PORT"],
     host: env["HOST"],
@@ -30,8 +45,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AdminConfig {
     redisUrl: env["REDIS_URL"],
     queueDriver: env["QUEUE_DRIVER"],
     authMode: env["AUTH_MODE"],
-    jwtSecret: env["JWT_SECRET"],
-    googleClientId: env["GOOGLE_CLIENT_ID"],
+    workosApiKey: env["WORKOS_API_KEY"],
+    workosClientId: env["WORKOS_CLIENT_ID"],
+    workosCookiePassword: env["WORKOS_COOKIE_PASSWORD"],
+    workosRedirectUri: env["WORKOS_REDIRECT_URI"],
+    allowedEmailDomain: env["ALLOWED_EMAIL_DOMAIN"],
     repoRoot: REPO_ROOT,
   });
 }

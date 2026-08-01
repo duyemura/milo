@@ -136,12 +136,24 @@ function SitesPane({ company }: { company: Company }) {
 export default function App() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
+  const { data: authConfig } = useQuery({
+    queryKey: ["auth-config"],
+    queryFn: async () => {
+      const res = await fetch("/auth/config");
+      return (await res.json()) as { mode: "dev" | "workos"; allowedEmailDomain: string };
+    },
+    staleTime: Infinity,
+  });
 
   return (
     <div className="shell">
       <header>
         <h1>Milo admin</h1>
         <span className="muted">Website control plane</span>
+        <span style={{ marginLeft: "auto" }} className="muted small">
+          {authConfig?.mode === "workos" && <a href="/auth/logout">Sign out</a>}
+          {authConfig?.mode === "dev" && "dev mode"}
+        </span>
       </header>
       <main>
         <WorkspaceList

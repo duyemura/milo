@@ -2,7 +2,6 @@ import path from "node:path";
 import { existsSync } from "node:fs";
 import Fastify, { type FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
-import jwt from "@fastify/jwt";
 import fastifyStatic from "@fastify/static";
 import type { AdminConfig } from "../config.ts";
 import type { AdminDb } from "../db/index.ts";
@@ -25,7 +24,6 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({ logger: config.authMode !== "dev" });
 
   await app.register(cookie);
-  await app.register(jwt, { secret: config.jwtSecret, cookie: { cookieName: "admin_session", signed: false } });
 
   registerAuth(app, config);
   registerHealth(app);

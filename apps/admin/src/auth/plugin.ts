@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { AdminConfig } from "../config.ts";
+import { createWorkosAuth, type WorkosAuth } from "./workos.ts";
 
 export interface Actor {
   type: "team";
@@ -12,64 +13,80 @@ declare module "fastify" {
   }
 }
 
+export const SESSION_COOKIE = "wos-session";
+const PUBLIC_PATHS = ["/healthz", "/auth/login", "/auth/callback", "/auth/config", "/auth/logout"];
+
 /**
- * Two principals only (no RBAC — see spec). v1 ships `dev` mode (team, all-pass);
- * `google` mode verifies an OIDC id_token via google-auth-library, restricted to hd=pushpress.com.
+ * Two principals only (no RBAC — see spec), one boundary:
+ *   dev   → all-pass team actor (local zero-setup)
+ *   workos→ AuthKit hosted login; sealed session cookie; email must match
+ *           config.allowedEmailDomain server-side
  */
 export function registerAuth(app: FastifyInstance, config: AdminConfig): void {
   app.decorateRequest("actor", null as unknown as Actor);
 
+  let workos: WorkosAuth | null = null;
+  if (config.authMode === "workos") {
+    if (!config.workosApiKey || !config.workosClientId || !config.workosCookiePassword) {
+      throw new Error(
+        "AUTH_MODE=workos requires WORKOS_API_KEY, WORKOS_CLIENT_ID, and WORKOS_COOKIE_PASSWORD.",
+      );
+    }
+    workos = createWorkosAuth(config);
+  }
+
   app.addHook("onRequest", async (req: FastifyRequest, reply) => {
-    if (req.url === "/healthz" || req.url.startsWith("/auth/")) return;
+    if (PUBLIC_PATHS.some((p) => req.url.startsWith(p))) return;
 
     if (config.authMode === "dev") {
       req.actor = { type: "team", email: "dev@pushpress.com" };
       return;
     }
 
-    const token = req.cookies?.["admin_session"];
-    if (!token) {
-      return reply.code(401).send({ error: "Sign in with your PushPress Google account." });
+    const session = req.cookies?.[SESSION_COOKIE];
+    const user = session && workos ? await workos.authenticateCookie(session, reply) : null;
+    if (!user) {
+      if (req.url.startsWith("/api/")) {
+        return reply.code(401).send({ error: "Sign in with your PushPress account." });
+      }
+      return reply.redirect("/auth/login");
     }
-    try {
-      const payload = await app.jwt.verify<{ email: string }>(token);
-      req.actor = { type: "team", email: payload.email };
-    } catch {
-      return reply.code(401).send({ error: "Your session expired. Sign in again." });
-    }
+    req.actor = { type: "team", email: user };
   });
 
-  app.post("/auth/google", async (req, reply) => {
-    if (config.authMode !== "google" || !config.googleClientId) {
-      return reply.code(400).send({ error: "Google sign-in is not enabled in this environment." });
+  app.get("/auth/config", async () => ({
+    mode: config.authMode,
+    allowedEmailDomain: config.allowedEmailDomain,
+  }));
+
+  app.get("/auth/login", async (_req, reply) => {
+    if (!workos) return reply.redirect("/");
+    return reply.redirect(workos.loginUrl());
+  });
+
+  app.get("/auth/callback", async (req, reply) => {
+    if (!workos) return reply.redirect("/");
+    const { code } = (req.query ?? {}) as { code?: string };
+    if (!code) return reply.redirect("/auth/login");
+    const result = await workos.exchangeCode(code);
+    if (!result.ok) {
+      return reply.code(403).send({ error: result.error });
     }
-    const { idToken } = (req.body ?? {}) as { idToken?: string };
-    if (!idToken) {
-      return reply.code(400).send({ error: "Request body must include idToken." });
-    }
-    const { OAuth2Client } = await import("google-auth-library");
-    const client = new OAuth2Client(config.googleClientId);
-    let payload;
-    try {
-      const ticket = await client.verifyIdToken({ idToken, audience: config.googleClientId });
-      payload = ticket.getPayload();
-    } catch {
-      return reply.code(401).send({ error: "Google sign-in failed. Try again." });
-    }
-    if (!payload?.email?.endsWith("@pushpress.com")) {
-      return reply.code(403).send({ error: "Sign in with your @pushpress.com account." });
-    }
-    const session = await reply.jwtSign({ email: payload.email }, { expiresIn: "12h" });
-    reply.setCookie("admin_session", session, {
+    reply.setCookie(SESSION_COOKIE, result.sealedSession, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
     });
-    return { email: payload.email };
+    return reply.redirect("/");
   });
 
-  app.post("/auth/logout", async (_req, reply) => {
-    reply.clearCookie("admin_session", { path: "/" });
-    return { ok: true };
+  app.get("/auth/logout", async (req, reply) => {
+    reply.clearCookie(SESSION_COOKIE, { path: "/" });
+    if (workos) {
+      const session = req.cookies?.[SESSION_COOKIE];
+      const logoutUrl = session ? await workos.logoutUrl(session) : null;
+      if (logoutUrl) return reply.redirect(logoutUrl);
+    }
+    return reply.redirect("/");
   });
 }

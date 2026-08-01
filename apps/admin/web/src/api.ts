@@ -67,6 +67,11 @@ async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
     headers: body ? { "content-type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
+  if (res.status === 401) {
+    // WorkOS mode: session expired/absent → hosted login.
+    window.location.href = "/auth/login";
+    throw new Error("Sign-in required.");
+  }
   const data = (await res.json()) as T & { error?: string };
   if (!res.ok) throw new Error(data.error ?? `${method} ${url} failed with ${res.status}.`);
   return data;

@@ -21,7 +21,7 @@ through the A+B contract and typed CLI entrypoints.
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Form factor | **Hosted web app**, Google OAuth restricted to `hd=pushpress.com` | SSH TUI idea rejected: still requires a hosted server, needs key/token distribution, and can't show the *visual* artifacts (screenshots, previews, diffs) this admin exists to manage. OAuth = zero-setup for the team. |
+| Form factor | **Hosted web app**, WorkOS AuthKit (hosted login, `@pushpress.com` domain enforced server-side) | SSH TUI idea rejected: still requires a hosted server, needs key/token distribution, and can't show the *visual* artifacts (screenshots, previews, diffs) this admin exists to manage. WorkOS chosen over raw Google OAuth (2026-08-01): managed AuthKit login UI + CLI-provisioned envs, zero OAuth plumbing for us. Local dev = all-pass `AUTH_MODE=dev`, no external anything. |
 | Scope | **Full control plane**, phased | Registry, jobs, chat-edit, deploy, brand/structure inspection, platform API. Built in 4 phases (below). |
 | Editing model | **Chat-only** | One editing path for team and clients, forever. Admin is a thin UI over engine edit ops (doctrine subsystem C); no form-based editing to build or maintain. |
 | Placement | **`apps/admin` in the milo repo** | NOT a `fastify-app-template` standalone app (Dan, confirmed). The admin orchestrates engines living in this monorepo; pnpm workspaces give it app-shaped boundaries. |
@@ -96,7 +96,7 @@ Two auth modes, deliberately only two principals — **no RBAC**:
 
 | Principal | Auth | Sees | Controls |
 |---|---|---|---|
-| **Team member** | Google OAuth, `hd=pushpress.com` | all workspaces/companies/sites | everything |
+| **Team member** | WorkOS AuthKit hosted login; sealed session cookie; server enforces `@pushpress.com` | all workspaces/companies/sites | everything |
 | **Client API key** | opaque key, one per workspace (phase 4; team issues/rotates) | only that workspace's companies/sites | that workspace only |
 
 Access control = tenant filtering, not a permission system: client-key requests are scoped
