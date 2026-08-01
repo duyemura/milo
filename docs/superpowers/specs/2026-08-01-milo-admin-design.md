@@ -157,6 +157,16 @@ Deploy + rollback delegate to `packages/publish` (versioned S3+CloudFront), not 
    all their companies and nothing else), per-workspace auth context, events for Core. The
    seam PushPress Core chat plugs into.
 
+## Deployment
+
+**Remote testing/showcase: Railway** (decided 2026-08-01) — one Node service + Postgres +
+Redis plugins, git-push deploys, HTTPS URL included. Long-term home: PushPress K8s.
+
+Env at deploy: `DATABASE_URL`, `REDIS_URL` + `QUEUE_DRIVER=bullmq`, `AUTH_MODE=workos` +
+`WORKOS_API_KEY`/`WORKOS_CLIENT_ID`/`WORKOS_COOKIE_PASSWORD`, `WORKOS_REDIRECT_URI` set to the
+production URL (cookie `secure` flag derives from its scheme automatically). One manual step:
+`workos config redirect add https://<prod-url>/auth/callback`.
+
 ## Out of scope (explicit YAGNI)
 
 - Form-based editing of any kind.
