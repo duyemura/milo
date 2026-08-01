@@ -63,7 +63,24 @@ const SPEAKEASY_PAGES = [
 // Main dispatch
 // ---------------------------------------------------------------------------
 
-const [subcommand] = process.argv.slice(2).filter((a) => !a.startsWith("-"));
+// Find the subcommand position-independently: walk argv, skipping any `--flag`
+// and the token immediately after it (its value). All our flags take a value,
+// so treating `--x y` as a pair is robust. The first remaining bare token is
+// the subcommand — so `--engine ts project …` and `project … --engine ts` both work.
+function findSubcommand(): string | undefined {
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i++) {
+    const tok = argv[i];
+    if (tok.startsWith("--")) {
+      i++; // skip this flag's value
+      continue;
+    }
+    return tok;
+  }
+  return undefined;
+}
+
+const subcommand = findSubcommand();
 const engine = arg("engine", "mjs");
 
 if (!subcommand) {

@@ -97,7 +97,8 @@ export async function buildSite(opts: BuildSiteOpts): Promise<{ ok: PageSpec[] }
         : path.join(fullSite, p.route.replace(/^\/|\/$/g, ""));
     fs.mkdirSync(dest, { recursive: true });
     const astroDist = path.join(cwd, p.out, "astro/dist");
-    execSync(`cp -R ${astroDist}/. ${dest}/`, { stdio: "inherit", shell: "/bin/bash" });
+    // Copy the built astro dist contents into the assembled site dir (no shell — Node 24 fs.cpSync).
+    fs.cpSync(astroDist, dest, { recursive: true });
   }
 
   console.log(
