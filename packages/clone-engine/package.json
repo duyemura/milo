@@ -15,6 +15,7 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
+    "@milo/publish": "workspace:*",
     "playwright": "^1.48.0",
     "zod": "^3.23.0"
   }
