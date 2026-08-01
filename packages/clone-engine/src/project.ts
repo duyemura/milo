@@ -16,6 +16,7 @@ import type { CaptureJson, TreeNode, TreeEl, Labels } from "./types.ts";
 import { esc, escA, diff } from "./html.ts";
 import { pixelDiff } from "./pixel.ts";
 import { heuristicLabels } from "./labels.ts";
+import { buildBrand, brandSlotOfCanon, deriveVariants, flattenRoot } from "./brand.ts";
 
 export interface ProjectOpts {
   dir: string;
@@ -171,9 +172,42 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
     for (const m of v.matchAll(COLOR_RE)) { const key = canon(m[0]); if (!colorTok.has(key)) colorTok.set(key, { token: `--${colorName(key)}`, repr: m[0] }); }
     if (k === "font-family" && !fontTok.has(v)) { let n = `--font-${slug(v)}`; if (fontSeen.has(n)) { let i = 2; while (fontSeen.has(`${n}-${i}`)) i++; n = `${n}-${i}`; } fontSeen.add(n); fontTok.set(v, n); }
   }
-  const tok = (k: string, v: string) => { let o = v.replace(COLOR_RE, (m) => { const t = colorTok.get(canon(m)); return t ? `var(${t.token})` : m; }); if (k === "font-family" && fontTok.has(v)) o = `var(${fontTok.get(v)})`; return o; };
+  // ---- canonical BRAND cascade (Plan 2, Task 3) ----
+  // Rename the tokens that correspond to a labeled brand SLOT to canonical `--color-<slot>`
+  // (+ opacity/tint variants → `--color-<slot>-<NN>`) and emit an editable `brand.json`.
+  // BYTE-PRESERVING: a canonical var's value = the EXACT captured literal (repr) of its canon,
+  // and a literal is only rewritten to a canonical var if its canon equals the slot/variant
+  // canon — so it resolves to identical bytes. Non-brand colors keep their per-literal token.
+  const brandDoc = buildBrand(labels, CAP);
+  const reprOfCanon = new Map<string, string>([...colorTok].map(([c, { repr }]) => [c, repr] as const));
+  const brandMap = brandSlotOfCanon(labels);        // base canon → --color-<slot>
+  const variantMap = deriveVariants(labels, colorTok.keys()); // variant canon → --color-<slot>-<NN>
+  // canon → canonical var name (base slot wins over variant; both preferred over per-literal token)
+  const canonicalName = new Map<string, string>([...variantMap, ...brandMap]);
+  // Brand fonts: map the exact display/body family strings to --font-display/--font-body.
+  const canonicalFont = new Map<string, string>();
+  for (const f of labels.brand.fonts) if (f.slot === "display" || f.slot === "body") canonicalFont.set(f.family, `--font-${f.slot}`);
+
+  const tok = (k: string, v: string) => {
+    let o = v.replace(COLOR_RE, (m) => {
+      const key = canon(m);
+      const cn = canonicalName.get(key);
+      if (cn) return `var(${cn})`;
+      const t = colorTok.get(key);
+      return t ? `var(${t.token})` : m;
+    });
+    if (k === "font-family") {
+      if (canonicalFont.has(v)) o = `var(${canonicalFont.get(v)})`;
+      else if (fontTok.has(v)) o = `var(${fontTok.get(v)})`;
+    }
+    return o;
+  };
   const declTok = (m: Record<string, string>) => Object.entries(m).map(([k, v]) => `${k}:${tok(k, v)}`).join(";");
-  const tokenRoot = `:root{\n${[...colorTok.values()].map(({ token, repr }) => `  ${token}: ${repr};`).join("\n")}\n${[...fontTok].map(([f, t]) => `  ${t}: ${f};`).join("\n")}\n}`;
+  // :root = canonical brand cascade + leftover per-literal color tokens (non-brand) + leftover
+  // font tokens (families not promoted to a canonical --font-<slot>) — ALL in one valid rule.
+  const leftoverColors = [...colorTok].filter(([c]) => !canonicalName.has(c)).map(([, { token, repr }]) => `  ${token}: ${repr};`);
+  const leftoverFonts = [...fontTok].filter(([f]) => !canonicalFont.has(f)).map(([f, t]) => `  ${t}: ${f};`);
+  const tokenRoot = flattenRoot(labels, brandDoc, variantMap, reprOfCanon, [...leftoverColors, ...leftoverFonts]);
 
   // ---- css: trimmed base + responsive deltas (deltas from full styles) ----
   function cssFor(ids: number[]) {
@@ -243,6 +277,8 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
     fs.writeFileSync(path.join(COMP, `${name}.astro`), `---\n// ${name}.astro — projected from page-clone (LOSSLESS, lean). Imports brand tokens.\nimport "../tokens.css";\nconst content = ${JSON.stringify(copyOf(r.node), null, 2)};\n---\n<style>\n${cssFor(idsOf(r.node))}</style>\n${renderP(r.node)}\n`);
   }
   fs.writeFileSync(path.join(OUT, "tokens.css"), tokenRoot);
+  // Editable global brand document (single source of truth for the brand slots).
+  fs.writeFileSync(path.join(OUT, "brand.json"), JSON.stringify(brandDoc, null, 2));
 
   // ---- assemble whole page ----
   const head = CAP.head;

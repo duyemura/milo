@@ -50,6 +50,18 @@ export interface ElementLabel { id: number; role: string; }
 export interface AssetLabel { file: string; alias: string; }
 export interface BrandSlotColor { slot: string; canon: string; }  // canon = "r,g,b,a"
 export interface BrandSlotFont { slot: string; family: string; }
+
+/**
+ * The global brand document (`brand.json`) — mirrors `@milo/schema`'s `BrandTokens`
+ * shape so the brand is editable from one place. Colors are `#rrggbb` hex (the
+ * editable form); the byte-exact CSS cascade lives in the emitted `:root` block.
+ */
+export interface BrandDoc {
+  colors: { primary: string; accent: string; surface: string; text: string; muted: string };
+  fonts: { display: string; body: string };
+  space: { sm: string; md: string; lg: string };
+  radius: { button: string; card: string };
+}
 export interface Labels {
   site: { name: string; purpose: string };
   brand: { colors: BrandSlotColor[]; fonts: BrandSlotFont[] };
