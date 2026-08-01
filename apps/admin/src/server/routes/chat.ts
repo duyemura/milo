@@ -89,6 +89,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatDeps): void {
     return {
       reply: routed.reply,
       effects,
+      suggestedReplies: routed.suggestedReplies ?? [],
       usedLlm: chat !== null,
     };
   });

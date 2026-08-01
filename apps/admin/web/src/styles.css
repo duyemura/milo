@@ -147,6 +147,14 @@ a { color: #2563eb; }
 .effect { display: flex; align-items: center; gap: 8px; padding-left: 4px; }
 .chat-input { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); }
 .quick-actions { display: flex; gap: 8px; padding: 12px 12px 0; flex-wrap: wrap; }
+.reply-chips { display: flex; gap: 6px; flex-wrap: wrap; padding-left: 4px; }
+.ghost-wrap { position: relative; flex: 1; }
+.ghost-wrap input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+.ghost {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  color: #9ca3af; font-size: 14px; pointer-events: none;
+}
+.ghost em { font-style: normal; color: #d1d5db; }
 .chat-input input {
   flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 14px;
 }

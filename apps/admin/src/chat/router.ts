@@ -24,6 +24,10 @@ const IntentSchema = z.object({
       }),
     )
     .default([]),
+  suggestedReplies: z
+    .array(z.string())
+    .max(3)
+    .default([]),
 });
 
 export interface ChatTurn {
@@ -34,6 +38,7 @@ export interface ChatTurn {
 export interface RouterResult {
   reply: string;
   actions: ChatAction[];
+  suggestedReplies?: string[];
 }
 
 async function stateSummary(db: AdminDb): Promise<string> {
@@ -113,7 +118,10 @@ Action vocabulary (execute at most what the user asked; empty list when nothing 
 - addTodo {title, site?} — track something for the team
 - completeTodo {title?|id?}
 - none {} — pure conversation/status answers
-"launch <name>" usually means: triggerJob {site: name, jobType: "deploy-staging"} if the site is built,
+ALWAYS include "suggestedReplies" (0–3): the short messages the admin is most likely to
+say next, exactly as they'd type them. Confirm prompts: ["yes, launch it", "not yet"].
+Missing-info questions: realistic example answers (a name, a URL). Empty [] when the
+task is plainly complete."launch <name>" usually means: triggerJob {site: name, jobType: "deploy-staging"} if the site is built,
 or createSite/seed if it isn't built yet. Never invent IDs — reference the SITE/GYM listing provided.
 `;
 
@@ -139,7 +147,11 @@ export async function routeMessage(opts: {
       { role: "user", content: message },
     ],
   });
-  return { reply: intent.reply, actions: intent.actions as ChatAction[] };
+  return {
+    reply: intent.reply,
+    actions: intent.actions as ChatAction[],
+    suggestedReplies: intent.suggestedReplies,
+  };
 }
 
 /** Deterministic fallback for dev without an LLM key + for tests. */

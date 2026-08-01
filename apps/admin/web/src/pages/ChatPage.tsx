@@ -6,6 +6,7 @@ interface ChatMsg {
   role: "user" | "assistant";
   content: string;
   effects?: { type: string; ok: boolean; detail: string }[];
+  suggestedReplies?: string[];
 }
 
 interface Suggestion {
@@ -72,10 +73,14 @@ export function ChatPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ message, history: messages.slice(-10).map(({ role, content }) => ({ role, content })) }),
       });
-      return (await res.json()) as { reply: string; effects: ChatMsg["effects"] };
+      return (await res.json()) as { reply: string; effects: ChatMsg["effects"]; suggestedReplies?: string[] };
     },
     onSuccess: (data, message) => {
-      setMessages((m) => [...m.slice(0, -1), { role: "user", content: message }, { role: "assistant", content: data.reply, effects: data.effects }]);
+      setMessages((m) => [
+        ...m.slice(0, -1),
+        { role: "user", content: message },
+        { role: "assistant", content: data.reply, effects: data.effects, suggestedReplies: data.suggestedReplies },
+      ]);
       void qc.invalidateQueries();
     },
   });
@@ -91,11 +96,20 @@ export function ChatPage() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["todos"] }),
   });
 
+  // Synchronous in-flight gate: send.isPending is React state (async) and lets
+  // two same-frame clicks double-fire the request. A ref blocks the second one.
+  const inFlight = useRef(false);
   const dispatch = (text: string) => {
-    if (!text.trim() || send.isPending) return;
-    setMessages((m) => [...m, { role: "user", content: text }, { role: "assistant", content: "…" }]);
+    const t = text.trim();
+    if (!t || inFlight.current) return;
+    inFlight.current = true;
+    setMessages((m) => [...m, { role: "user", content: t }, { role: "assistant", content: "…" }]);
     setInput("");
-    send.mutate(text);
+    send.mutate(t, {
+      onSettled: () => {
+        inFlight.current = false;
+      },
+    });
   };
 
   useEffect(() => {
@@ -104,6 +118,7 @@ export function ChatPage() {
 
   const suggestions = todosData?.suggestions ?? [];
   const todos = (todosData?.todos ?? []).filter((t) => t.status === "open");
+  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant" && m.content !== "…");
 
   return (
     <div className="chat-grid">
@@ -120,6 +135,15 @@ export function ChatPage() {
                   <span className="muted small">{e.detail}</span>
                 </div>
               ))}
+              {m.role === "assistant" && i === messages.length - 1 && (m.suggestedReplies ?? []).length > 0 && (
+                <div className="reply-chips">
+                  {(m.suggestedReplies ?? []).map((s, k) => (
+                    <button key={k} className="chip" onClick={() => dispatch(s)}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -137,12 +161,28 @@ export function ChatPage() {
             dispatch(input);
           }}
         >
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Tell me what to do…"
-            autoFocus
-          />
+          <div className="ghost-wrap">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                // Tab completes the ghost suggestion (Claude-style).
+                const ghost = lastAssistant?.suggestedReplies?.[0];
+                if (e.key === "Tab" && ghost && !input) {
+                  e.preventDefault();
+                  setInput(ghost);
+                }
+              }}
+              placeholder={send.isPending ? "Working…" : "Tell me what to do…"}
+              autoFocus
+            />
+            {!input && lastAssistant?.suggestedReplies?.[0] && (
+              <span className="ghost">
+                {lastAssistant.suggestedReplies[0]}
+                <em>&nbsp;⭾</em>
+              </span>
+            )}
+          </div>
           <Button type="submit" disabled={send.isPending || !input.trim()}>
             Send
           </Button>
