@@ -19,21 +19,22 @@ async function main(): Promise<void> {
     throw new Error("SERVICE=worker requires QUEUE_DRIVER=bullmq.");
   }
 
+  const chat: ChatFn | null = config.openrouterApiKey
+    ? (opts) =>
+        chatCompletion(opts, {
+          provider: "openrouter",
+          openrouterBaseUrl: config.openrouterBaseUrl,
+          openrouterApiKey: config.openrouterApiKey,
+        })
+    : null;
+
   const queue =
     config.queueDriver === "bullmq"
       ? // api-only mode only enqueues; monolith and worker both run processors.
-        await bullmqQueue({ db, config, mode: service === "api" ? "producer" : "worker" })
-      : localQueue({ db, config });
+        await bullmqQueue({ db, config, mode: service === "api" ? "producer" : "worker", brain: { chat } })
+      : localQueue({ db, config, brain: { chat } });
 
   if (service !== "worker") {
-    const chat: ChatFn | null = config.openrouterApiKey
-      ? (opts) =>
-          chatCompletion(opts, {
-            provider: "openrouter",
-            openrouterBaseUrl: config.openrouterBaseUrl,
-            openrouterApiKey: config.openrouterApiKey,
-          })
-      : null;
     const app = await buildApp({ config, db, queue, chat });
     await app.listen({ port: config.port, host: config.host });
     console.log(`[admin] ${service} listening on http://${config.host}:${config.port} (auth=${config.authMode}, queue=${config.queueDriver})`);

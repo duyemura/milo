@@ -19,6 +19,9 @@ importers:
       '@fastify/static':
         specifier: ^8.0.0
         version: 8.3.0
+      '@milo/keyword-brain':
+        specifier: workspace:*
+        version: link:../../packages/keyword-brain
       '@milo/llm':
         specifier: workspace:*
         version: link:../../packages/llm
@@ -215,6 +218,19 @@ importers:
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@26.1.1)(jiti@1.21.7)(yaml@2.9.0)
+
+  packages/keyword-brain:
+    dependencies:
+      '@milo/llm':
+        specifier: workspace:*
+        version: link:../llm
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+    devDependencies:
       vitest:
         specifier: ^3.0.0
         version: 3.2.7(@types/debug@4.1.13)(@types/node@26.1.1)(jiti@1.21.7)(yaml@2.9.0)

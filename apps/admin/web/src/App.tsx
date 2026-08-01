@@ -15,6 +15,7 @@ export default function App() {
         <Route path="/clients" element={<ClientsPage />} />
         <Route path="/builds" element={<BuildsPage />} />
         <Route path="/sites/:id" element={<SiteDetailPage />} />
+        <Route path="/sites/:id/briefs" element={<SiteDetailPage />} />
         <Route path="/sites/:id/preview" element={<SiteDetailPage />} />
         <Route path="/sites/:id/versions" element={<SiteDetailPage />} />
         <Route path="*" element={<p className="muted">Not found.</p>} />

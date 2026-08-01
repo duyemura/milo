@@ -15,6 +15,7 @@ const IntentSchema = z.object({
           "createSite",
           "updateSite",
           "triggerJob",
+          "runKeywordCycle",
           "setStage",
           "addTodo",
           "completeTodo",
@@ -114,6 +115,9 @@ Action vocabulary (execute at most what the user asked; empty list when nothing 
 - triggerJob {site, jobType} — jobType ∈ seed | build | deploy-staging | promote | rollback; "site" may be id, slug, URL fragment, or gym name.
   promote/rollback affect PRODUCTION: before issuing them, tell the user exactly what will
   happen in reply and ask "confirm?", with actions EMPTY — only act on the next explicit yes.
+- runKeywordCycle {site, city?, state?, name?} — local-marketing research for a site
+  ("keyword work", "what should this site target", "seo for X"). City/state required for
+  clone-seeded sites whose seed payload lacks them — ask if unknown.
 - setStage {site, stage} — stage ∈ onboarding | building | in-review | live
 - addTodo {title, site?} — track something for the team
 - completeTodo {title?|id?}
@@ -157,6 +161,14 @@ export async function routeMessage(opts: {
 /** Deterministic fallback for dev without an LLM key + for tests. */
 export async function ruleFallback(db: AdminDb, message: string, summary: string): Promise<RouterResult> {
   const m = message.trim();
+
+  const kw = /^(?:keyword(?:s| work| research| cycle)?|seo)\s+(?:for\s+)?(.+)$/i.exec(m);
+  if (kw) {
+    return {
+      reply: "On it — researching local searches, scoring intent, and writing page briefs.",
+      actions: [{ type: "runKeywordCycle", args: { site: kw[1].replace(/[.!]$/, "").trim() } }],
+    };
+  }
 
   const launch = /^(?:launch|build|deploy)\s+(.+)$/i.exec(m);
   if (launch) {

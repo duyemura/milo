@@ -68,6 +68,7 @@ export async function enqueueJob(
       status: "waiting",
       payload: JSON.stringify(input.payload ?? {}),
       error: null,
+      result: null,
       createdAt: now(),
       startedAt: null,
       finishedAt: null,
@@ -127,7 +128,7 @@ export async function finishJob(
   db: AdminDb,
   queue: EngineQueue,
   jobId: string,
-  result: { status: "succeeded" } | { status: "failed"; error: string },
+  result: { status: "succeeded"; text?: string } | { status: "failed"; error: string },
   now: () => string = () => new Date().toISOString(),
 ): Promise<void> {
   const job = await db.selectFrom("jobs").selectAll().where("id", "=", jobId).executeTakeFirstOrThrow();
@@ -136,6 +137,7 @@ export async function finishJob(
     .set({
       status: result.status,
       error: result.status === "failed" ? stripControl(result.error) : null,
+      result: result.status === "succeeded" ? (result.text ?? null) : null,
       finishedAt: now(),
     })
     .where("id", "=", jobId)

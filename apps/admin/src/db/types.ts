@@ -38,7 +38,7 @@ export interface SiteRow {
   createdAt: string;
 }
 
-export type JobType = "seed" | "build" | "deploy-staging" | "promote" | "rollback";
+export type JobType = "seed" | "build" | "deploy-staging" | "promote" | "rollback" | "keyword-cycle";
 export type JobStatus = "waiting" | "queued" | "running" | "succeeded" | "failed";
 
 export interface JobRow {
@@ -50,6 +50,7 @@ export interface JobRow {
   status: JobStatus;
   payload: string;
   error: string | null;
+  result: string | null;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
@@ -87,6 +88,18 @@ export interface TodoRow {
   doneAt: string | null;
 }
 
+export interface PageBriefRow {
+  id: string;
+  workspaceId: string;
+  companyId: string;
+  siteId: string;
+  /** Full PageBrief JSON (handshake contract, zod from @milo/keyword-brain). */
+  payload: string;
+  status: "pending" | "accepted" | "built" | "dismissed";
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Database {
   workspaces: WorkspaceRow;
   companies: CompanyRow;
@@ -95,4 +108,5 @@ export interface Database {
   deploys: DeployRow;
   job_logs: JobLogRow;
   todos: TodoRow;
+  page_briefs: PageBriefRow;
 }

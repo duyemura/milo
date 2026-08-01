@@ -6,6 +6,7 @@ import type { AdminConfig } from "../config.ts";
 import type { JobRow, SiteRow } from "../db/types.ts";
 import { appendLog } from "./dispatch.ts";
 import { runDeploy } from "./deploy.ts";
+import { runKeywordCycleJob, type BrainDeps } from "./keywordCycle.ts";
 
 export interface SpawnFn {
   (cmd: string, args: string[], opts: { cwd: string; env: NodeJS.ProcessEnv }): Promise<{
@@ -54,7 +55,8 @@ export async function runJob(opts: {
   job: JobRow;
   site: SiteRow;
   spawn?: SpawnFn;
-}): Promise<void> {
+  brain?: BrainDeps;
+}): Promise<string | void> {
   const { db, config, job, site } = opts;
   const log = async (line: string) => {
     await appendLog(db, job.id, line);
@@ -127,6 +129,9 @@ export async function runJob(opts: {
     case "rollback": {
       await runDeploy({ db, config, job, site, distDir, gymJsonPath: path.join(seedDir, "gym.json"), log, sp });
       return;
+    }
+    case "keyword-cycle": {
+      return await runKeywordCycleJob({ db, config, job, site, brain: opts.brain ?? { chat: null } });
     }
   }
 }

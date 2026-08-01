@@ -12,6 +12,7 @@ export interface ChatAction {
     | "createSite"
     | "updateSite"
     | "triggerJob"
+    | "runKeywordCycle"
     | "setStage"
     | "addTodo"
     | "completeTodo"
@@ -214,6 +215,21 @@ export async function executeAction(
       });
       void job;
       return { type: action.type, ok: true, detail: `${jobType} queued for ${site.companyName ?? site.slug ?? site.id}.` };
+    }
+
+    case "runKeywordCycle": {
+      const site = await findSite(db, a["site"] ?? "");
+      if (!site) return { type: action.type, ok: false, detail: `Couldn't find site “${a["site"] ?? ""}”.` };
+      const payload: Record<string, string> = {};
+      for (const k of ["name", "city", "state"]) if (a[k]) payload[k] = a[k];
+      await enqueueJob(db, queue, {
+        siteId: site.id,
+        workspaceId: site.workspaceId,
+        companyId: site.companyId,
+        type: "keyword-cycle",
+        payload,
+      });
+      return { type: action.type, ok: true, detail: `Keyword cycle queued for ${site.companyName ?? site.id}.` };
     }
 
     case "setStage": {

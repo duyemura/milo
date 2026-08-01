@@ -117,8 +117,31 @@ const migration3 = {
   },
 };
 
+const migration4 = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable("page_briefs")
+      .addColumn("id", "text", (c) => c.primaryKey())
+      .addColumn("workspaceId", "text", (c) => c.notNull())
+      .addColumn("companyId", "text", (c) => c.notNull())
+      .addColumn("siteId", "text", (c) => c.notNull().references("sites.id"))
+      .addColumn("payload", "text", (c) => c.notNull())
+      .addColumn("status", "text", (c) => c.notNull().defaultTo("pending"))
+      .addColumn("createdAt", "text", (c) => c.notNull())
+      .addColumn("updatedAt", "text", (c) => c.notNull())
+      .execute();
+    await db.schema.createIndex("page_briefs_site").on("page_briefs").columns(["siteId", "status"]).execute();
+    await db.schema.alterTable("jobs").addColumn("result", "text").execute();
+  },
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable("page_briefs").execute();
+    await db.schema.alterTable("jobs").dropColumn("result").execute();
+  },
+};
+
 export const migrations: Record<string, { up: typeof migration1.up; down: typeof migration1.down }> = {
   migration1,
   migration2,
   migration3,
+  migration4,
 };

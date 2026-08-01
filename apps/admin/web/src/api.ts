@@ -35,6 +35,7 @@ export interface Job {
   status: "waiting" | "queued" | "running" | "succeeded" | "failed";
   payload: string;
   error: string | null;
+  result: string | null;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NavLink, useLocation, useParams } from "react-router-dom";
 import { Badge, Button } from "@pushpress/pushpress-ui";
 import { api, type Job } from "../api.ts";
+import { BriefsTab } from "../components/BriefsTab.tsx";
 
 const STAGE_LABELS: Record<string, string> = {
   onboarding: "Onboarding",
@@ -58,6 +59,9 @@ function OverviewTab({ siteId }: { siteId: string }) {
   return (
     <div className="card">
       <div className="actions">
+        <Button disabled={trigger.isPending} onClick={() => trigger.mutate("keyword-cycle")}>
+          Run keyword cycle
+        </Button>
         <Button disabled={trigger.isPending} onClick={() => trigger.mutate("build")}>
           Rebuild
         </Button>
@@ -106,6 +110,12 @@ function OverviewTab({ siteId }: { siteId: string }) {
         <pre className="logs">
           {(logs?.logs ?? []).map((l) => `${l.line}\n`).join("") || "No output yet…"}
         </pre>
+      )}
+      {data?.jobs.find((j) => j.type === "keyword-cycle" && j.status === "succeeded" && j.result)?.result && (
+        <div className="digest">
+          <strong className="small">Latest keyword digest</strong>
+          <p className="small">{data.jobs.find((j) => j.type === "keyword-cycle" && j.status === "succeeded" && j.result)?.result}</p>
+        </div>
       )}
     </div>
   );
@@ -230,11 +240,14 @@ export function SiteDetailPage() {
         <NavLink to={`/sites/${siteId}`} end>
           Overview
         </NavLink>
+        <NavLink to={`/sites/${siteId}/briefs`}>Briefs</NavLink>
         <NavLink to={`/sites/${siteId}/preview`}>Preview</NavLink>
         <NavLink to={`/sites/${siteId}/versions`}>Versions</NavLink>
       </nav>
 
-      {pathname.endsWith("/preview") ? (
+      {pathname.endsWith("/briefs") ? (
+        <BriefsTab siteId={siteId} />
+      ) : pathname.endsWith("/preview") ? (
         <PreviewTab siteId={siteId} />
       ) : pathname.endsWith("/versions") ? (
         <VersionsTab siteId={siteId} />

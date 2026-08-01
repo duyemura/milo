@@ -3,6 +3,7 @@ import type { AdminConfig } from "../config.ts";
 import type { EngineQueue } from "./dispatch.ts";
 import { finishJob, markRunning, appendLog } from "./dispatch.ts";
 import { runJob } from "./runner.ts";
+import type { BrainDeps } from "./keywordCycle.ts";
 
 /**
  * Queue seam: dev runs jobs in-process (zero infra); production swaps BullMQ.
@@ -10,7 +11,7 @@ import { runJob } from "./runner.ts";
  * the next waiting job for the site is promoted onto the SAME queue (never a local
  * executor in distributed mode).
  */
-export function localQueue(deps: { db: AdminDb; config: AdminConfig }): EngineQueue {
+export function localQueue(deps: { db: AdminDb; config: AdminConfig; brain?: BrainDeps }): EngineQueue {
   const self: EngineQueue = {
     async add(jobId: string) {
       // Fire-and-forget inline executor; errors are recorded on the job row.
@@ -31,7 +32,7 @@ export function localQueue(deps: { db: AdminDb; config: AdminConfig }): EngineQu
 }
 
 async function execute(
-  deps: { db: AdminDb; config: AdminConfig },
+  deps: { db: AdminDb; config: AdminConfig; brain?: BrainDeps },
   jobId: string,
   queue: EngineQueue,
 ): Promise<void> {
@@ -40,8 +41,8 @@ async function execute(
   const site = await db.selectFrom("sites").selectAll().where("id", "=", job.siteId).executeTakeFirstOrThrow();
   await markRunning(db, jobId);
   try {
-    await runJob({ db, config, job, site });
-    await finishJob(db, queue, jobId, { status: "succeeded" });
+    const text = await runJob({ db, config, job, site, brain: deps.brain });
+    await finishJob(db, queue, jobId, { status: "succeeded", text: typeof text === "string" ? text : undefined });
   } catch (err) {
     await appendLog(db, jobId, `ERROR: ${err instanceof Error ? err.message : String(err)}`);
     await db.updateTable("sites").set({ status: "error" }).where("id", "=", job.siteId).execute();
@@ -57,6 +58,7 @@ export async function bullmqQueue(deps: {
   db: AdminDb;
   config: AdminConfig;
   mode: "producer" | "worker";
+  brain?: BrainDeps;
 }): Promise<EngineQueue> {
   const { Queue, Worker } = await import("bullmq");
   const { default: IORedis } = await import("ioredis");

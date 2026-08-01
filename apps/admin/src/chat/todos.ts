@@ -4,7 +4,7 @@ import type { TodoRow } from "../db/types.ts";
 export interface SuggestedTodo {
   id: string;
   title: string;
-  actionType: "launch-site" | "investigate-job" | "deploy-staging" | "follow-up";
+  actionType: "launch-site" | "investigate-job" | "deploy-staging" | "follow-up" | "briefs";
   actionPayload: Record<string, string>;
   hint: string;
 }
@@ -85,6 +85,28 @@ export async function deriveSuggestions(db: AdminDb): Promise<SuggestedTodo[]> {
       actionType: "follow-up",
       actionPayload: { siteId: s.id, companyName: s.companyName },
       hint: "Client review blocks go-live — a nudge today beats a call next week.",
+    });
+  }
+
+  // Pending page briefs: the keyword brain's deliverable, waiting on the site builder.
+  const briefCounts = await db
+    .selectFrom("page_briefs")
+    .innerJoin("companies", "companies.id", "page_briefs.companyId")
+    .select(["page_briefs.siteId", "companies.name as companyName"])
+    .select(({ fn }) => fn.count("page_briefs.id").as("n"))
+    .where("page_briefs.status", "=", "pending")
+    .groupBy("page_briefs.siteId")
+    .groupBy("companies.name")
+    .execute();
+  for (const b of briefCounts) {
+    const n = Number(b.n);
+    if (n === 0) continue;
+    suggestions.push({
+      id: `briefs-${b.siteId}`,
+      title: `${n} page brief${n === 1 ? "" : "s"} ready for ${b.companyName}`,
+      actionType: "briefs",
+      actionPayload: { siteId: b.siteId, companyName: b.companyName },
+      hint: "The keyword brain delivered — the site builder takes these briefs next.",
     });
   }
 
