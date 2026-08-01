@@ -22,6 +22,8 @@ import type { CaptureJson, SiteManifest, ManifestCopyEntry } from "../src/types.
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const SITES = ["speakeasy", "sweatshed"] as const;
+/** Task 7 (G): manifest completeness is checked on ALL THREE goldens (incl. torrance). */
+const ALL_SITES = ["speakeasy", "sweatshed", "torrance"] as const;
 
 const tmpOutDirs: string[] = [];
 afterAll(() => {
@@ -447,5 +449,96 @@ describe("data-copy keys (Task 5)", () => {
         `Sentinel appears in output but not inside the element carrying data-copy="${entry.key}"`,
       ).toBe(true);
     }, 120_000);
+  }
+});
+
+/**
+ * Task 7 (G): manifest completeness across ALL THREE goldens.
+ *
+ * For every site.json, assert every public handle FULLY RESOLVES:
+ *   - section → component: sections[].file is an emitted .astro component on disk.
+ *   - role → element:      elements[].id ("p<n>") has a matching class in the HTML AND the
+ *                          data-role selector is stamped in the HTML.
+ *   - alias → file:        assets[].file exists on disk under the golden's assets dir.
+ *   - copy-key → slot:     every copy[].key resolves to a real component + an in-bounds
+ *                          content[] index, and the data-copy attribute carries that key.
+ *
+ * This extends the existing (speakeasy + sweatshed) semantic tests to torrance too, so all
+ * three goldens are proven fully addressable.
+ */
+describe("manifest completeness — all handles resolve (Task 7 G)", () => {
+  for (const site of ALL_SITES) {
+    const goldenDir = path.join(dir, "golden", site);
+
+    it(`${site}: every site.json handle resolves (section/role/alias/copy)`, async () => {
+      const out = await projectTmp(goldenDir);
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(out.outDir, "site.json"), "utf8"),
+      ) as SiteManifest;
+      const page = manifest.pages[0];
+      const compDir = path.join(out.outDir, "components");
+      const emittedComponents = new Set(fs.readdirSync(compDir));
+
+      // brand → brand.json
+      expect(manifest.brand).toBe("brand.json");
+      expect(fs.existsSync(path.join(out.outDir, "brand.json")), "brand.json missing").toBe(true);
+
+      // section → component
+      expect(page.sections.length).toBeGreaterThan(0);
+      for (const sec of page.sections) {
+        expect(sec.file, `section "${sec.name}" file must be .astro`).toMatch(/\.astro$/);
+        expect(
+          emittedComponents.has(sec.file),
+          `section→component unresolved: ${sec.file} not on disk`,
+        ).toBe(true);
+      }
+
+      // role → element
+      for (const el of page.elements) {
+        expect(el.id).toMatch(/^p\d+$/);
+        expect(el.selector).toBe(`[data-role=${el.role}]`);
+        expect(
+          out.indexHtml.includes(`class="p${el.id.slice(1)}"`),
+          `role→element unresolved: class "p${el.id.slice(1)}" (role ${el.role}) not in HTML`,
+        ).toBe(true);
+        expect(
+          out.indexHtml.includes(`data-role="${el.role}"`),
+          `role→element unresolved: data-role="${el.role}" not stamped in HTML`,
+        ).toBe(true);
+      }
+
+      // alias → file
+      for (const asset of page.assets) {
+        expect(asset.alias.length).toBeGreaterThan(0);
+        expect(
+          fs.existsSync(path.join(goldenDir, asset.file)),
+          `alias→file unresolved: ${asset.file} (alias ${asset.alias}) not on disk`,
+        ).toBe(true);
+      }
+
+      // copy-key → content slot
+      expect(page.copy.length).toBeGreaterThan(0);
+      for (const entry of page.copy as ManifestCopyEntry[]) {
+        const compPath = path.join(out.astroDir, "src/components", `${entry.component}.astro`);
+        expect(
+          fs.existsSync(compPath),
+          `copy→component unresolved: ${entry.component}.astro missing for key ${entry.key}`,
+        ).toBe(true);
+        const src = fs.readFileSync(compPath, "utf8");
+        const m = /^const content = (\[[\s\S]*?\]);/m.exec(src);
+        expect(m, `no content[] in ${entry.component}.astro`).not.toBeNull();
+        const arr = JSON.parse(m![1]) as string[];
+        expect(
+          entry.index >= 0 && entry.index < arr.length,
+          `copy→slot out of bounds: ${entry.key} index ${entry.index} / len ${arr.length}`,
+        ).toBe(true);
+        // The key must be stamped as a data-copy token on some element in the component.
+        const escapedKey = entry.key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        expect(
+          new RegExp(`data-copy="(?:[^"]*\\s)?${escapedKey}(?:\\s[^"]*)?"`).test(src),
+          `copy→slot unresolved: data-copy key "${entry.key}" not stamped in ${entry.component}.astro`,
+        ).toBe(true);
+      }
+    }, 180_000);
   }
 });
