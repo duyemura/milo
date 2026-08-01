@@ -38,6 +38,7 @@ async function execute(deps: { db: AdminDb; config: AdminConfig }, jobId: string
     await finishJob(db, queue, jobId, { status: "succeeded" });
   } catch (err) {
     await appendLog(db, jobId, `ERROR: ${err instanceof Error ? err.message : String(err)}`);
+    await db.updateTable("sites").set({ status: "error" }).where("id", "=", job.siteId).execute();
     await finishJob(db, queue, jobId, {
       status: "failed",
       error: err instanceof Error ? err.message : String(err),

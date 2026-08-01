@@ -20,7 +20,10 @@ import {
  * StatementSync.columns() (empty for non-row statements); INSERT…RETURNING still uses .all().
  */
 export class NodeSqliteDialect implements Dialect {
-  constructor(private readonly dbPath: string) {}
+  private readonly dbPath: string;
+  constructor(dbPath: string) {
+    this.dbPath = dbPath;
+  }
   createAdapter(): DialectAdapter {
     return new SqliteAdapter();
   }
@@ -36,10 +39,13 @@ export class NodeSqliteDialect implements Dialect {
 }
 
 class NodeSqliteDriver implements Driver {
+  private readonly dbPath: string;
   private db?: DatabaseSync;
   private conn?: NodeSqliteConnection;
 
-  constructor(private readonly dbPath: string) {}
+  constructor(dbPath: string) {
+    this.dbPath = dbPath;
+  }
 
   async init(): Promise<void> {
     this.db = new DatabaseSync(this.dbPath);
@@ -71,7 +77,10 @@ class NodeSqliteDriver implements Driver {
 }
 
 class NodeSqliteConnection implements DatabaseConnection {
-  constructor(private readonly db: DatabaseSync) {}
+  private readonly db: DatabaseSync;
+  constructor(db: DatabaseSync) {
+    this.db = db;
+  }
 
   async executeQuery<O>(compiledQuery: CompiledQuery): Promise<QueryResult<O>> {
     const { sql, parameters } = compiledQuery;

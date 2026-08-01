@@ -1,0 +1,47 @@
+:root {
+  --border: #e5e7eb;
+  --muted: #6b7280;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: #f9fafb; color: #111827; }
+
+.shell { max-width: 1400px; margin: 0 auto; padding: 16px 24px; }
+header { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+h1 { font-size: 20px; margin: 0; }
+h2 { font-size: 14px; margin: 0 0 12px; }
+
+main { display: flex; gap: 16px; padding-top: 16px; align-items: flex-start; }
+.pane { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px; min-width: 260px; }
+.pane.wide { flex: 1; }
+
+.list { list-style: none; margin: 0 0 12px; padding: 0; }
+.row {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  width: 100%; padding: 8px 10px; margin: 0 0 4px; border: 1px solid transparent;
+  border-radius: 6px; background: none; cursor: pointer; text-align: left; font-size: 14px;
+}
+.row:hover { background: #f3f4f6; }
+.row.selected { border-color: #111827; }
+
+.create { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px; }
+.site-create { margin-bottom: 16px; }
+
+.card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.card-head { display: flex; justify-content: space-between; align-items: center; }
+.actions { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+
+.jobs { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+.jobs th { text-align: left; color: var(--muted); font-weight: 500; padding: 4px 8px 4px 0; }
+.jobs td { padding: 4px 8px 4px 0; border-top: 1px solid var(--border); }
+
+.logs {
+  background: #111827; color: #d1d5db; font-size: 12px; padding: 10px;
+  border-radius: 6px; max-height: 220px; overflow: auto; white-space: pre-wrap; margin: 8px 0 0;
+}
+
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.error { color: #dc2626; font-size: 13px; }
+a { color: #2563eb; }

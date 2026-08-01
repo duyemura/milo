@@ -21,6 +21,7 @@ deterministic.
 | `apps/renderer` | gym.json + template → static site; schema-validated, loud failures |
 | `apps/studio` | Template Studio tooling: `capture.mjs` (any URL → capture bundle), `shoot-site.mjs` (visual verification), `template-docs.mjs` (docs generator) |
 | `apps/cli` | `milo` operator CLI |
+| `apps/admin` | Internal control plane: workspaces→companies→sites registry, engine job runner (per-site serialized), deploy/promote/rollback, web dashboard. Spec: `docs/superpowers/specs/2026-08-01-milo-admin-design.md` |
 | `.poc-import` | Historical: the throwaway PoC that proved the Template Studio process |
 
 ## Commands
@@ -34,6 +35,9 @@ pnpm milo preview --template blackout        # serve last build
 pnpm milo studio --url <reference-url>       # capture a reference site
 pnpm milo docs                               # regenerate template docs from manifests
 pnpm milo publish staging|production|rollback|status
+pnpm dev:admin                              # admin control plane on :4100 (dev auth, local job queue)
+pnpm dev:admin:web                          # dashboard dev server on :4101 (proxies to :4100)
+pnpm build:admin:web && pnpm dev:admin      # production-style: API serves the built dashboard at :4100
 ```
 
 ## Intake

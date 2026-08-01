@@ -17,6 +17,17 @@ export interface EnqueueInput {
 
 const ACTIVE: JobRow["status"][] = ["queued", "running"];
 
+/**
+ * Engine output contains ANSI color codes and other control characters; literal
+ * U+0000–U+001F is invalid in JSON strings, which would break the UI/API consumers.
+ */
+export function stripControl(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  return s
+    .replace(/\u001b\[[0-9;]*m/g, "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "");
+}
+
 export async function queuePosition(db: AdminDb, job: JobRow): Promise<number> {
   // A dispatched/finished job isn't waiting on anything.
   if (job.status !== "waiting") return 0;
@@ -124,7 +135,7 @@ export async function finishJob(
     .updateTable("jobs")
     .set({
       status: result.status,
-      error: result.status === "failed" ? result.error : null,
+      error: result.status === "failed" ? stripControl(result.error) : null,
       finishedAt: now(),
     })
     .where("id", "=", jobId)
@@ -138,7 +149,7 @@ export async function appendLog(
   line: string,
   now: () => string = () => new Date().toISOString(),
 ): Promise<void> {
-  for (const l of line.split("\n")) {
+  for (const l of stripControl(line).split("\n")) {
     if (!l.trim()) continue;
     await db.insertInto("job_logs").values({ jobId, line: l, createdAt: now() }).execute();
   }

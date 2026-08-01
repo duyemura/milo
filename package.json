@@ -5,7 +5,10 @@
   "scripts": {
     "test": "pnpm -r test",
     "build": "pnpm -r build",
-    "milo": "node apps/cli/src/milo.ts"
+    "milo": "node apps/cli/src/milo.ts",
+    "dev:admin": "pnpm --filter @milo/admin dev",
+    "dev:admin:web": "pnpm --filter @milo/admin dev:web",
+    "build:admin:web": "pnpm --filter @milo/admin build:web"
   },
   "engines": {
     "node": ">=24"
