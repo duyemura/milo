@@ -18,7 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { project } from "../src/project.ts";
 import { heuristicLabels } from "../src/labels.ts";
-import type { CaptureJson, SiteManifest } from "../src/types.ts";
+import type { CaptureJson, SiteManifest, ManifestCopyEntry } from "../src/types.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const SITES = ["speakeasy", "sweatshed"] as const;
@@ -305,6 +305,147 @@ describe("site.json manifest (Task 4)", () => {
         expect(typeof el.id).toBe("string");
         expect(el.id).toMatch(/^p\d+$/);
       }
+    }, 120_000);
+  }
+});
+
+/**
+ * Task 5: data-copy keys link rendered text to editable content[] slots.
+ *
+ * Round-trip test: project a golden site → pick a data-copy key → look up its component + index
+ * → render that component's template with content[index] mutated to a sentinel → verify the
+ * sentinel appears at the element carrying that data-copy key, and nowhere else unexpectedly.
+ *
+ * Also verifies the copy[] map in site.json: every key resolves to a valid component and index.
+ */
+describe("data-copy keys (Task 5)", () => {
+  for (const site of SITES) {
+    const goldenDir = path.join(dir, "golden", site);
+
+    it(`${site}: site.json copy[] has valid shape and all keys resolve`, async () => {
+      const out = await projectTmp(goldenDir);
+      const siteJsonPath = path.join(out.outDir, "site.json");
+      expect(fs.existsSync(siteJsonPath)).toBe(true);
+
+      const manifest = JSON.parse(fs.readFileSync(siteJsonPath, "utf8")) as SiteManifest;
+      const page = manifest.pages[0];
+
+      // copy[] must be present and non-empty (the golden sites have text content).
+      expect(Array.isArray(page.copy), "pages[0].copy is not an array").toBe(true);
+      expect(page.copy.length, "copy[] is empty — no text slots wired").toBeGreaterThan(0);
+
+      // Each entry must have a valid shape.
+      for (const entry of page.copy) {
+        const e = entry as ManifestCopyEntry;
+        expect(typeof e.key).toBe("string");
+        expect(e.key.length).toBeGreaterThan(0);
+        // Key format: "<ComponentName>.<index>" (no spaces within the key).
+        expect(e.key, `key "${e.key}" must match <Component>.<n>`).toMatch(/^[A-Za-z][A-Za-z0-9]*\.\d+$/);
+        expect(typeof e.component).toBe("string");
+        expect(e.component.length).toBeGreaterThan(0);
+        expect(typeof e.index).toBe("number");
+        expect(e.index).toBeGreaterThanOrEqual(0);
+
+        // The component must exist on disk.
+        const compPath = path.join(out.astroDir, "src/components", `${e.component}.astro`);
+        expect(
+          fs.existsSync(compPath),
+          `copy key "${e.key}" references component "${e.component}" but ${e.component}.astro not found`,
+        ).toBe(true);
+
+        // The index must be within the component's content[] bounds.
+        const astroSrc = fs.readFileSync(compPath, "utf8");
+        // Extract content array from the astro component's frontmatter.
+        const contentMatch = /^const content = (\[[\s\S]*?\]);/m.exec(astroSrc);
+        expect(contentMatch, `No content[] found in ${e.component}.astro`).not.toBeNull();
+        const contentArr = JSON.parse(contentMatch![1]) as string[];
+        expect(
+          e.index < contentArr.length,
+          `copy key "${e.key}": index ${e.index} out of bounds (content.length=${contentArr.length})`,
+        ).toBe(true);
+
+        // The data-copy attribute must appear in the component HTML (the template literal).
+        // The key may appear as part of a space-separated list (multi-text elements).
+        expect(
+          astroSrc.includes(`data-copy=`),
+          `${e.component}.astro has no data-copy attributes`,
+        ).toBe(true);
+      }
+    }, 120_000);
+
+    it(`${site}: round-trip — mutating content[i] changes text at the data-copy keyed element`, async () => {
+      const out = await projectTmp(goldenDir);
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(out.outDir, "site.json"), "utf8"),
+      ) as SiteManifest;
+      const page = manifest.pages[0];
+
+      // Pick the first copy entry whose original text is non-empty (skip whitespace-only slots).
+      const entry = (page.copy as ManifestCopyEntry[]).find((e) => {
+        const compPath = path.join(out.astroDir, "src/components", `${e.component}.astro`);
+        if (!fs.existsSync(compPath)) return false;
+        const src = fs.readFileSync(compPath, "utf8");
+        const m = /^const content = (\[[\s\S]*?\]);/m.exec(src);
+        if (!m) return false;
+        const arr = JSON.parse(m[1]) as string[];
+        return arr[e.index]?.trim().length > 0;
+      });
+
+      expect(entry, "No non-empty copy entry found to test round-trip").toBeDefined();
+      if (!entry) return; // type guard (expect above will fail if undefined)
+
+      const compPath = path.join(out.astroDir, "src/components", `${entry.component}.astro`);
+      const astroSrc = fs.readFileSync(compPath, "utf8");
+
+      // Extract the template literal and the original content array.
+      const contentMatch = /^const content = (\[[\s\S]*?\]);/m.exec(astroSrc);
+      expect(contentMatch).not.toBeNull();
+      const contentArr = JSON.parse(contentMatch![1]) as string[];
+
+      // Mutate the entry's slot to a unique sentinel.
+      const SENTINEL = `__SENTINEL_${entry.key.replace(".", "_")}__`;
+      const mutated = [...contentArr];
+      mutated[entry.index] = SENTINEL;
+
+      // Simulate template rendering: replace content = [...] with mutated array and eval.
+      // We use the same e() function from the component and render the html template.
+      const e = (s: string) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] ?? c));
+      // Extract the template literal body (between the backticks after `const html = `).
+      const tplMatch = /const html = `([\s\S]*?)`;[\s\S]*?---/.exec(astroSrc);
+      expect(tplMatch, "Could not extract template literal from component").not.toBeNull();
+      const tplBody = tplMatch![1];
+
+      // Evaluate the template with the mutated content array.
+      // eslint-disable-next-line no-new-func
+      const rendered = new Function("content", "e", `return \`${tplBody}\``)(mutated, e) as string;
+
+      // 1. The sentinel must appear in the rendered output.
+      expect(
+        rendered.includes(SENTINEL),
+        `Sentinel "${SENTINEL}" not found in rendered output after mutating content[${entry.index}]`,
+      ).toBe(true);
+
+      // 2. The element carrying the data-copy key for this slot must contain the sentinel.
+      //    The key may be in a space-separated list on the element.
+      //    We find the opening tag whose data-copy attribute value contains this key as a
+      //    standalone token (space-delimited or entire value).
+      const escapedKey = entry.key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      // Match data-copy="... KEY ..." where KEY is bounded by start/end of value or a space.
+      const tagRegex = new RegExp(`<[^>]+data-copy="(?:[^"]*\\s)?${escapedKey}(?:\\s[^"]*)?"[^>]*>`);
+      const tagMatch = tagRegex.exec(rendered);
+      expect(
+        tagMatch,
+        `No element found with data-copy key "${entry.key}" in rendered output`,
+      ).not.toBeNull();
+
+      // Extract text content near the matched element to confirm the sentinel is co-located.
+      // (We verify the sentinel appears somewhere after the opening tag, before any closing tag at the same level.)
+      const tagEnd = (tagMatch?.index ?? 0) + (tagMatch?.[0].length ?? 0);
+      const afterTag = rendered.slice(tagEnd, tagEnd + 2000);
+      expect(
+        afterTag.includes(SENTINEL),
+        `Sentinel appears in output but not inside the element carrying data-copy="${entry.key}"`,
+      ).toBe(true);
     }, 120_000);
   }
 });

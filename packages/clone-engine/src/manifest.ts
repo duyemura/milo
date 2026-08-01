@@ -9,7 +9,7 @@
  * Pixel oracle: calling buildManifest never touches HTML/CSS output, so 0-px is
  * trivially preserved.
  */
-import type { Labels, SiteManifest, ManifestSection, ManifestElement, ManifestAsset } from "./types.ts";
+import type { Labels, SiteManifest, ManifestSection, ManifestElement, ManifestAsset, ManifestCopyEntry } from "./types.ts";
 
 export interface BuildManifestArgs {
   /** BASE path for the site (empty string = root "/"). */
@@ -20,6 +20,11 @@ export interface BuildManifestArgs {
   elements: Labels["elements"];
   /** labels.assets — asset alias→file map (file = "assets/aN.ext" on disk). */
   assets: Labels["assets"];
+  /**
+   * Copy map entries collected by buildTpl across all regions.
+   * Each entry: { key: "<ComponentName>.<index>", component, index }.
+   */
+  copy: ManifestCopyEntry[];
 }
 
 /**
@@ -29,7 +34,7 @@ export interface BuildManifestArgs {
  * architecture. Multi-page support adds another entry at the caller level.
  */
 export function buildManifest(args: BuildManifestArgs): SiteManifest {
-  const { base, regions, elements, assets } = args;
+  const { base, regions, elements, assets, copy } = args;
 
   // Route: BASE with trailing slash stripped; "/" when empty.
   const route = base ? `${base}/` : "/";
@@ -69,6 +74,7 @@ export function buildManifest(args: BuildManifestArgs): SiteManifest {
         sections,
         elements: manifestElements,
         assets: manifestAssets,
+        copy,
       },
     ],
   };

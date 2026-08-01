@@ -88,7 +88,32 @@ export interface ManifestPage {
   sections: ManifestSection[];
   elements: ManifestElement[];
   assets: ManifestAsset[];
+  /** Copy map: every text slot that is wired to an editable content[] index. */
+  copy: ManifestCopyEntry[];
 }
 
 /** The machine-readable site map written to `site.json`. An LLM agent uses this to address any part of the site. */
 export interface SiteManifest { brand: string; pages: ManifestPage[]; }
+
+// ---- copy map (Plan 2, Task 5) ----
+
+/**
+ * One entry in the copy map: a stable key → the component and content[] index it resolves to.
+ *
+ * Key format: "<ComponentName>.<contentIndex>" (e.g. "HeroSection.0").
+ * The same key is stamped as a data-copy attribute on the element that directly contains the
+ * text run. Elements with multiple direct text children carry a space-separated list of keys.
+ *
+ * An agent workflow:
+ *   1. Find the element via its data-copy key (or data-role + data-section context).
+ *   2. Look up the key in copy[] to get { component, index }.
+ *   3. Open src/components/<component>.astro; edit content[index].
+ */
+export interface ManifestCopyEntry {
+  /** Stable key stamped as data-copy (e.g. "HeroSection.0"). */
+  key: string;
+  /** The .astro component file that owns this slot (e.g. "HeroSection"). */
+  component: string;
+  /** Zero-based index into that component's content[] array. */
+  index: number;
+}

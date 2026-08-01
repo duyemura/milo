@@ -12,7 +12,7 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
-import type { CaptureJson, TreeNode, TreeEl, Labels } from "./types.ts";
+import type { CaptureJson, TreeNode, TreeEl, Labels, ManifestCopyEntry } from "./types.ts";
 import { esc, escA, diff } from "./html.ts";
 import { pixelDiff } from "./pixel.ts";
 import { heuristicLabels } from "./labels.ts";
@@ -231,16 +231,43 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   }
   // build a template-literal body whose text nodes interpolate from an editable `content` array
   const tplSafe = (s: string) => s.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
-  function buildTpl(node: TreeNode, content: string[], base = ""): string {
+  // copyEntries: accumulates {key, component, index} as buildTpl processes each region.
+  // Reset per-region by the caller (passed as a fresh array each time).
+  // key format: "<ComponentName>.<contentIndex>" — stable across re-projections of the same capture.
+  function buildTpl(node: TreeNode, content: string[], base: string, compName: string, copyEntries: ManifestCopyEntry[]): string {
     const absA2 = (s: string) => s.replace(/(^|[^/])assets\/([af]\d+\.[a-z0-9]+)/g, `$1${base}/assets/$2`);
     if ((node as { t?: string }).t !== undefined) { const i = content.length; content.push((node as { t: string }).t); return "${e(content[" + i + "])}"; }
     const el = node as TreeEl;
+    // Collect indices for text nodes that are DIRECT children of this element (not descendants).
+    // These are the indices each text child will occupy in content[] when processed in order.
+    // We scan ahead to know the keys BEFORE recursing, so we can stamp data-copy on this element.
+    const directTextIndices: number[] = [];
+    let nextIdx = content.length;
+    for (const child of el.children) {
+      if ((child as { t?: string }).t !== undefined) {
+        directTextIndices.push(nextIdx++);
+      } else {
+        // non-text child: count how many text nodes (at any depth) it contributes to content[]
+        // so our nextIdx tracking stays in sync. We do a quick pre-count pass.
+        (function countTexts(n: TreeNode): void {
+          if ((n as { t?: string }).t !== undefined) { nextIdx++; return; }
+          (n as TreeEl).children.forEach(countTexts);
+        })(child);
+      }
+    }
+    // Build data-copy attribute from direct text indices (empty string = no direct text children).
+    const copyKeys = directTextIndices.map((i) => `${compName}.${i}`);
+    for (const idx of directTextIndices) {
+      copyEntries.push({ key: `${compName}.${idx}`, component: compName, index: idx });
+    }
+    const dataCopy = copyKeys.length ? ` data-copy="${escA(copyKeys.join(" "))}"` : "";
     let a = "";
     for (const [k, v] of Object.entries(el.attrs)) a += ` ${k}="${escA(k === "href" ? rewriteHref(v) : v)}"`;
     a += dataAttrs(el.id);
+    a += dataCopy;
     const open = tplSafe(absA2(`<${el.tag} class="p${el.id}"${a}>`));
     if (VOID.has(el.tag)) return open;
-    return open + el.children.map((c) => buildTpl(c, content, base)).join("") + tplSafe(`</${el.tag}>`);
+    return open + el.children.map((c) => buildTpl(c, content, base, compName, copyEntries)).join("") + tplSafe(`</${el.tag}>`);
   }
 
   // ---- partition into components ----
@@ -280,18 +307,7 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   fs.writeFileSync(path.join(OUT, "tokens.css"), tokenRoot);
   // Editable global brand document (single source of truth for the brand slots).
   fs.writeFileSync(path.join(OUT, "brand.json"), JSON.stringify(brandDoc, null, 2));
-  // Agent-addressable site manifest (pure metadata — no render change).
-  const manifest = buildManifest({
-    base: BASE,
-    regions: regions.map((r) => ({
-      name: r.name,
-      file: r.file!,
-      sectionRole: sectionRoleOfRegionId.get(r.node.id) ?? r.name.toLowerCase(),
-    })),
-    elements: labels.elements,
-    assets: labels.assets,
-  });
-  fs.writeFileSync(path.join(OUT, "site.json"), JSON.stringify(manifest, null, 2));
+  // copy[] is populated during the Astro region loop (buildTpl) below; manifest is written after.
 
   // ---- assemble whole page ----
   const head = CAP.head;
@@ -331,11 +347,29 @@ ${interCss}</style></head><body class="p${CAP.tree.id}">${CAP.tree.children.map(
   fs.writeFileSync(path.join(AST, "src/styles/global.css"), absA(`html{margin:0;padding:0}\n${CAP.fontCss || ""}\n${tokenRoot}\n${cssFor(idsOf(CAP.tree))}\n${interCss}`));
   const regionIds = new Set(regions.map((r) => r.node.id));
   const compOf: Record<number, string> = {}; regions.forEach((r) => (compOf[r.node.id] = r.file!));
+  // allCopyEntries: all data-copy key → content[] slot mappings across every region.
+  const allCopyEntries: ManifestCopyEntry[] = [];
   for (const r of regions) {
     const content: string[] = [];
-    const tpl = buildTpl(r.node, content, BASE); // text nodes become ${e(content[i])} — edit the array to edit the copy
+    const regionCopyEntries: ManifestCopyEntry[] = [];
+    const tpl = buildTpl(r.node, content, BASE, r.file!, regionCopyEntries); // text nodes become ${e(content[i])} with data-copy keys
+    allCopyEntries.push(...regionCopyEntries);
     fs.writeFileSync(path.join(AST, "src/components", `${r.file}.astro`), `---\nconst content = ${JSON.stringify(content, null, 2)};\nconst e = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));\nconst html = \`${tpl}\`;\n---\n<Fragment set:html={html} />\n`);
   }
+  // Agent-addressable site manifest (pure metadata — no render change).
+  // Written after buildTpl so it includes the complete copy[] map.
+  const manifest = buildManifest({
+    base: BASE,
+    regions: regions.map((r) => ({
+      name: r.name,
+      file: r.file!,
+      sectionRole: sectionRoleOfRegionId.get(r.node.id) ?? r.name.toLowerCase(),
+    })),
+    elements: labels.elements,
+    assets: labels.assets,
+    copy: allCopyEntries,
+  });
+  fs.writeFileSync(path.join(OUT, "site.json"), JSON.stringify(manifest, null, 2));
   const hasRegion = (n: TreeNode): boolean => (n as { t?: string }).t !== undefined ? false : regionIds.has((n as TreeEl).id) || (n as TreeEl).children.some(hasRegion);
   function pageAstro(n: TreeNode): string {
     if ((n as { t?: string }).t !== undefined) return esc((n as { t: string }).t).replace(/[{}]/g, (m) => (m === "{" ? "&#123;" : "&#125;"));
