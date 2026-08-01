@@ -92,7 +92,17 @@ All Zod schemas mirrored in Kysely types; migrations per deployment dialect.
 ## API (v1 boundary)
 
 All routes Zod-validated and OpenAPI-generated via `fastify-zod-openapi` (house pattern).
-Two auth modes: Google OAuth (team SPA) and scoped API keys (phase 4, PushPress Core).
+Two auth modes, deliberately only two principals — **no RBAC**:
+
+| Principal | Auth | Sees | Controls |
+|---|---|---|---|
+| **Team member** | Google OAuth, `hd=pushpress.com` | all workspaces/companies/sites | everything |
+| **Client API key** | opaque key, one per workspace (phase 4; team issues/rotates) | only that workspace's companies/sites | that workspace only |
+
+Access control = tenant filtering, not a permission system: client-key requests are scoped
+by `workspaceId` (never trusted from the client), team requests are unscoped. If a genuine
+third actor ever appears (read-only staff, per-gym delegation), it slots into the auth
+middleware and `actor` field without a data-model change — RBAC is deferred, not blocked.
 
 ```
 GET    /api/v1/workspaces                   # client orgs; filter/search (client-scoped keys see only their own)
@@ -150,6 +160,8 @@ Deploy + rollback delegate to `packages/publish` (versioned S3+CloudFront), not 
 ## Out of scope (explicit YAGNI)
 
 - Form-based editing of any kind.
+- Granular RBAC / roles / permissions — two principals only (team, client key). Deferred,
+  not blocked (see API section).
 - Distributed-fleet autoscaling or worker management UI (scale workers via boring ops).
 - Consolidation of engines into one codebase (other session's work; the command table
   absorbs it).
