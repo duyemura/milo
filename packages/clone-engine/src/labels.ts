@@ -23,6 +23,7 @@ import {
   SECTION_ROLES, BRAND_COLOR_SLOTS, BRAND_FONT_SLOTS,
 } from "./types.ts";
 import type { Labels } from "./types.ts";
+import { canon, COLOR_RE, isEl, elKids, findTag, partitionRegions } from "./tree.ts";
 
 // ---- Zod schema (validates the Labels shape; also used by the future LLM path) ----
 
@@ -53,40 +54,7 @@ export const LabelSchema = z.object({
   })),
 });
 
-// ---- Color canonicalizer (ported from project.ts — identical algorithm) ----
-// Normalize any color literal to "r,g,b,a" string.
-
-function canon(c: string): string {
-  const s = c.trim().toLowerCase();
-  let m: RegExpMatchArray | null, r: number, g: number, b: number, a = 1;
-  if ((m = s.match(/^#([0-9a-f]{3,8})$/))) {
-    let h = m[1];
-    if (h.length === 3) h = h.split("").map((x) => x + x).join("") + "ff";
-    else if (h.length === 4) h = h.split("").map((x) => x + x).join("");
-    else if (h.length === 6) h = h + "ff";
-    r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
-    a = parseInt(h.slice(6, 8), 16) / 255;
-  } else if ((m = s.match(/^rgba?\(([^)]*)\)$/))) {
-    const p = m[1].split(",").map((x) => parseFloat(x));
-    r = p[0]; g = p[1]; b = p[2]; a = p[3] === undefined ? 1 : p[3];
-  } else {
-    return s;
-  }
-  return `${Math.round(r)},${Math.round(g)},${Math.round(b)},${+a.toFixed(4)}`;
-}
-
-const COLOR_RE = /rgba?\([^)]*\)|#[0-9a-fA-F]{3,8}\b/g;
-
-// ---- Tree helpers ----
-
-function isEl(n: TreeNode): n is TreeEl { return (n as { t?: string }).t === undefined; }
-function elKids(n: TreeEl): TreeEl[] { return n.children.filter(isEl) as TreeEl[]; }
-
-function findTag(n: TreeEl, tag: string): TreeEl | null {
-  if (n.tag === tag) return n;
-  for (const c of elKids(n)) { const f = findTag(c, tag); if (f) return f; }
-  return null;
-}
+// ---- Tree helpers (canon/COLOR_RE/isEl/elKids/findTag/partitionRegions from tree.ts) ----
 
 /** Collect all text content from a subtree. */
 function copyOf(n: TreeNode, acc: string[] = []): string[] {
@@ -332,15 +300,6 @@ function assignFontSlots(stats: Map<string, FontStats>): Array<{ slot: string; f
     result.push({ slot: "body", family: body.family });
   }
   return result;
-}
-
-// ---- Region partition (mirrors project.ts exactly) ----
-
-function partitionRegions(tree: TreeEl): Array<{ index: number; node: TreeEl }> {
-  const main = findTag(tree, "main") ?? tree;
-  let sroot = main, sk = elKids(sroot);
-  while (sk.length === 1) { sroot = sk[0]; sk = elKids(sroot); }
-  return sk.map((node, index) => ({ index, node }));
 }
 
 // ---- Element labeling ----

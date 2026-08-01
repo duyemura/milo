@@ -14,6 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { CaptureJson, TreeNode, TreeEl, Labels, ManifestCopyEntry } from "./types.ts";
 import { esc, escA, diff } from "./html.ts";
+import { canon, COLOR_RE, findTag as findTagIn, partitionRegions } from "./tree.ts";
 import { pixelDiff } from "./pixel.ts";
 import { heuristicLabels } from "./labels.ts";
 import { buildBrand, brandSlotOfCanon, deriveVariants, flattenRoot } from "./brand.ts";
@@ -145,18 +146,7 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   }
 
   // ---- non-destructive tokenization (colors + fonts) ----
-  const COLOR_RE = /rgba?\([^)]*\)|#[0-9a-fA-F]{3,8}\b/g;
-  const canon = (c: string) => { // normalize any color literal to canonical "r,g,b,a" so #EC008C === rgb(236,0,140)
-    const s = c.trim().toLowerCase(); let m: RegExpMatchArray | null, r: number, g: number, b: number, a = 1;
-    if ((m = s.match(/^#([0-9a-f]{3,8})$/))) { let h = m[1];
-      if (h.length === 3) h = h.split("").map((x) => x + x).join("") + "ff";
-      else if (h.length === 4) h = h.split("").map((x) => x + x).join("");
-      else if (h.length === 6) h = h + "ff";
-      r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16); a = parseInt(h.slice(6, 8), 16) / 255;
-    } else if ((m = s.match(/^rgba?\(([^)]*)\)$/))) { const p = m[1].split(",").map((x) => parseFloat(x)); r = p[0]; g = p[1]; b = p[2]; a = p[3] === undefined ? 1 : p[3]; }
-    else return s;
-    return `${Math.round(r)},${Math.round(g)},${Math.round(b)},${+a.toFixed(4)}`;
-  };
+  // COLOR_RE + canon come from tree.ts (shared, byte-identical to the former inline copies).
   const colorName = (key: string) => { // legible + unique token name from a canonical color: hue/tone + hex
     const [r, g, b, a] = key.split(",").map(Number);
     const hex = [r, g, b].map((n) => (n & 255).toString(16).padStart(2, "0")).join("");
@@ -271,11 +261,11 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   }
 
   // ---- partition into components ----
-  const elKids = (n: TreeEl) => n.children.filter((c) => (c as { t?: string }).t === undefined) as TreeEl[];
-  function findTag(n: TreeEl, t: string): TreeEl | null { if (n.tag === t) return n; for (const c of elKids(n)) { const f = findTag(c, t); if (f) return f; } return null; }
-  const main = findTag(CAP.tree, "main") || CAP.tree;
-  let sroot = main, sk = elKids(sroot); while (sk.length === 1) { sroot = sk[0]; sk = elKids(sroot); }
-  const header = findTag(CAP.tree, "header"), footer = findTag(CAP.tree, "footer");
+  // Region descent (main → single-child unwrap → top-level regions) is the shared
+  // partitionRegions from tree.ts — byte-identical to the former inline copy here and
+  // to the one labels.ts consumes, so section ids/order match the labeler exactly.
+  const sk = partitionRegions(CAP.tree).map((r) => r.node);
+  const header = findTagIn(CAP.tree, "header"), footer = findTagIn(CAP.tree, "footer");
   const regions: { name: string; node: TreeEl; file?: string }[] = [];
   if (header) regions.push({ name: "Navbar", node: header });
   sk.forEach((s, i) => {

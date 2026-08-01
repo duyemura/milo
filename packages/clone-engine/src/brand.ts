@@ -17,27 +17,9 @@
  * (computed styles are normalized by the browser), so the mapping is lossless.
  */
 import type { CaptureJson, Labels, BrandDoc } from "./types.ts";
-
-// ---- Color canonicalizer (identical algorithm to labels.ts / project.ts) ----
-// Normalize any color literal to "r,g,b,a" so `#EC008C` === `rgb(236,0,140)`.
-export function canon(c: string): string {
-  const s = c.trim().toLowerCase();
-  let m: RegExpMatchArray | null, r: number, g: number, b: number, a = 1;
-  if ((m = s.match(/^#([0-9a-f]{3,8})$/))) {
-    let h = m[1];
-    if (h.length === 3) h = h.split("").map((x) => x + x).join("") + "ff";
-    else if (h.length === 4) h = h.split("").map((x) => x + x).join("");
-    else if (h.length === 6) h = h + "ff";
-    r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
-    a = parseInt(h.slice(6, 8), 16) / 255;
-  } else if ((m = s.match(/^rgba?\(([^)]*)\)$/))) {
-    const p = m[1].split(",").map((x) => parseFloat(x));
-    r = p[0]; g = p[1]; b = p[2]; a = p[3] === undefined ? 1 : p[3];
-  } else {
-    return s;
-  }
-  return `${Math.round(r)},${Math.round(g)},${Math.round(b)},${+a.toFixed(4)}`;
-}
+// Color canonicalizer lives in tree.ts (shared with labels.ts / project.ts). Re-export
+// so existing importers of `brand.canon` keep working.
+export { canon } from "./tree.ts";
 
 /** A canonical "r,g,b,a" → `#rrggbb` (opaque form, drops alpha — for the editable brand doc). */
 function canonToHex(canonStr: string): string {
