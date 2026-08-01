@@ -98,7 +98,11 @@ export async function runJob(opts: {
         "--theme", payload["templateId"] ?? "modern",
         "--out", distDir,
       ]);
-      await db.updateTable("sites").set({ status: "built" }).where("id", "=", site.id).execute();
+      await db
+        .updateTable("sites")
+        .set({ status: "built", stage: "building" })
+        .where("id", "=", site.id)
+        .execute();
       return;
     }
     case "build": {
@@ -109,7 +113,11 @@ export async function runJob(opts: {
         "--theme", payload["templateId"] ?? "modern",
         "--out", distDir,
       ]);
-      await db.updateTable("sites").set({ status: "built" }).where("id", "=", site.id).execute();
+      await db
+        .updateTable("sites")
+        .set({ status: "built", stage: "building" })
+        .where("id", "=", site.id)
+        .execute();
       return;
     }
     case "deploy-staging":

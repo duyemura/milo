@@ -16,6 +16,7 @@ async function makeSite(db: Awaited<ReturnType<typeof testDb>>, id: string, comp
       sourceUrl: null,
       slug: null,
       status: "registered",
+      stage: "onboarding",
       active: 1,
       createdAt: nextNow(),
     })

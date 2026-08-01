@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import type { AdminDb } from "../../db/index.ts";
 import type { EngineQueue } from "../../jobs/dispatch.ts";
 import { enqueueJob, queuePosition } from "../../jobs/dispatch.ts";
-import { createJobBody, createSiteBody, parse, parseId } from "./schemas.ts";
+import { createJobBody, createSiteBody, parse, parseId, setStageBody } from "./schemas.ts";
 
 export function registerSiteRoutes(app: FastifyInstance, db: AdminDb, queue: EngineQueue): void {
   app.get("/api/v1/sites", async (req) => {
@@ -46,6 +46,7 @@ export function registerSiteRoutes(app: FastifyInstance, db: AdminDb, queue: Eng
       sourceUrl: body.sourceUrl ?? null,
       slug: null,
       status: "registered" as const,
+      stage: "onboarding" as const,
       active: 1,
       createdAt: new Date().toISOString(),
     };
@@ -141,5 +142,22 @@ export function registerSiteRoutes(app: FastifyInstance, db: AdminDb, queue: Eng
       .orderBy("createdAt", "desc")
       .execute();
     return { jobs };
+  });
+
+  app.patch("/api/v1/sites/:id/stage", async (req, reply) => {
+    const id = parseId(req.params, reply);
+    if (!id) return;
+    const body = parse(setStageBody, req.body, reply);
+    if (!body) return;
+    const updated = await db
+      .updateTable("sites")
+      .set({ stage: body.stage })
+      .where("id", "=", id)
+      .executeTakeFirst();
+    if (Number(updated.numUpdatedRows) === 0) {
+      return reply.code(404).send({ error: "Site not found." });
+    }
+    const site = await db.selectFrom("sites").selectAll().where("id", "=", id).executeTakeFirstOrThrow();
+    return { site };
   });
 }

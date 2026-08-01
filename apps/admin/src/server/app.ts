@@ -12,6 +12,7 @@ import { registerWorkspaceRoutes } from "./routes/workspaces.ts";
 import { registerCompanyRoutes } from "./routes/companies.ts";
 import { registerSiteRoutes } from "./routes/sites.ts";
 import { registerJobLogRoutes } from "./routes/jobLogs.ts";
+import { registerGlobalRoutes } from "./routes/global.ts";
 
 export interface AppDeps {
   config: AdminConfig;
@@ -31,6 +32,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerCompanyRoutes(app, db);
   registerSiteRoutes(app, db, queue);
   registerJobLogRoutes(app, db);
+  registerGlobalRoutes(app, db);
 
   // Serve the built SPA; dev uses vite (dev:web) instead.
   const webDist = path.join(path.resolve(), "web", "dist");

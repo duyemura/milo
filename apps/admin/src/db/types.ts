@@ -18,6 +18,13 @@ export interface CompanyRow {
 export type SeedType = "clone" | "template";
 export type SiteStatus = "registered" | "seeding" | "seeded" | "built" | "deployed" | "error";
 
+/**
+ * Business pipeline stage (distinct from technical status): the journey
+ * sales → onboarding → build → client review → live that the dashboard tracks.
+ * Auto-advanced by job outcomes; overridable by the team.
+ */
+export type SiteStage = "onboarding" | "building" | "in-review" | "live";
+
 export interface SiteRow {
   id: string;
   workspaceId: string;
@@ -26,6 +33,7 @@ export interface SiteRow {
   sourceUrl: string | null;
   slug: string | null;
   status: SiteStatus;
+  stage: SiteStage;
   active: number;
   createdAt: string;
 }

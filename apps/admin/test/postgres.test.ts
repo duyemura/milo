@@ -32,6 +32,7 @@ describe.skipIf(!PG_TEST_URL)("postgres dialect", () => {
         sourceUrl: null,
         slug: null,
         status: "registered",
+        stage: "onboarding",
         active: 1,
         createdAt: new Date().toISOString(),
       })

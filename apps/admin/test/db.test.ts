@@ -19,6 +19,7 @@ describe("db", () => {
         sourceUrl: "https://gym.example.com",
         slug: null,
         status: "registered",
+        stage: "onboarding",
         active: 1,
         createdAt: new Date().toISOString(),
       })

@@ -27,6 +27,10 @@ export const createJobBody = z.object({
   payload: z.record(z.string()).optional(),
 });
 
+export const setStageBody = z.object({
+  stage: z.enum(["onboarding", "building", "in-review", "live"]),
+});
+
 const idParam = z.object({ id: z.string().min(1) });
 
 /** Zod-parse helper; replies 400 with the first issue (sentence case) and returns undefined. */

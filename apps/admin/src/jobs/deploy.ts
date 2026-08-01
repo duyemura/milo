@@ -63,9 +63,11 @@ export async function runDeploy(opts: {
     })
     .execute();
 
+  // Stage follows the deploy: staging deploy/rollback → in-review; promote → live.
+  const stage = job.type === "promote" ? "live" : "in-review";
   await db
     .updateTable("sites")
-    .set({ slug: config.slug, status: "deployed" })
+    .set({ slug: config.slug, status: "deployed", stage })
     .where("id", "=", site.id)
     .execute();
 

@@ -83,6 +83,20 @@ const migration1 = {
   },
 };
 
+const migration2 = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable("sites")
+      .addColumn("stage", "text", (c) => c.notNull().defaultTo("onboarding"))
+      .execute();
+    await db.schema.createIndex("sites_stage").on("sites").columns(["stage"]).execute();
+  },
+  async down(db: Kysely<unknown>) {
+    await db.schema.alterTable("sites").dropColumn("stage").execute();
+  },
+};
+
 export const migrations: Record<string, { up: typeof migration1.up; down: typeof migration1.down }> = {
   migration1,
+  migration2,
 };
