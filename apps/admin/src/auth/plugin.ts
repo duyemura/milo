@@ -16,6 +16,16 @@ declare module "fastify" {
 export const SESSION_COOKIE = "wos-session";
 const PUBLIC_PATHS = ["/healthz", "/auth/login", "/auth/callback", "/auth/config", "/auth/logout"];
 
+/** Cookie flags: secure only when the app is being served over https (prod). */
+export function cookieFlags(config: AdminConfig): { httpOnly: true; sameSite: "lax"; path: "/"; secure: boolean } {
+  return {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    secure: config.workosRedirectUri.startsWith("https:"),
+  };
+}
+
 /**
  * Two principals only (no RBAC — see spec), one boundary:
  *   dev   → all-pass team actor (local zero-setup)
@@ -72,11 +82,7 @@ export function registerAuth(app: FastifyInstance, config: AdminConfig): void {
     if (!result.ok) {
       return reply.code(403).send({ error: result.error });
     }
-    reply.setCookie(SESSION_COOKIE, result.sealedSession, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-    });
+    reply.setCookie(SESSION_COOKIE, result.sealedSession, cookieFlags(config));
     return reply.redirect("/");
   });
 

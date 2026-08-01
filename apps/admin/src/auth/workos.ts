@@ -1,7 +1,7 @@
 import { WorkOS } from "@workos-inc/node";
 import type { FastifyReply } from "fastify";
 import type { AdminConfig } from "../config.ts";
-import { SESSION_COOKIE } from "./plugin.ts";
+import { SESSION_COOKIE, cookieFlags } from "./plugin.ts";
 
 export interface WorkosAuth {
   loginUrl(): string;
@@ -58,7 +58,7 @@ export function createWorkosAuth(config: AdminConfig): WorkosAuth {
         if (!domainOk(email)) return null;
         // Refresh token rotation: roll the sealed cookie forward when the SDK hands us a new one.
         if ("sealedSession" in result && typeof result.sealedSession === "string" && result.sealedSession !== sealed) {
-          reply.setCookie(SESSION_COOKIE, result.sealedSession, { httpOnly: true, sameSite: "lax", path: "/" });
+          reply.setCookie(SESSION_COOKIE, result.sealedSession, cookieFlags(config));
         }
         return email;
       } catch {

@@ -37,7 +37,10 @@ export function loadDotEnv(file: string, env: NodeJS.ProcessEnv = process.env): 
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AdminConfig {
+  // apps/admin/.env first (admin-specific overrides win); the shared repo-root
+  // .env (WorkOS keys, Places key, etc.) fills in anything still unset.
   loadDotEnv(path.join(ADMIN_DIR, ".env"), env);
+  loadDotEnv(path.join(REPO_ROOT, ".env"), env);
   return AdminConfigSchema.parse({
     port: env["PORT"],
     host: env["HOST"],
