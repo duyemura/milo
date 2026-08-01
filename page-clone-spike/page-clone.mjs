@@ -153,18 +153,22 @@ function sniffExt(b) { // type by magic bytes; "HTML" means it's a document, not
   if (head.startsWith("<svg") || (head.startsWith("<?xml") && head.includes("<svg"))) return "svg";
   return null;
 }
+const FETCH_HEADERS = { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36", "referer": SRC_URL, "accept": "*/*" };
 async function fetchAsset(u) {
-  try {
-    const res = await fetch(u, { signal: AbortSignal.timeout(15000) });
-    if (!res.ok) return null;
-    if (Number(res.headers.get("content-length") || 0) > 25_000_000) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > 25_000_000) return null;
-    const ct = (res.headers.get("content-type") || "").split(";")[0].trim();
-    const ext = sniffExt(buf);
-    if (ext === "HTML" || ct === "text/html") return null; // a document (embed/404 page), not an asset — don't rehost
-    return { buf, ct, ext };
-  } catch { return null; }
+  for (let attempt = 0; attempt < 2; attempt++) { // browser-like headers (CDNs reject bare fetch) + one retry on transient failure
+    try {
+      const res = await fetch(u, { signal: AbortSignal.timeout(15000), headers: FETCH_HEADERS });
+      if (!res.ok) { if (res.status >= 500 && attempt === 0) continue; return null; }
+      if (Number(res.headers.get("content-length") || 0) > 25_000_000) return null;
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length > 25_000_000) return null;
+      const ct = (res.headers.get("content-type") || "").split(";")[0].trim();
+      const ext = sniffExt(buf);
+      if (ext === "HTML" || ct === "text/html") return null; // a document (embed/404 page), not an asset — don't rehost
+      return { buf, ct, ext };
+    } catch { if (attempt === 0) continue; return null; }
+  }
+  return null;
 }
 const EXT_BY_CT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "image/svg+xml": "svg", "image/avif": "avif", "font/woff2": "woff2", "font/woff": "woff", "font/ttf": "ttf", "font/otf": "otf", "application/font-woff2": "woff2", "video/mp4": "mp4" };
 function extFor(u, ct, ext) { return ext || EXT_BY_CT[ct] || u.split("?")[0].match(/\.(\w{2,5})$/)?.[1]?.toLowerCase() || "bin"; }
