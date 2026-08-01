@@ -17,6 +17,9 @@ export const AdminConfigSchema = z.object({
   workosCookiePassword: z.string().optional(),
   workosRedirectUri: z.string().default("http://127.0.0.1:4100/auth/callback"),
   allowedEmailDomain: z.string().default("pushpress.com"),
+  openrouterApiKey: z.string().optional(),
+  openrouterBaseUrl: z.string().default("https://openrouter.ai/api/v1"),
+  chatModel: z.string().default("anthropic/claude-haiku-4.5"),
   repoRoot: z.string(),
 });
 
@@ -55,6 +58,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AdminConfig {
     workosCookiePassword: env["WORKOS_COOKIE_PASSWORD"],
     workosRedirectUri: env["WORKOS_REDIRECT_URI"],
     allowedEmailDomain: env["ALLOWED_EMAIL_DOMAIN"],
+    openrouterApiKey: env["OPENROUTER_API_KEY"],
+    openrouterBaseUrl: env["OPENROUTER_BASE_URL"],
+    chatModel: env["CHAT_MODEL"],
     repoRoot: REPO_ROOT,
   });
 }

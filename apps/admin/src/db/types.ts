@@ -74,6 +74,19 @@ export interface JobLogRow {
   createdAt: string;
 }
 
+export interface TodoRow {
+  id: string;
+  siteId: string | null;
+  companyId: string | null;
+  title: string;
+  actionType: string | null;
+  actionPayload: string;
+  status: "open" | "done" | "dismissed";
+  assignee: string;
+  createdAt: string;
+  doneAt: string | null;
+}
+
 export interface Database {
   workspaces: WorkspaceRow;
   companies: CompanyRow;
@@ -81,4 +94,5 @@ export interface Database {
   jobs: JobRow;
   deploys: DeployRow;
   job_logs: JobLogRow;
+  todos: TodoRow;
 }

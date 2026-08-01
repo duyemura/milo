@@ -4,12 +4,14 @@ import { DashboardPage } from "./pages/DashboardPage.tsx";
 import { ClientsPage } from "./pages/ClientsPage.tsx";
 import { BuildsPage } from "./pages/BuildsPage.tsx";
 import { SiteDetailPage } from "./pages/SiteDetailPage.tsx";
+import { ChatPage } from "./pages/ChatPage.tsx";
 
 export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<DashboardPage />} />
+        <Route path="/chat" element={<ChatPage />} />
         <Route path="/clients" element={<ClientsPage />} />
         <Route path="/builds" element={<BuildsPage />} />
         <Route path="/sites/:id" element={<SiteDetailPage />} />

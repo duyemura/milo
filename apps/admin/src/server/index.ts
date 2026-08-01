@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { loadConfig } from "../config.ts";
 import { createDb, migrateToLatest } from "../db/index.ts";
 import { localQueue, bullmqQueue } from "../jobs/queue.ts";
+import { chatCompletion, type ChatFn } from "@milo/llm";
 import { buildApp } from "./app.ts";
 
 async function main(): Promise<void> {
@@ -25,7 +26,15 @@ async function main(): Promise<void> {
       : localQueue({ db, config });
 
   if (service !== "worker") {
-    const app = await buildApp({ config, db, queue });
+    const chat: ChatFn | null = config.openrouterApiKey
+      ? (opts) =>
+          chatCompletion(opts, {
+            provider: "openrouter",
+            openrouterBaseUrl: config.openrouterBaseUrl,
+            openrouterApiKey: config.openrouterApiKey,
+          })
+      : null;
+    const app = await buildApp({ config, db, queue, chat });
     await app.listen({ port: config.port, host: config.host });
     console.log(`[admin] ${service} listening on http://${config.host}:${config.port} (auth=${config.authMode}, queue=${config.queueDriver})`);
   } else {

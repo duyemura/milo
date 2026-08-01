@@ -96,7 +96,29 @@ const migration2 = {
   },
 };
 
+const migration3 = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable("todos")
+      .addColumn("id", "text", (c) => c.primaryKey())
+      .addColumn("siteId", "text")
+      .addColumn("companyId", "text")
+      .addColumn("title", "text", (c) => c.notNull())
+      .addColumn("actionType", "text")
+      .addColumn("actionPayload", "text", (c) => c.notNull().defaultTo("{}"))
+      .addColumn("status", "text", (c) => c.notNull().defaultTo("open"))
+      .addColumn("assignee", "text", (c) => c.notNull().defaultTo("team"))
+      .addColumn("createdAt", "text", (c) => c.notNull())
+      .addColumn("doneAt", "text")
+      .execute();
+  },
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable("todos").execute();
+  },
+};
+
 export const migrations: Record<string, { up: typeof migration1.up; down: typeof migration1.down }> = {
   migration1,
   migration2,
+  migration3,
 };

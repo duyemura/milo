@@ -94,6 +94,7 @@ export function Layout() {
           <NavLink to="/" end>
             Dashboard
           </NavLink>
+          <NavLink to="/chat">Chat</NavLink>
           <NavLink to="/clients">Clients</NavLink>
           <NavLink to="/builds">Builds</NavLink>
         </nav>
