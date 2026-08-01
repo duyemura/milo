@@ -1,14 +1,21 @@
 /**
  * labels.ts — semantic labeling pass (Plan 2, Task 0)
  *
- * Reads capture.json → Labels (heuristic, deterministic, no LLM).
- * The LLM path slots into the async `label()` entry-point later without signature change.
+ * Reads capture.json → Labels. Two paths:
+ *   - `heuristicLabels` (deterministic, no LLM) — the always-available baseline.
+ *   - `llmLabels` (Task 6) — an ENHANCEMENT that assigns better semantic roles/slots.
+ *     Never a hard dependency: `label()` falls back to the heuristic on any LLM failure
+ *     or when disabled. Labels are metadata only — they never touch the byte-preserving
+ *     render, so the pixel oracle is unaffected by which path ran.
  *
- * Key guarantee: same capture.json → byte-identical labels.json every run (no Date, no Math.random).
+ * Key guarantee (heuristic): same capture.json → byte-identical labels.json every run
+ * (no Date, no Math.random).
  */
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
+import { chatCompletion, llmJson } from "@milo/llm";
+import type { ChatFn, LlmConfig } from "@milo/llm";
 import type {
   CaptureJson, TreeEl, TreeNode, StyleMap,
 } from "./types.ts";
@@ -486,12 +493,372 @@ export function heuristicLabels(cap: CaptureJson): Labels {
   };
 }
 
+// ============================================================================
+// LLM labeling path (Plan 2, Task 6) — an ENHANCEMENT over the heuristic.
+//
+// The LLM ANNOTATES a faithful capture: it assigns better semantic roles/slots
+// than keyword matching, but it NEVER generates content or layout. Its output is
+// metadata only — the projected render stays byte-preserving regardless of which
+// color is "primary" or which section is "hero". So the pixel oracle is untouched.
+//
+// It is never a hard dependency: any failure or a disabled flag falls back to
+// `heuristicLabels`. Every id/color the LLM emits is post-validated against the
+// real capture (hallucinated ids dropped, off-palette colors snapped/dropped) so
+// the downstream byte-preserving mapping still holds.
+// ============================================================================
+
+// ---- Digest: a compact, token-budget-friendly view of the capture ----
+
+interface DigestSection {
+  id: number;
+  tag: string;
+  heading: string;       // first heading-ish text, trimmed
+  snippet: string;       // short copy sample
+  hasImages: boolean;
+  hasForms: boolean;
+  hasButtons: boolean;
+}
+
+interface DigestColor {
+  canon: string;         // "r,g,b,a" — the exact key the LLM must echo back
+  count: number;
+  usedOn: string[];      // element types / prop context, e.g. ["background", "interactive", "text"]
+}
+
+interface DigestFont {
+  family: string;
+  count: number;
+  maxSize: number;
+  context: string;       // "display" | "body" heuristic hint
+}
+
+interface DigestAsset {
+  file: string;
+  alt: string;
+  placement: string;     // e.g. "img in header", "img in section 0"
+}
+
+export interface Digest {
+  site: { title: string };
+  sections: DigestSection[];
+  colors: DigestColor[];
+  fonts: DigestFont[];
+  assets: DigestAsset[];
+  roleVocabulary: readonly string[];
+  colorSlots: readonly string[];
+  fontSlots: readonly string[];
+}
+
+/** Truncate to a max length on a word boundary (deterministic). */
+function clip(s: string, max: number): string {
+  const t = s.replace(/\s+/g, " ").trim();
+  return t.length <= max ? t : t.slice(0, max).replace(/\s+\S*$/, "") + "…";
+}
+
+const FORM_TAGS = new Set(["form", "input", "textarea", "select"]);
+const BUTTON_TAGS = new Set(["button"]);
+
+/** Does the subtree contain any element matching `pred`? */
+function subtreeHas(n: TreeEl, pred: (el: TreeEl) => boolean): boolean {
+  if (pred(n)) return true;
+  return elKids(n).some((c) => subtreeHas(c, pred));
+}
+
+function firstHeading(node: TreeEl): string {
+  for (const tag of ["h1", "h2", "h3"]) {
+    const h = findTag(node, tag);
+    if (h) { const t = copyOf(h).join(" ").trim(); if (t) return t; }
+  }
+  return "";
+}
+
+/** Placement description for an <img> given its tree context. */
+function imgPlacement(tree: TreeEl, img: TreeEl): string {
+  const header = findTag(tree, "header");
+  if (header && findTag(header, "img") === img) return "img in header";
+  const regions = partitionRegions(tree);
+  for (const { index, node } of regions) {
+    if (findTag(node, "img") === img || subtreeHas(node, (el) => el === img)) {
+      return `img in section ${index}`;
+    }
+  }
+  return "img";
+}
+
+/** First rehosted asset file for an <img> src (assets/aN.ext), or null. */
+function assetFile(src: string | undefined): string | null {
+  if (!src) return null;
+  const file = src.replace(/^.*?(assets\/[af]\d+\.\w+).*$/, "$1").split("?")[0];
+  return file.startsWith("assets/") ? file : null;
+}
+
+/** Collect every <img> element in tree order. */
+function collectImgs(n: TreeEl, acc: TreeEl[] = []): TreeEl[] {
+  if (n.tag === "img") acc.push(n);
+  for (const c of elKids(n)) collectImgs(c, acc);
+  return acc;
+}
+
+/**
+ * Build a COMPACT JSON view of the capture for the LLM to label. Keeps the token
+ * budget small: top-level sections with a heading/snippet + content flags, the
+ * color palette with usage stats, fonts with context, and assets with alt +
+ * placement. No raw computed styles.
+ */
+export function buildDigest(cap: CaptureJson): Digest {
+  const S1 = cap.styles["1440"] ?? {};
+  const tagOf = buildTagMap(cap.tree);
+
+  // Sections
+  const regions = partitionRegions(cap.tree);
+  const sections: DigestSection[] = regions.map(({ index, node }) => {
+    const heading = firstHeading(node);
+    const allCopy = copyOf(node).join(" ");
+    return {
+      id: node.id,
+      tag: node.tag,
+      heading: clip(heading, 80),
+      snippet: clip(allCopy, 160),
+      hasImages: subtreeHas(node, (el) => el.tag === "img"),
+      hasForms: subtreeHas(node, (el) => FORM_TAGS.has(el.tag)),
+      hasButtons: subtreeHas(node, (el) => BUTTON_TAGS.has(el.tag) ||
+        (el.tag === "a" && /button|btn|cta/i.test(el.attrs["class"] ?? ""))),
+    };
+  });
+
+  // Colors — reuse the same stats the heuristic uses, projected to a compact shape.
+  const colorStats = buildColorStats(S1, tagOf);
+  const colors: DigestColor[] = [...colorStats.values()]
+    .filter((s) => s.a > 0.05)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 12) // top palette entries by usage — plenty for slot assignment
+    .map((s) => {
+      const usedOn: string[] = [];
+      if (s.asBackground) usedOn.push("background");
+      if (s.asText) usedOn.push("text");
+      if (s.onInteractive > 0) usedOn.push("interactive");
+      return { canon: s.canon, count: s.count, usedOn };
+    });
+
+  // Fonts
+  const fontStats = buildFontStats(S1);
+  const fontsArr = [...fontStats.values()];
+  const largest = [...fontsArr].sort((a, b) => b.maxSize - a.maxSize)[0];
+  const fonts: DigestFont[] = fontsArr
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6)
+    .map((f) => ({
+      family: f.family,
+      count: f.count,
+      maxSize: f.maxSize,
+      context: largest && f.family === largest.family ? "display-candidate" : "body-candidate",
+    }));
+
+  // Assets
+  const assets: DigestAsset[] = [];
+  const seenFiles = new Set<string>();
+  for (const img of collectImgs(cap.tree)) {
+    const file = assetFile(img.attrs["src"]);
+    if (!file || seenFiles.has(file)) continue;
+    seenFiles.add(file);
+    assets.push({
+      file,
+      alt: clip(img.attrs["alt"] ?? "", 80),
+      placement: imgPlacement(cap.tree, img),
+    });
+    if (assets.length >= 12) break;
+  }
+
+  return {
+    site: { title: clip(cap.head.title, 120) },
+    sections,
+    colors,
+    fonts,
+    assets,
+    roleVocabulary: SECTION_ROLES,
+    colorSlots: BRAND_COLOR_SLOTS,
+    fontSlots: BRAND_FONT_SLOTS,
+  };
+}
+
+// ---- LLM labeler ----
+
+const SYSTEM_PROMPT = [
+  "You ANNOTATE a faithful website capture for a gym/fitness business. The site has already",
+  "been captured pixel-for-pixel — your ONLY job is to assign better semantic labels than a",
+  "keyword heuristic. You NEVER invent content, copy, colors, or layout: label only what is",
+  "present in the digest.",
+  "",
+  "Assign each section a role from THIS exact vocabulary (use the section's `id` from the digest):",
+  `  ${SECTION_ROLES.join(", ")}`,
+  "Map brand colors to slots (echo the exact `canon` string from the digest palette — do not invent",
+  `a color): ${BRAND_COLOR_SLOTS.join(", ")}. Map fonts to slots: ${BRAND_FONT_SLOTS.join(", ")}.`,
+  "Identify element roles (e.g. logo, headline, primary-cta) and asset aliases (e.g. logo, hero-bg,",
+  "hero-image) using the ids/files from the digest.",
+  "",
+  "Rules that MUST hold:",
+  "- Every section `id` you return MUST be one of the section ids in the digest.",
+  "- Every brand color `canon` you return MUST be one of the palette `canon` strings in the digest.",
+  "- Every asset `file` you return MUST be one of the digest asset files.",
+  "- Section roles MUST come from the vocabulary above; color/font slots from the slot lists.",
+  "",
+  "Return ONLY a JSON object matching this shape:",
+  '{ "site": { "name": string, "purpose": string },',
+  '  "brand": { "colors": [{ "slot": string, "canon": string }], "fonts": [{ "slot": string, "family": string }] },',
+  '  "sections": [{ "id": number, "name": string, "role": string }],',
+  '  "elements": [{ "id": number, "role": string }],',
+  '  "assets": [{ "file": string, "alias": string }] }',
+].join("\n");
+
+/**
+ * Post-validate an LLM Labels object against the real capture. The schema already
+ * guarantees the SHAPE and the role/slot enums; this guards the *references*:
+ * every section id, brand color canon, and asset file the LLM emitted must be REAL
+ * (drawn from the capture). Hallucinated ids/files are dropped; off-palette colors
+ * are snapped to the nearest captured canon, else dropped. This is what keeps the
+ * downstream byte-preserving mapping intact even if the model gets creative.
+ */
+function repairLabels(llm: Labels, cap: CaptureJson): Labels {
+  const digest = buildDigest(cap);
+  const validSectionIds = new Set(digest.sections.map((s) => s.id));
+  const validCanons = new Set(digest.colors.map((c) => c.canon));
+  const validFiles = new Set(digest.assets.map((a) => a.file));
+  const tagOf = buildTagMap(cap.tree);
+  const validElementIds = new Set(Object.keys(tagOf).map(Number));
+
+  // Sections: drop hallucinated ids; keep at most one label per real id (first wins).
+  const seenSec = new Set<number>();
+  const sections = llm.sections.filter((s) => {
+    if (!validSectionIds.has(s.id) || seenSec.has(s.id)) return false;
+    seenSec.add(s.id);
+    return true;
+  });
+
+  // Elements: drop ids that aren't real captured elements.
+  const elements = llm.elements.filter((e) => validElementIds.has(e.id));
+
+  // Assets: drop files not in the capture; de-dupe by file.
+  const seenFile = new Set<string>();
+  const assets = llm.assets.filter((a) => {
+    if (!validFiles.has(a.file) || seenFile.has(a.file)) return false;
+    seenFile.add(a.file);
+    return true;
+  });
+
+  // Brand colors: canon must be a real captured palette color. If not, snap to the
+  // nearest captured canon by Euclidean RGB distance; drop if no palette exists.
+  const paletteCanons = [...validCanons];
+  const usedSlots = new Set<string>();
+  const colors = llm.brand.colors.flatMap((c) => {
+    if (usedSlots.has(c.slot)) return [];
+    let canonVal = c.canon;
+    if (!validCanons.has(canonVal)) {
+      const snapped = snapToNearestCanon(canonVal, paletteCanons);
+      if (!snapped) return [];
+      canonVal = snapped;
+    }
+    usedSlots.add(c.slot);
+    return [{ slot: c.slot, canon: canonVal }];
+  });
+
+  // Fonts: no capture id to check — schema already constrains the slot enum. De-dupe by slot.
+  const usedFontSlots = new Set<string>();
+  const fonts = llm.brand.fonts.filter((f) => {
+    if (usedFontSlots.has(f.slot)) return false;
+    usedFontSlots.add(f.slot);
+    return true;
+  });
+
+  return {
+    site: llm.site,
+    brand: { colors, fonts },
+    sections,
+    elements,
+    assets,
+  };
+}
+
+/** Snap an arbitrary color string to the nearest captured canon, or null if none. */
+function snapToNearestCanon(c: string, palette: string[]): string | null {
+  if (palette.length === 0) return null;
+  const target = parseCanon(canon(c));
+  let best: string | null = null;
+  let bestDist = Infinity;
+  for (const p of palette) {
+    const pc = parseCanon(p);
+    const d = (target.r - pc.r) ** 2 + (target.g - pc.g) ** 2 + (target.b - pc.b) ** 2;
+    if (d < bestDist) { bestDist = d; best = p; }
+  }
+  return best;
+}
+
+/**
+ * Label a capture with the LLM. Builds a system prompt + a compact digest, calls
+ * `llmJson` (JSON-mode + Zod validation + self-correcting retries against
+ * `LabelSchema`), then post-validates every emitted id/color/file against the real
+ * capture. Throws on failure — the caller (`label`) is responsible for falling back
+ * to the heuristic.
+ */
+export async function llmLabels(cap: CaptureJson, chat: ChatFn, model: string): Promise<Labels> {
+  const digest = buildDigest(cap);
+  const raw = await llmJson(LabelSchema, {
+    chat,
+    model,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: `Digest of the captured site:\n${JSON.stringify(digest)}` },
+    ],
+    temperature: 0.1,
+  });
+  return repairLabels(raw, cap);
+}
+
+/** Build an `LlmConfig` from process.env, or null if no provider is configured. */
+function configFromEnv(): { config: LlmConfig; model: string } | null {
+  const provider = process.env.LLM_PROVIDER;
+  if (provider !== "openrouter" && provider !== "ollama") return null;
+  const model = process.env.DEFAULT_LLM_MODEL;
+  if (!model) return null;
+  const config: LlmConfig = {
+    provider,
+    openrouterBaseUrl: process.env.OPENROUTER_BASE_URL,
+    openrouterApiKey: process.env.OPENROUTER_API_KEY,
+    ollamaBaseUrl: process.env.OLLAMA_BASE_URL,
+    ollamaApiKey: process.env.OLLAMA_API_KEY,
+  };
+  return { config, model };
+}
+
 // ---- Public entry-point ----
 
-export async function label(opts: { dir: string; out?: string }): Promise<Labels> {
+/**
+ * Read `capture.json`, produce `Labels`, write `labels.json`.
+ *
+ * LLM is an ENHANCEMENT, never a dependency: if `llm !== false` and `LLM_PROVIDER`
+ * is configured, we try `llmLabels`; on ANY error we log a warning and fall back to
+ * the deterministic `heuristicLabels`. With `llm: false` or no provider, we go
+ * straight to the heuristic. Either path yields a valid, schema-conformant site.
+ */
+export async function label(opts: { dir: string; out?: string; llm?: boolean }): Promise<Labels> {
   const dir = path.resolve(opts.dir);
   const cap: CaptureJson = JSON.parse(fs.readFileSync(path.join(dir, "capture.json"), "utf8"));
-  const labels = heuristicLabels(cap);
+
+  let labels: Labels;
+  const env = opts.llm !== false ? configFromEnv() : null;
+  if (env) {
+    try {
+      const chat: ChatFn = (o) => chatCompletion(o, env.config);
+      labels = await llmLabels(cap, chat, env.model);
+      console.log(`[labels] LLM path (${env.model}) — annotated ${labels.sections.length} sections`);
+    } catch (err) {
+      console.warn(`[labels] LLM labeling failed (${(err as Error).message}); falling back to heuristic`);
+      labels = heuristicLabels(cap);
+    }
+  } else {
+    labels = heuristicLabels(cap);
+    console.log("[labels] heuristic path" + (opts.llm === false ? " (llm disabled)" : " (no LLM_PROVIDER)"));
+  }
+
   const outDir = path.resolve(opts.out ?? opts.dir);
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, "labels.json"), JSON.stringify(labels, null, 2));

@@ -164,6 +164,9 @@ importers:
 
   packages/clone-engine:
     dependencies:
+      '@milo/llm':
+        specifier: workspace:*
+        version: link:../llm
       '@milo/publish':
         specifier: workspace:*
         version: link:../publish
