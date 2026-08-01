@@ -87,6 +87,10 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   }
   // region-root id → { section role, component name }; populated once regions are partitioned below.
   const sectionRoleOfRegionId = new Map<number, string>(labels.sections.map((s) => [s.id, s.role] as const));
+  // region-root id → label-derived name (single source of truth for component names).
+  const labelNameOfSectionId = new Map<number, string>(
+    labels.sections.filter((s) => s.name && s.name !== "unknown").map((s) => [s.id, s.name] as const),
+  );
   const componentNameOfRegionId = new Map<number, string>();
   // Emit the additive data-* attribute string for an element (empty when nothing to stamp).
   // ORDER: element role/asset first, then section/component on region roots — always AFTER existing attrs.
@@ -212,7 +216,23 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   const header = findTag(CAP.tree, "header"), footer = findTag(CAP.tree, "footer");
   const regions: { name: string; node: TreeEl; file?: string }[] = [];
   if (header) regions.push({ name: "Navbar", node: header });
-  sk.forEach((s, i) => { const cp = copyOf(s); const h = (cp.find((t) => t.trim().length > 5) || `Section ${i}`); let nm = h.replace(/[^a-zA-Z0-9]+/g, " ").trim().split(/\s+/).slice(0, 3).map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join("").slice(0, 24) || `Section${i}`; if (/^[0-9]/.test(nm)) nm = "S" + nm; regions.push({ name: nm + "Section", node: s }); });
+  sk.forEach((s, i) => {
+    // Prefer the label-derived name (single source of truth); fall back to copy-derived name.
+    let nm: string;
+    const labelName = labelNameOfSectionId.get(s.id);
+    if (labelName) {
+      // Label names already include "Section" suffix (from heuristicLabels); use as-is.
+      nm = labelName;
+    } else {
+      // Existing copy-derived fallback (unchanged algorithm).
+      const cp = copyOf(s);
+      const h = cp.find((t) => t.trim().length > 5) || `Section ${i}`;
+      let base = h.replace(/[^a-zA-Z0-9]+/g, " ").trim().split(/\s+/).slice(0, 3).map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join("").slice(0, 24) || `Section${i}`;
+      if (/^[0-9]/.test(base)) base = "S" + base;
+      nm = base + "Section";
+    }
+    regions.push({ name: nm, node: s });
+  });
   if (footer) regions.push({ name: "Footer", node: footer });
 
   const seen = new Set<string>();
