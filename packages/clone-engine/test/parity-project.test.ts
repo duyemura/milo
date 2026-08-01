@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterAll } from "vitest";
 import { chromium, type Browser } from "playwright";
 import fs from "node:fs";
 import os from "node:os";
@@ -10,6 +10,13 @@ import { pixelDiff } from "./helpers/pixel.ts";
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const SITES = ["torrance", "speakeasy", "sweatshed"] as const;
 const WIDTHS = [1440, 390] as const;
+
+// Track every throwaway project() OUT dir so we can remove them after the suite
+// (each site's two tests each create one — they'd otherwise pile up in os.tmpdir()).
+const tmpOutDirs: string[] = [];
+afterAll(() => {
+  for (const d of tmpOutDirs) fs.rmSync(d, { recursive: true, force: true });
+});
 
 /** Screenshot an HTML string full-page at width `w`, serving /assets/ from `assetsDir`. */
 async function shoot(browser: Browser, html: string, assetsDir: string, w: number): Promise<Buffer> {
@@ -40,10 +47,12 @@ async function shoot(browser: Browser, html: string, assetsDir: string, w: numbe
       if (!(img.complete && img.naturalWidth > 0)) await withTimeout(img.decode(), 3000);
     }
     // Trigger any viewport-gated work, then wait two frames so layout+paint settle.
+    // rAF is bounded too: a stuck frame degrades to a noisier capture that must
+    // still hit exact 0-px (or fail) — it can never cause a false pass.
     window.scrollTo(0, document.body.scrollHeight);
-    await raf(); await new Promise((r) => setTimeout(r, 300));
+    await withTimeout(raf(), 1000); await new Promise((r) => setTimeout(r, 300));
     window.scrollTo(0, 0);
-    await raf(); await raf();
+    await withTimeout(raf(), 1000); await withTimeout(raf(), 1000);
   });
   await p.waitForTimeout(500);
   const buf = await p.screenshot({ fullPage: true });
@@ -55,6 +64,7 @@ async function shoot(browser: Browser, html: string, assetsDir: string, w: numbe
 /** Run project() into a throwaway OUT dir so tests never pollute the package tree. */
 async function projectTmp(goldenDir: string) {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), "parity-out-"));
+  tmpOutDirs.push(out); // cleaned in afterAll (not mid-test — assertions still need it)
   const r = await project({ dir: goldenDir, out, trim: true, noDiff: true });
   return r;
 }

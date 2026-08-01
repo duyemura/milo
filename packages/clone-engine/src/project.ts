@@ -61,6 +61,9 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
 
   // ---- browser: empirical UA defaults per tag ----
   const browser = await chromium.launch();
+  // Guarantee the Chromium process is torn down even if projection throws
+  // (the source .mjs leaks it on error; we improve on that, output-neutral).
+  try {
   const defPage = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await defPage.setContent("<!doctype html><body></body>");
   const tagDefaults: Record<string, Record<string, string>> = await defPage.evaluate((tags) => {
@@ -265,9 +268,11 @@ ${interCss}</style></head><body class="p${CAP.tree.id}">${CAP.tree.children.map(
     const r = await pdiff(`clone-${w}.png`, `assembled-${w}.png`);
     console.log(`  @${w}w  drift ${r.pct}%  (${r.d}/${r.total})  dims ${r.dimMatch ? "match" : `MISMATCH ${r.ah}/${r.bh}`}  ${r.pct === 0 ? "✓ LOSSLESS" : "✗"}`);
   }
-  await browser.close();
   const sizes = fs.readdirSync(COMP).map((f) => fs.statSync(path.join(COMP, f)).size);
   console.log(`\n  ${regions.length} components, total ${(sizes.reduce((a, b) => a + b, 0) / 1048576).toFixed(2)}MB (largest ${(Math.max(...sizes) / 1024).toFixed(0)}KB)`);
 
   return { indexHtml: assembled, outDir: OUT, astroDir: AST, components: regions.length };
+  } finally {
+    await browser.close();
+  }
 }
