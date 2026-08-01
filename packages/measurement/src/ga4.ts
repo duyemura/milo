@@ -133,11 +133,37 @@ const GTAG_RE = /googletagmanager\.com\/gtag\/js\?id=[A-Z0-9-]+/;
  * Idempotently inject gtag into an HTML page's <head>. Deterministic; safe to run N times.
  * `siteId` is carried on every event as the site_id parameter (fleet partitioning).
  */
-export function injectGtag(html: string, measurementId: string, siteId?: string): { html: string; changed: boolean } {
+export interface GtagContext {
+  /** site slug/id — the per-site partition. */
+  siteId?: string;
+  /** client org (may own multiple gyms/sites). */
+  workspaceId?: string;
+  /** the gym (PushPress company). */
+  companyId?: string;
+  /** staging | production — keeps staging traffic out of prod reports. */
+  env?: string;
+}
+
+export function injectGtag(html: string, measurementId: string, ctx?: GtagContext): {
+  html: string;
+  changed: boolean;
+} {
   if (html.includes(measurementId) && GTAG_RE.test(html)) {
     return { html, changed: false };
   }
-  const siteParam = siteId ? `, { site_id: '${siteId.replace(/'/g, "")}' }` : "";
+  const clean = (v: string) => v.replace(/'/g, "");
+  const params = ctx
+    ? Object.entries({
+        site_id: ctx.siteId,
+        workspace_id: ctx.workspaceId,
+        company_id: ctx.companyId,
+        env: ctx.env,
+      })
+        .filter(([, v]) => v !== undefined && v !== "")
+        .map(([k, v]) => `${k}: '${clean(v as string)}'`)
+        .join(", ")
+    : "";
+  const siteParam = params ? `, { ${params} }` : "";
   const block = [
     `<script async src="https://www.googletagmanager.com/gtag/js?id=${measurementId}"></script>`,
     `<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','${measurementId}'${siteParam});</script>`,

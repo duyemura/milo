@@ -119,7 +119,12 @@ export async function injectIntoDist(opts: {
         let html = fs.readFileSync(p, "utf-8");
         let changed = false;
         if (measurementId) {
-          const r = injectGtag(html, measurementId, site.slug ?? site.id);
+          const r = injectGtag(html, measurementId, {
+            siteId: site.slug ?? site.id,
+            workspaceId: site.workspaceId,
+            companyId: site.companyId,
+            env: "staging",
+          });
           if (r.changed) changed = true;
           html = r.html;
         }
