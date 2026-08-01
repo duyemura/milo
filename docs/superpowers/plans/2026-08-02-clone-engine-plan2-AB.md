@@ -8,7 +8,7 @@
 
 **Tech stack:** Node 24 native TS, the existing `@milo/clone-engine` package, `@milo/llm` (`llmJson` + Zod), Vitest, Playwright. Design spec (authoritative): `docs/superpowers/specs/2026-08-01-llm-safe-semantic-representation-design.md`. Doctrine: `packages/clone-engine/DOCTRINE.md`.
 
-**Non-negotiable invariant (never regress):** after EVERY task, `cd packages/clone-engine && pnpm vitest run` = 9 passed (0-px oracle holds), and `tsc --noEmit` clean. The projection's HTML bytes may change (new attributes/tokens/names) — but the rendered pixels of the un-edited site may NOT. A parity failure = the change wasn't value-preserving → fix it, don't weaken the test.
+**Non-negotiable invariant (never regress):** after EVERY task, `cd packages/clone-engine && pnpm vitest run` is GREEN and `tsc --noEmit` clean. The real fidelity gate is the **pixel oracle: assembled-vs-clone == 0-px @1440+@390 on all 3 sites** — it must hold at every step. The projection's HTML bytes DO change (new `data-*`/tokens/names are the whole point) — so the **byte-vs-`.mjs` assertion is RETIRED in Task 1** (the port's job is done; tag `ts-engine-at-parity`). From Task 1 on, the gate is: pixel-oracle 0-px + the task's new semantic/brand/manifest assertions + `tsc` clean. A pixel drift ≠ 0 means the change wasn't value-preserving → fix it, never weaken the oracle.
 
 **Scope:** A+B only — representation + brand doc + manifest. NOT edit-ops (C), page types/goals (D), section generation (E), measurement (F). Per-site; no batch anything.
 
