@@ -48,6 +48,11 @@ apps/admin/
   `SERVICE=worker` (BullMQ processors), `SERVICE=monolith` (default for local dev).
 - **Engines run as BullMQ jobs** that spawn typed executables (`milo` CLI now; the
   TypeScript page-clone binaries when ported). Job logs stream job → Redis → UI.
+- **Per-site job serialization (concurrency invariant):** at most **one active engine job
+  per site** at any time. Multiple teammates chat-editing or triggering jobs on the same
+  site queue in order; they never interleave. Enforced at dispatch (BullMQ group keyed by
+  `siteId`, or an equivalent active-job-per-site mutex). Deploy/rollback jobs for a site
+  also take the lock — no deploy mid-build. UI shows queue position for waiting jobs.
 - **Nothing durable on the host disk.** Captures/builds are per-run ephemeral workspaces;
   durable state = Postgres/SQLite (registry, jobs, sessions, deploys) + S3 (deployed sites,
   screenshots, asset bundles — the deploy layer already writes there).
@@ -84,7 +89,8 @@ GET    /api/v1/clients/{id}                 # detail: sites, recent jobs, deploy
 GET    /api/v1/sites/{id}                   # detail: status, pages, preview/deploy links
 POST   /api/v1/sites                        # create site: { clientId, seedType, sourceUrl?, templateId? }
 POST   /api/v1/sites/{id}/jobs              # trigger: seed | build | deploy | rollback
-GET    /api/v1/sites/{id}/jobs              # job list + status
+                                            #   → 202 with job id + queue position (per-site lock)
+GET    /api/v1/sites/{id}/jobs              # job list + status, waiting jobs include queue position
 GET    /api/v1/jobs/{id}/logs               # streaming log (SSE)
 
 POST   /api/v1/sites/{id}/edits             # chat edit: { message } → job (agent → build → deploy)
