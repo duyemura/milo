@@ -1,7 +1,7 @@
 # A+B — LLM-Safe Semantic Site Representation + Global Brand Document
 
 **Date:** 2026-08-01
-**Status:** Design — approved in brainstorming, pending written-spec review
+**Status:** Design settled with Dan (2026-08-01) — proceeding to implementation plan
 **Engine:** `page-clone-spike/` · Doctrine: `page-clone-spike/DOCTRINE.md`
 **Depends on:** `packages/llm` (`llmJson`), existing `page-clone.mjs` + `project-page.mjs`
 
@@ -17,13 +17,17 @@ a faithful-**and-addressable** substrate an agent can locate things in and chang
 
 ## Non-negotiable invariant (never regress)
 
-Per the doctrine's coding rule: the existing eval floor must keep passing.
+Per the doctrine's coding rule: the existing eval floor must keep passing. The guarantee is
+**pixel-level (the oracle), not byte-level HTML** — the projection legitimately changes its HTML
+bytes (it adds `data-*` attributes, brand tokens, semantic component names); what may never
+change is the rendered pixels of the **un-edited** site.
 
-- **Capture** stays byte-for-byte unchanged and deterministic. A+B add *nothing* to
-  `page-clone.mjs`'s rendered output.
-- The **assembled-vs-clone 0-pixel oracle** in `project-page.mjs` must still report 0 drift at
-  1440w and 390w for the **un-edited** projection. Labels + manifest + brand tokens are
-  metadata and value-preserving rewrites only; they may not move a pixel.
+- **Capture** stays behavior-identical and deterministic through the TS port — same `capture.json`
+  and the same capture-vs-source screenshot diff, whether run as `.mjs` or its TS port (the parity
+  harness gates this). A+B change none of capture's *rendered* output.
+- The **assembled-vs-clone 0-pixel oracle** must still report 0 drift at 1440w and 390w for the
+  **un-edited** projection. Labels, manifest, `data-*`, and brand tokens are metadata and
+  value-preserving rewrites — render-neutral, so pixels don't move even though HTML bytes do.
 - Every change is eval'd before/after. If drift regresses, we stop and report — we do not ship
   a worse clone.
 
@@ -119,21 +123,22 @@ every layer above is a way to step back to the proven engine the moment the trip
 
 ## Architecture
 
-Pipeline gains one stage; capture and deploy are unchanged.
+Every stage is a TS module in the workspace (ported from the named `.mjs`, behavior-identical and
+parity-gated); the pipeline gains one new stage (`label`). Capture and deploy keep their behavior.
 
 ```
-page-clone.mjs      (UNCHANGED) → capture.json                    [deterministic, faithful]
+capture      (port of page-clone.mjs; behavior-identical) → capture.json   [deterministic, faithful]
         │
         ▼
-label.mjs           NEW: capture.json → labels.json               [LLM annotates; heuristic fallback]
+label        NEW (TS): capture.json → labels.json                          [LLM annotates; heuristic fallback]
         │
         ▼
-project-page.mjs    EXTENDED: capture.json + labels.json →
-                      brand.json  +  semantic components (data-role)  +  site.json manifest
-                      + oracle re-diff (unchanged gate)
+project      (port of project-page.mjs, EXTENDED): capture.json + labels.json →
+               brand.json  +  semantic components (data-*)  +  site.json manifest
+               + oracle re-diff (unchanged gate)
         │
         ▼
-build-site.mjs / deploy.mjs   (UNCHANGED orchestration; site.json merged per page)
+build-site / deploy   (ports; orchestration behavior unchanged; site.json merged per page)
 ```
 
 ### 1. `label.mjs` — the labeling pass (NEW)
@@ -163,7 +168,8 @@ context; assets with alt-text + placement context (`<img>` in `<header>` ⇒ log
 ```
 
 **Model:** Milo's configured `DEFAULT_LLM_MODEL` (`gemini-2.5-flash` via OpenRouter),
-swappable. Import pattern mirrors `deploy.mjs` importing `packages/publish`.
+swappable. In TS this is a normal workspace import of `packages/llm` (`llmJson`) — no `.mjs`
+cross-import hack.
 
 **Degradation (mandatory):** if `LLM_PROVIDER` is unset, the call fails, or `--no-llm` is
 passed, a deterministic **heuristic labeler** emits the *same schema* — usage-stat brand roles
