@@ -149,8 +149,16 @@ export async function appendLog(
   line: string,
   now: () => string = () => new Date().toISOString(),
 ): Promise<void> {
-  for (const l of stripControl(line).split("\n")) {
-    if (!l.trim()) continue;
-    await db.insertInto("job_logs").values({ jobId, line: l, createdAt: now() }).execute();
+  const rows = stripControl(line).split("\n").filter((l) => l.trim());
+  if (rows.length === 0) return;
+  const { maxSeq } = await db
+    .selectFrom("job_logs")
+    .select((eb) => eb.fn.max("seq").as("maxSeq"))
+    .where("jobId", "=", jobId)
+    .executeTakeFirstOrThrow();
+  let seq = ((maxSeq as number | null) ?? 0) + 1;
+  for (const l of rows) {
+    await db.insertInto("job_logs").values({ jobId, seq, line: l, createdAt: now() }).execute();
+    seq += 1;
   }
 }

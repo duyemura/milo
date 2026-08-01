@@ -9,7 +9,7 @@ async function main(): Promise<void> {
   const service = process.env["SERVICE"] ?? "monolith";
 
   await mkdir(config.dataDir, { recursive: true });
-  const db = createDb(config.dbPath);
+  const db = createDb({ dbUrl: config.dbUrl, dbPath: config.dbPath });
   await migrateToLatest(db);
 
   if (service === "worker" && config.queueDriver !== "bullmq") {

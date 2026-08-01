@@ -62,12 +62,15 @@ const migration1 = {
       .addColumn("createdAt", "text", (c) => c.notNull())
       .execute();
 
+    // seq is per-job and assigned by appendLog (SELECT max+1) — portable across
+    // SQLite and Postgres, no dialect-specific autoincrement needed.
     await db.schema
       .createTable("job_logs")
-      .addColumn("seq", "integer", (c) => c.primaryKey().autoIncrement())
       .addColumn("jobId", "text", (c) => c.notNull().references("jobs.id"))
+      .addColumn("seq", "integer", (c) => c.notNull())
       .addColumn("line", "text", (c) => c.notNull())
       .addColumn("createdAt", "text", (c) => c.notNull())
+      .addPrimaryKeyConstraint("job_logs_pk", ["jobId", "seq"])
       .execute();
 
     await db.schema.createIndex("jobs_site_status").on("jobs").columns(["siteId", "status"]).execute();
