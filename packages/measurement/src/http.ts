@@ -42,13 +42,14 @@ export async function apiCall(opts: {
 }
 
 export class ApiError extends Error {
-  constructor(
-    public api: string,
-    public status: number,
-    public data: unknown,
-    message: string,
-  ) {
+  readonly api: string;
+  readonly status: number;
+  readonly data: unknown;
+  constructor(api: string, status: number, data: unknown, message: string) {
     super(`${api} ${status}: ${message}`);
+    this.api = api;
+    this.status = status;
+    this.data = data;
   }
 }
 

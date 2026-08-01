@@ -7,9 +7,13 @@ import {
   ga4EnsureProperty,
   fetchPlaceMetrics,
   loadServiceAccount,
+  injectGtag,
+  injectMeta,
   type FetchLike,
   type ServiceAccount,
 } from "@milo/measurement";
+import path from "node:path";
+import * as fs from "node:fs";
 import type { AdminDb } from "../db/index.ts";
 import type { AdminConfig } from "../config.ts";
 import type { JobRow, SiteRow } from "../db/types.ts";
@@ -87,21 +91,6 @@ async function recordMetric(
     .execute();
 }
 
-import {
-  gbpStatus,
-  gscFetchQueries,
-  gscEnsureProperty,
-  ga4EnsureAccount,
-  ga4EnsureProperty,
-  fetchPlaceMetrics,
-  loadServiceAccount,
-  injectGtag,
-  injectMeta,
-  type FetchLike,
-  type ServiceAccount,
-} from "@milo/measurement";
-import path from "node:path";
-import * as fs from "node:fs";
 
 /** Post-build injection: gtag + GSC meta into every built HTML page, idempotently. */
 export async function injectIntoDist(opts: {
