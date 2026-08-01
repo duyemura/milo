@@ -66,10 +66,10 @@ All Zod schemas mirrored in Kysely types; migrations per deployment dialect.
 | Table | Key fields | Notes |
 |---|---|---|
 | `clients` | `id`, `companyId`, name, contact, status | One PushPress gym. |
-| `sites` | `id`, `clientId`, seedType (`clone` \| `template`), sourceUrl, slug, status, astroProjectRef | A client may have multiple sites over time (reseed). One is `active`. |
-| `jobs` | `id`, `siteId`, type, payload, status, logsRef, startedAt/finishedAt | Backed by BullMQ; row is the durable record + API surface. |
-| `edit_sessions` | `id`, `siteId`, actor (team user \| api key), messages[] | Chat history per site; each accepted edit links to a job. |
-| `deploys` | `id`, `siteId`, version, env (staging \| production), url, screenshotRef, status, rolledBackFromId | Rollback = deploy a prior version (delegates to `packages/publish`). |
+| `sites` | `id`, `companyId`, `clientId`, seedType (`clone` \| `template`), sourceUrl, slug, status, astroProjectRef | A client may have multiple sites over time (reseed). One is `active`. |
+| `jobs` | `id`, `companyId`, `siteId`, type, payload, status, logsRef, startedAt/finishedAt | Backed by BullMQ; row is the durable record + API surface. |
+| `edit_sessions` | `id`, `companyId`, `siteId`, actor (team user \| api key), messages[] | Chat history per site; each accepted edit links to a job. |
+| `deploys` | `id`, `companyId`, `siteId`, version, env (staging \| production), url, screenshotRef, status, rolledBackFromId | Rollback = deploy a prior version (delegates to `packages/publish`). |
 
 ## API (v1 boundary)
 
