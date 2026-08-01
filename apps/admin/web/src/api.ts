@@ -23,6 +23,7 @@ export interface Site {
   sourceUrl: string | null;
   slug: string | null;
   status: string;
+  stage: "onboarding" | "building" | "in-review" | "live";
   active: number;
   createdAt: string;
 }
