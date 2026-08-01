@@ -160,6 +160,7 @@ test/
 - [ ] **Step 1 — full regression sweep.** `pnpm vitest run` (9 parity + labels + brand + semantic) all green. `pnpm exec tsc --noEmit` clean. `cd /Users/dan/pushpress/milo && pnpm -r test` all packages green.
 - [ ] **Step 2 — CLI.** add a `label` subcommand (`node src/cli.ts label --dir <d> [--no-llm]`) and confirm `project` now emits `brand.json` + `site.json` + `labels.json` + semantic components + `data-*` for a golden site end-to-end. Export `label` + new types from `index.ts`.
 - [ ] **Step 3 — README + DOCTRINE.** document the A+B outputs (labels.json / brand.json / site.json / data-* contract) in the package README; note the manifest is the interface C/D/E/F consume.
+- [ ] **Step 3b — de-dup shared helpers (from T0/T1 reviews).** `canon()` and `partitionRegions()` are currently duplicated byte-identically between `labels.ts` and `project.ts` (documented, drift-risk). Extract to a shared module (e.g. `src/tree.ts` / extend `src/html.ts`) and import from both. Output-neutral — the 0-px oracle must still hold after.
 - [ ] **Step 4 — manifest completeness check on all 3 sites** (every role→id + alias→file + section→component resolves). Commit + tag `plan2-AB-complete`.
 
 ---
