@@ -359,43 +359,42 @@ git commit -m "feat(clone-engine): port projection to TS at parity (byte vs .mjs
 
 Capture depends on a live browser render, so byte-parity against a live site is impossible. Instead exercise it **deterministically against the static self-contained clone output** (`golden/<site>/index.html` is a frozen, fully-rendered, self-contained page): capturing it is deterministic, and it stresses the real capture path (neutralize, tag, grabStyles, rehost, self-containment). Assert structural parity of the two engines' capture on that fixture.
 
+Capturing requires the page served over **HTTP** (rehost uses node `fetch()`, which can't read `file://`), so serve the golden dir on an ephemeral port and capture `http://localhost:PORT/index.html`. The ONE nondeterministic thing is rehosted **asset filenames** (`aN.*`, numbered by `Promise.all` completion order) — the comparison must normalize/exclude those; everything else (tree tags, style keys, non-`url()` style values) is deterministic and must match exactly.
+
 **Files:**
 - Create: `packages/clone-engine/src/capture.ts`
 - Create: `packages/clone-engine/src/run-mjs.ts`
+- Create (frozen reference): `packages/clone-engine/test/golden/{torrance,speakeasy,sweatshed}/capture-of-clone-mjs.json`
 - Create: `packages/clone-engine/test/parity-capture.test.ts`
+
+- [ ] **Step A: Freeze the `.mjs` capture-of-clone reference**
+
+For each site: serve `golden/<site>/` over a local static server, run the frozen `.mjs` `page-clone.mjs` against `http://localhost:PORT/index.html` (`--no-verify`), and save its `capture.json` as `golden/<site>/capture-of-clone-mjs.json`. (Use a throwaway node script — a `node:http` static server + `execFileSync`; don't commit it.)
 
 - [ ] **Step 1: Port the module**
 
-Translate `page-clone-spike/page-clone.mjs` into `capture.ts` with the same mechanical-only changes: wrap the script body in
+Translate `page-clone-spike/page-clone.mjs` into `capture.ts`, mechanical-only:
 ```ts
 export interface CaptureOpts { url: string; out: string; verify?: boolean; }
 export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson; outDir: string }>;
 ```
-Keep every function byte-faithful (`neutralizeAndTag`, `grabStyles`, `grabHead`, `sniffExt`, `fetchAsset`, rehost loop, self-containment assertion, interactions capture, emit). Add types from `./types.ts`. **No logic changes** — the assertion still `process.exit(1)`s→ instead `throw` a typed error so callers can catch (behavior for the CLI is identical: non-zero exit).
+Keep every function byte-faithful (`neutralizeAndTag`, `forceOpacity`, `grabStyles` incl. `--*` skip, `grabHead`, interactions capture incl. nav-guard, `sniffExt`, `fetchAsset`, rehost, font `@font-face` rehost, self-containment scan, emit). **Behavior change:** the self-containment `missing`-assets check calls `process.exit(1)` → change to `throw new Error(...)` (library-safe; CLI still non-zero-exits). Keep the `leftovers` case a warning only (matches `.mjs` — only `missing` exits). Launch/close browser in `try/finally`. Types from `./types.ts`.
 
 - [ ] **Step 2: Add the `.mjs` shim**
 
-Create `run-mjs.ts` — a typed `child_process` wrapper that runs the frozen `.mjs` for A/B comparison:
+Create `run-mjs.ts` (used by the Task-5 CLI's `--engine=mjs` path):
 ```ts
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 const SPIKE = path.resolve(import.meta.dirname, "../../../page-clone-spike");
-export function mjsCapture(url: string, out: string) {
+export function mjsCapture(url: string, out: string): void {
   execFileSync("node", ["page-clone.mjs", "--url", url, "--out", out, "--no-verify"], { cwd: SPIKE, stdio: "inherit" });
 }
 ```
 
-- [ ] **Step 3: Write the deterministic capture-parity test**
+- [ ] **Step 3: Deterministic capture-parity test**
 
-Create `parity-capture.test.ts`: for each site, serve `golden/<site>/` over a local static server, run TS `capture()` and `mjsCapture()` against `http://localhost:PORT/index.html`, and assert **structural parity**: same element count (`Object.keys(styles['1440']).length`), identical tree tag-sequence, identical set of style-prop keys per id. (Not byte-identical asset filenames — rehost order differs; compare structure + style values.)
-
-```ts
-import { describe, it, expect } from "vitest";
-// serve golden/<site> statically, capture with both engines against the static page, compare:
-// - tree shape (tags in depth-first order)
-// - styles["1440"] key count and per-id prop values
-// (assets: compare count + that every ref resolves, not the aN.* names)
-```
+`parity-capture.test.ts`: per site, serve `golden/<site>/`, run TS `capture({url, out:tmp, verify:false})`, compare to frozen `capture-of-clone-mjs.json` on these invariants — (1) element count equal; (2) tree tag-sequence (depth-first, elements only) deeply equal; (3) per-id style-prop KEYS equal at all 3 widths; (4) per-id style VALUES equal at all 3 widths **excluding any value containing `url(`** (asset-name-bearing); (5) `head` `title`/`lang`/`metas` equal with `assets/aN.ext`→placeholder normalization; (6) interactions structurally equal (likely both `null` — static clone has no live nav JS); (7) asset count equal + every TS `assets/aN.*` ref resolves on disk. Generous per-test timeout (~300s); clean temp dirs in `afterAll`. **Never weaken a fidelity invariant (tags/keys/non-url values) to force green** — only asset names may be normalized, with a comment saying why.
 
 Run: `cd /Users/dan/pushpress/milo/packages/clone-engine && pnpm vitest run test/parity-capture.test.ts`
 Expected: PASS — TS and `.mjs` capture the same static page to structurally identical trees + styles.
