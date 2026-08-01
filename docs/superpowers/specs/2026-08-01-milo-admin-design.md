@@ -59,10 +59,22 @@ apps/admin/
 
 ## Multi-tenancy
 
-Every table carries `companyId` (the PushPress company the client belongs to). The registry
-row IS the client↔company link. Queries always filter by company; job payloads always carry
-`companyId`. Cross-gym access is never possible — platform multi-tenancy rules apply
-unchanged.
+Three-level hierarchy, each level its own boundary:
+
+```
+workspace (client org — the sandbox) → companies (gyms/businesses) → sites
+```
+
+- **Workspace** = the client organization and the **sandboxed boundary**. One owner
+  (e.g. a franchisee) may run several gyms; they get ONE workspace containing all of them.
+  Phase-4 platform API keys are scoped to a workspace: that client sees only their own
+  companies/sites. Never cross-workspace. (Where PushPress models org/account ownership,
+  the workspace links to it; that mapping is a phase-4 detail.)
+- Every table carries `companyId` (the PushPress company) AND `workspaceId`. Queries
+  always filter by both; job payloads carry both. Cross-gym and cross-workspace access are
+  never possible — platform multi-tenancy rules apply unchanged.
+- Team members (Google OAuth) see across all workspaces; workspace scoping only binds
+  client-facing credentials.
 
 ## Data model
 
@@ -70,11 +82,12 @@ All Zod schemas mirrored in Kysely types; migrations per deployment dialect.
 
 | Table | Key fields | Notes |
 |---|---|---|
-| `clients` | `id`, `companyId`, name, contact, status | One PushPress gym. |
-| `sites` | `id`, `companyId`, `clientId`, seedType (`clone` \| `template`), sourceUrl, slug, status, astroProjectRef | A client may have multiple sites over time (reseed). One is `active`. |
-| `jobs` | `id`, `companyId`, `siteId`, type, payload, status, logsRef, startedAt/finishedAt | Backed by BullMQ; row is the durable record + API surface. |
-| `edit_sessions` | `id`, `companyId`, `siteId`, actor (team user \| api key), messages[] | Chat history per site; each accepted edit links to a job. |
-| `deploys` | `id`, `companyId`, `siteId`, version, env (staging \| production), url, screenshotRef, status, rolledBackFromId | Rollback = deploy a prior version (delegates to `packages/publish`). |
+| `workspaces` | `id`, name, contact, status, pushpressAccountRef (nullable) | The client org — the sandboxed boundary. One owner, many gyms. |
+| `companies` | `id`, `workspaceId`, `companyId`, name, status | One gym/business = one PushPress company. |
+| `sites` | `id`, `workspaceId`, `companyId`, seedType (`clone` \| `template`), sourceUrl, slug, status, astroProjectRef | A company may have multiple sites over time (reseed). One is `active`. |
+| `jobs` | `id`, `workspaceId`, `companyId`, `siteId`, type, payload, status, logsRef, startedAt/finishedAt | Backed by BullMQ; row is the durable record + API surface. |
+| `edit_sessions` | `id`, `workspaceId`, `companyId`, `siteId`, actor (team user \| api key), messages[] | Chat history per site; each accepted edit links to a job. |
+| `deploys` | `id`, `workspaceId`, `companyId`, `siteId`, version, env (staging \| production), url, screenshotRef, status, rolledBackFromId | Rollback = deploy a prior version (delegates to `packages/publish`). |
 
 ## API (v1 boundary)
 
@@ -82,9 +95,13 @@ All routes Zod-validated and OpenAPI-generated via `fastify-zod-openapi` (house 
 Two auth modes: Google OAuth (team SPA) and scoped API keys (phase 4, PushPress Core).
 
 ```
-GET    /api/v1/clients                      # registry list, filter by status/seedType, search
-POST   /api/v1/clients                      # create client (companyId link)
-GET    /api/v1/clients/{id}                 # detail: sites, recent jobs, deploy status
+GET    /api/v1/workspaces                   # client orgs; filter/search (client-scoped keys see only their own)
+POST   /api/v1/workspaces                   # create client org
+GET    /api/v1/workspaces/{id}              # detail: companies, aggregate status
+
+GET    /api/v1/companies                    # gyms; filter by workspace/status
+POST   /api/v1/companies                    # register a PushPress company (companyId link) into a workspace
+GET    /api/v1/companies/{id}               # detail: sites, recent jobs, deploy status
 
 GET    /api/v1/sites/{id}                   # detail: status, pages, preview/deploy links
 POST   /api/v1/sites                        # create site: { clientId, seedType, sourceUrl?, templateId? }
@@ -126,7 +143,8 @@ Deploy + rollback delegate to `packages/publish` (versioned S3+CloudFront), not 
    deploy) with before/after preview links.
 3. **Brand + structure inspector** — read views over `brand.json` and `site.json`
    (colors, fonts, sections, pages). Informational; chat covers edits.
-4. **Platform API** — scoped API keys, per-company auth context, events for Core. The
+4. **Platform API** — scoped API keys (one per **workspace** — a franchisee's key reaches
+   all their companies and nothing else), per-workspace auth context, events for Core. The
    seam PushPress Core chat plugs into.
 
 ## Out of scope (explicit YAGNI)
