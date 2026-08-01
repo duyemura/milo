@@ -12,9 +12,10 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
-import type { CaptureJson, TreeNode, TreeEl } from "./types.ts";
+import type { CaptureJson, TreeNode, TreeEl, Labels } from "./types.ts";
 import { esc, escA, diff } from "./html.ts";
 import { pixelDiff } from "./pixel.ts";
+import { heuristicLabels } from "./labels.ts";
 
 export interface ProjectOpts {
   dir: string;
@@ -58,6 +59,49 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   const tagOf: Record<number, string> = {}, parentOf: Record<number, number | null> = {};
   (function walk(n: TreeNode, par: number | null) { if ((n as { t?: string }).t !== undefined) return; const el = n as TreeEl; tagOf[el.id] = el.tag; parentOf[el.id] = par; el.children.forEach((c) => walk(c, el.id)); })(CAP.tree, null);
   const distinctTags = [...new Set(Object.values(tagOf))].filter((t) => !SVG.has(t));
+
+  // ---- semantic labels: consume labels.json (or compute deterministic heuristics) ----
+  // data-* stamping is render-neutral (attributes only), so the 0-px oracle must hold.
+  const labelsPath = path.join(DIR, "labels.json");
+  const labels: Labels = fs.existsSync(labelsPath)
+    ? (JSON.parse(fs.readFileSync(labelsPath, "utf8")) as Labels)
+    : heuristicLabels(CAP);
+  // element id → role (headline, primary-cta, logo, …)
+  const roleOfElId = new Map<number, string>(labels.elements.map((e) => [e.id, e.role] as const));
+  // element id → asset alias, matched by the element's src/srcset/background referencing an asset file.
+  // Assets carry a file (assets/aN.ext) + alias; find every element whose captured attrs reference it.
+  const aliasOfElId = new Map<number, string>();
+  if (labels.assets.length) {
+    const aliasByFile = new Map(labels.assets.map((a) => [a.file, a.alias] as const));
+    (function scan(n: TreeNode) {
+      if ((n as { t?: string }).t !== undefined) return;
+      const el = n as TreeEl;
+      // scan value-bearing attrs for any labeled asset file (src, srcset, poster, style-bg, etc.)
+      const hay = Object.entries(el.attrs)
+        .filter(([k]) => k === "src" || k === "srcset" || k === "poster" || k === "href" || k === "style" || k === "data-src")
+        .map(([, v]) => v)
+        .join(" ");
+      if (hay) for (const [file, alias] of aliasByFile) if (hay.includes(file)) { aliasOfElId.set(el.id, alias); break; }
+      el.children.forEach(scan);
+    })(CAP.tree);
+  }
+  // region-root id → { section role, component name }; populated once regions are partitioned below.
+  const sectionRoleOfRegionId = new Map<number, string>(labels.sections.map((s) => [s.id, s.role] as const));
+  const componentNameOfRegionId = new Map<number, string>();
+  // Emit the additive data-* attribute string for an element (empty when nothing to stamp).
+  // ORDER: element role/asset first, then section/component on region roots — always AFTER existing attrs.
+  const dataAttrs = (id: number): string => {
+    let a = "";
+    const role = roleOfElId.get(id);
+    if (role) a += ` data-role="${escA(role)}"`;
+    const alias = aliasOfElId.get(id);
+    if (alias) a += ` data-asset="${escA(alias)}"`;
+    const sectionRole = sectionRoleOfRegionId.get(id);
+    if (sectionRole) a += ` data-section="${escA(sectionRole)}"`;
+    const component = componentNameOfRegionId.get(id);
+    if (component) a += ` data-component="${escA(component)}"`;
+    return a;
+  };
 
   // ---- browser: empirical UA defaults per tag ----
   const browser = await chromium.launch();
@@ -142,6 +186,7 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
     const el = n as TreeEl;
     let a = ` class="p${el.id}"`;
     for (const [k, v] of Object.entries(el.attrs)) a += ` ${k}="${escA(k === "href" ? rewriteHref(v) : v)}"`;
+    a += dataAttrs(el.id);
     if (VOID.has(el.tag)) return `<${el.tag}${a}>`;
     return `<${el.tag}${a}>${el.children.map(renderP).join("")}</${el.tag}>`;
   }
@@ -153,6 +198,7 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
     const el = node as TreeEl;
     let a = "";
     for (const [k, v] of Object.entries(el.attrs)) a += ` ${k}="${escA(k === "href" ? rewriteHref(v) : v)}"`;
+    a += dataAttrs(el.id);
     const open = tplSafe(absA2(`<${el.tag} class="p${el.id}"${a}>`));
     if (VOID.has(el.tag)) return open;
     return open + el.children.map((c) => buildTpl(c, content, base)).join("") + tplSafe(`</${el.tag}>`);
@@ -172,6 +218,8 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   const seen = new Set<string>();
   for (const r of regions) {
     let name = r.name, i = 2; while (seen.has(name)) name = r.name + i++; seen.add(name); r.file = name;
+    // region root carries data-component (owning .astro) + data-section (role, for content sections).
+    componentNameOfRegionId.set(r.node.id, name);
     fs.writeFileSync(path.join(COMP, `${name}.astro`), `---\n// ${name}.astro — projected from page-clone (LOSSLESS, lean). Imports brand tokens.\nimport "../tokens.css";\nconst content = ${JSON.stringify(copyOf(r.node), null, 2)};\n---\n<style>\n${cssFor(idsOf(r.node))}</style>\n${renderP(r.node)}\n`);
   }
   fs.writeFileSync(path.join(OUT, "tokens.css"), tokenRoot);
@@ -224,7 +272,7 @@ ${interCss}</style></head><body class="p${CAP.tree.id}">${CAP.tree.children.map(
     if ((n as { t?: string }).t !== undefined) return esc((n as { t: string }).t).replace(/[{}]/g, (m) => (m === "{" ? "&#123;" : "&#125;"));
     const el = n as TreeEl;
     if (regionIds.has(el.id)) return `<${compOf[el.id]} />`;
-    if (hasRegion(el)) { let a = ` class="p${el.id}"`; for (const [k, v] of Object.entries(el.attrs)) a += ` ${k}="${escA(k === "href" ? rewriteHref(v) : v)}"`; return `<${el.tag}${a}>${el.children.map(pageAstro).join("")}</${el.tag}>`; }
+    if (hasRegion(el)) { let a = ` class="p${el.id}"`; for (const [k, v] of Object.entries(el.attrs)) a += ` ${k}="${escA(k === "href" ? rewriteHref(v) : v)}"`; a += dataAttrs(el.id); return `<${el.tag}${a}>${el.children.map(pageAstro).join("")}</${el.tag}>`; }
     return `<Fragment set:html={${JSON.stringify(absA(renderP(el)))}} />`;
   }
   const imports = regions.map((r) => `import ${r.file} from "../components/${r.file}.astro";`).join("\n");

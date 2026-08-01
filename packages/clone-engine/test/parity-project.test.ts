@@ -69,15 +69,21 @@ async function projectTmp(goldenDir: string) {
   return r;
 }
 
-describe("projection parity vs .mjs projection + pixel oracle", () => {
+describe("projection pixel oracle (sole fidelity gate)", () => {
+  // The byte-vs-.mjs assertion is intentionally RETIRED: the TS port reached parity with the
+  // frozen .mjs (tag `ts-engine-at-parity`), and Plan 2 now improves *beyond* it by stamping
+  // semantic data-* attributes — which changes the projected HTML bytes on purpose. Byte-equality
+  // to `projected-mjs.html` would (correctly) fail, so it is replaced with a determinism guard.
+  // The 0-px pixel oracle below is now the sole fidelity gate: data-* is render-neutral, so it
+  // MUST still hold at 0-px on all three sites — any drift means an attribute altered layout.
   for (const site of SITES) {
     const goldenDir = path.join(dir, "golden", site);
 
-    it(`${site}: TS project() === frozen .mjs projection, byte-for-byte`, async () => {
-      const out = await projectTmp(goldenDir);
-      const ref = fs.readFileSync(path.join(goldenDir, "projected-mjs.html"), "utf8");
-      expect(out.indexHtml).toEqual(ref);
-    }, 120_000);
+    it(`${site}: project() is deterministic (identical indexHtml on re-run)`, async () => {
+      const a = await projectTmp(goldenDir);
+      const b = await projectTmp(goldenDir);
+      expect(a.indexHtml).toEqual(b.indexHtml);
+    }, 180_000);
 
     it(`${site}: assembled index.html renders 0-px vs golden capture clone`, async () => {
       const out = await projectTmp(goldenDir);
