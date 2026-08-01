@@ -271,9 +271,16 @@ export async function runMeasureJob(opts: {
     if (siteUrl) {
       try {
         const prop = await gscEnsureProperty({ sa, schemeUrl: siteUrl, fetchFn: deps?.fetchFn });
-        await upsertConnection(db, site, "gsc", prop.propertyUrl, { metaTagToken: prop.metaTagToken, verified: prop.verified });
-        await log(`gsc: property ${prop.propertyUrl} (verified=${prop.verified}${prop.metaTagToken ? ", meta token issued" : ""})`);
-        if (prop.verified) {
+        let verified = prop.verified;
+        if (!verified && prop.metaTagToken) {
+          // Meta rides the last deploy (deploy-time ensure + injection) — complete verification.
+          const { gscVerifyNow } = await import("@milo/measurement");
+          verified = await gscVerifyNow({ sa, schemeUrl: siteUrl, fetchFn: deps?.fetchFn });
+          await log(`gsc verify: ${verified ? "VERIFIED ✓" : "not yet — redeploy to put the meta tag live"}`);
+        }
+        await upsertConnection(db, site, "gsc", prop.propertyUrl, { metaTagToken: prop.metaTagToken, verified });
+        await log(`gsc: property ${prop.propertyUrl} (verified=${verified}${prop.metaTagToken ? ", meta token issued" : ""})`);
+        if (verified) {
           const rows = await gscFetchQueries({ sa, schemeUrl: siteUrl, days: 28, fetchFn: deps?.fetchFn });
           const totalClicks = rows.reduce((n, r) => n + r.clicks, 0);
           const totalImpr = rows.reduce((n, r) => n + r.impressions, 0);
