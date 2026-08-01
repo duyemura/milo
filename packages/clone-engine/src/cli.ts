@@ -6,6 +6,7 @@
  *
  * Subcommands:
  *   capture  --url <url> --out <dir>
+ *   label    --dir <dir> [--out <dir>] [--no-llm]
  *   project  --dir <dir> --out <outDir> [--base <base>] [--links <file>]
  *   build    (whole-site orchestrator; runs from cwd)
  *   deploy   --dist <distDir> --slug <slug>
@@ -15,6 +16,7 @@
  */
 import { capture } from "./capture.ts";
 import { project } from "./project.ts";
+import { label } from "./labels.ts";
 import { buildSite } from "./orchestrate.ts";
 import { deploy } from "./deploy.ts";
 import { mjsCapture, mjsProject, mjsBuild } from "./run-mjs.ts";
@@ -37,6 +39,11 @@ function requireArg(name: string): string {
     process.exit(1);
   }
   return v;
+}
+
+/** True if a boolean `--flag` is present anywhere in argv (no value consumed). */
+function hasFlag(name: string): boolean {
+  return process.argv.includes(`--${name}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -67,12 +74,15 @@ const SPEAKEASY_PAGES = [
 // and the token immediately after it (its value). All our flags take a value,
 // so treating `--x y` as a pair is robust. The first remaining bare token is
 // the subcommand — so `--engine ts project …` and `project … --engine ts` both work.
+// Boolean flags take NO value, so we must not consume the token after them.
+const BOOLEAN_FLAGS = new Set(["no-llm"]);
+
 function findSubcommand(): string | undefined {
   const argv = process.argv.slice(2);
   for (let i = 0; i < argv.length; i++) {
     const tok = argv[i];
     if (tok.startsWith("--")) {
-      i++; // skip this flag's value
+      if (!BOOLEAN_FLAGS.has(tok.slice(2))) i++; // skip this flag's value (unless it's a boolean flag)
       continue;
     }
     return tok;
@@ -84,7 +94,7 @@ const subcommand = findSubcommand();
 const engine = arg("engine", "ts");
 
 if (!subcommand) {
-  console.error("Usage: node src/cli.ts <capture|project|build|deploy> [--engine <ts|mjs>] [flags]");
+  console.error("Usage: node src/cli.ts <capture|label|project|build|deploy> [--engine <ts|mjs>] [flags]");
   process.exit(1);
 }
 
@@ -115,6 +125,28 @@ switch (subcommand) {
     break;
   }
 
+  case "label": {
+    // node src/cli.ts label --dir <d> [--out <d>] [--no-llm]
+    // Reads <dir>/capture.json, computes labels (LLM if configured + not --no-llm,
+    // else deterministic heuristic), writes labels.json, prints a summary.
+    const dir = requireArg("dir");
+    const out = arg("out");
+    const noLlm = hasFlag("no-llm");
+    const labels = await label({ dir, out, llm: !noLlm });
+    const roleCounts = labels.sections.reduce<Record<string, number>>((m, s) => {
+      m[s.role] = (m[s.role] ?? 0) + 1;
+      return m;
+    }, {});
+    console.log(
+      `  labels: site "${labels.site.name}" — ${labels.sections.length} sections, ` +
+      `${labels.brand.colors.length} brand colors, ${labels.brand.fonts.length} fonts, ` +
+      `${labels.elements.length} elements, ${labels.assets.length} assets`,
+    );
+    console.log(`  section roles: ${Object.entries(roleCounts).map(([r, n]) => `${r}×${n}`).join(", ")}`);
+    console.log(`  → wrote ${path.join(path.resolve(out ?? dir), "labels.json")}`);
+    break;
+  }
+
   case "build": {
     if (engine === "ts") {
       await buildSite({ origin: SPEAKEASY_ORIGIN, pages: SPEAKEASY_PAGES });
@@ -137,7 +169,7 @@ switch (subcommand) {
 
   default: {
     console.error(`Unknown subcommand: ${subcommand}`);
-    console.error("Valid subcommands: capture, project, build, deploy");
+    console.error("Valid subcommands: capture, label, project, build, deploy");
     process.exit(1);
   }
 }
