@@ -212,6 +212,7 @@ export async function runMeasureJob(opts: {
       const accountName = await ga4EnsureAccount({
         sa,
         displayName: config.gaAccountDisplay,
+        accountNameProvided: config.gaAccountName,
         fetchFn: deps?.fetchFn,
       });
       const asset = await ga4EnsureProperty({

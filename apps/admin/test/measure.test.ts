@@ -81,14 +81,13 @@ describe("measure job", () => {
       if (url.includes("oauth2.googleapis.com/token")) {
         return { ok: true, status: 200, json: async () => ({ access_token: "t", expires_in: 3600 }) };
       }
-      if (url.includes("place/textsearch")) {
-        return { ok: true, status: 200, json: async () => ({ results: [{ place_id: "pid" }] }) };
-      }
-      if (url.includes("place/details")) {
+      if (url.includes("places.googleapis.com/v1/places:searchText")) {
         return {
           ok: true,
           status: 200,
-          json: async () => ({ result: { rating: 4.9, user_ratings_total: 88, reviews: [{ rating: 5, text: "Best coached hour in Denver." }] } }),
+          json: async () => ({
+            places: [{ id: "pid", rating: 4.9, userRatingCount: 88, reviews: [{ rating: 5, text: { text: "Best coached hour in Denver." } }] }],
+          }),
         };
       }
       if (url.includes("analyticsadmin.googleapis.com/v1alpha/accounts") && init?.method !== "POST") {
@@ -152,11 +151,12 @@ describe("measure job", () => {
     };
     await db.insertInto("jobs").values(job).execute();
     const fetchFn = async (url: string) => {
-      if (url.includes("place/textsearch")) {
-        return { ok: true, status: 200, json: async () => ({ results: [{ place_id: "pid" }] }) };
-      }
-      if (url.includes("place/details")) {
-        return { ok: true, status: 200, json: async () => ({ result: { rating: 4.1, user_ratings_total: 12, reviews: [] } }) };
+      if (url.includes("places.googleapis.com/v1/places:searchText")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ places: [{ id: "pid", rating: 4.1, userRatingCount: 12, reviews: [] }] }),
+        };
       }
       return { ok: true, status: 200, json: async () => ({}) };
     };

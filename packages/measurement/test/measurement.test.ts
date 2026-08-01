@@ -126,18 +126,18 @@ describe("ga4 ensure + inject", () => {
 describe("places metrics", () => {
   it("returns rating/count and a strong review snippet", async () => {
     const fetchFn = async (url: string) => {
-      if (url.includes("textsearch")) {
-        return { ok: true, status: 200, json: async () => ({ results: [{ place_id: "pid1" }] }) };
-      }
       return {
         ok: true,
         status: 200,
         json: async () => ({
-          result: {
-            rating: 4.8,
-            user_ratings_total: 123,
-            reviews: [{ rating: 5, text: "Best coaching I've ever had, period." }],
-          },
+          places: [
+            {
+              id: "pid1",
+              rating: 4.8,
+              userRatingCount: 123,
+              reviews: [{ rating: 5, text: { text: "Best coaching I've ever had, period." } }],
+            },
+          ],
         }),
       };
     };
@@ -153,7 +153,7 @@ describe("places metrics", () => {
       gymName: "Nowhere Gym",
       city: "X",
       state: "Y",
-      fetchFn: async () => ({ ok: true, status: 200, json: async () => ({ results: [] }) }),
+      fetchFn: async () => ({ ok: true, status: 200, json: async () => ({ places: [] }) }),
     });
     expect(m).toBeNull();
   });

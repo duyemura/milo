@@ -5,15 +5,19 @@ export const GA_EDIT = "https://www.googleapis.com/auth/analytics.edit";
 const ADMIN = "https://analyticsadmin.googleapis.com/v1alpha";
 
 /**
- * The GA account is CREATED via API — whoever creates it owns it, so the service
- * account needs no console steps and no access grants (this killed Dan's blocker).
+ * GA accounts cannot be created by API (Google requires interactive TOS once per org).
+ * Strategy: take a provided account name when present (env/provisioned once manually),
+ * otherwise find one matching displayName in the SA's visible accounts, else attempt
+ * create (future-proof) and surface a precise error.
  */
 export async function ensureAccount(opts: {
   sa: ServiceAccount;
   displayName: string;
+  accountNameProvided?: string;
   fetchFn?: FetchLike;
 }): Promise<string> {
-  const { sa, displayName, fetchFn } = opts;
+  const { sa, displayName, accountNameProvided, fetchFn } = opts;
+  if (accountNameProvided) return accountNameProvided;
   const list = await apiCall({ sa, scope: GA_EDIT, url: `${ADMIN}/accounts?pageSize=200`, fetchFn });
   const accounts =
     (list.status === 200 ? (((list.data as { accounts?: unknown[] }).accounts ?? []) as { name: string; displayName: string }[]) : []);
@@ -28,6 +32,11 @@ export async function ensureAccount(opts: {
     body: { displayName, regionCode: "US" },
     fetchFn,
   });
+  if (created.status === 404) {
+    throw new Error(
+      `GA accounts can't be created by API (Google requires interactive TOS once per org). Provision a GA4 account once in analytics.google.com and set GA_ACCOUNT_NAME=<accounts/ID> — everything after that is automatic.`,
+    );
+  }
   const acc = requireOk("ga4/accounts:create", created, [200]) as { name: string };
   return acc.name;
 }
