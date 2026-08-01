@@ -80,6 +80,19 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@26.1.1)
 
+  packages/clone-engine:
+    dependencies:
+      playwright:
+        specifier: ^1.48.0
+        version: 1.61.1
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+    devDependencies:
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@26.1.1)(yaml@2.9.0)
+
   packages/generate:
     dependencies:
       '@milo/llm':

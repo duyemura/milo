@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-01
 **Status:** Design settled with Dan (2026-08-01) — proceeding to implementation plan
-**Engine:** `page-clone-spike/` · Doctrine: `page-clone-spike/DOCTRINE.md`
+**Engine:** `packages/clone-engine/` · Doctrine: `packages/clone-engine/DOCTRINE.md`
 **Depends on:** `packages/llm` (`llmJson`), existing `page-clone.mjs` + `project-page.mjs`
 
 ## Purpose
