@@ -88,20 +88,6 @@ function copyOf(n: TreeNode, acc: string[] = []): string[] {
   return acc;
 }
 
-/** First heading (h1..h6) element in subtree, or null. */
-function firstHeading(n: TreeEl): TreeEl | null {
-  if (/^h[1-6]$/.test(n.tag)) return n;
-  for (const c of elKids(n)) { const f = firstHeading(c); if (f) return f; }
-  return null;
-}
-
-/** Collect all element ids in a subtree. */
-function idsOf(n: TreeEl, acc: number[] = []): number[] {
-  acc.push(n.id);
-  n.children.filter(isEl).forEach((c) => idsOf(c as TreeEl, acc));
-  return acc;
-}
-
 /** Build id → tag map for the entire tree. */
 function buildTagMap(n: TreeEl, m: Record<number, string> = {}): Record<number, string> {
   m[n.id] = n.tag;
