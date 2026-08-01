@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 import {
   createRealKvsAdapter,
   createRealS3Adapter,
@@ -10,6 +11,7 @@ import {
 import type { AdminDb } from "../db/index.ts";
 import type { AdminConfig } from "../config.ts";
 import type { JobRow, SiteRow } from "../db/types.ts";
+import type { SpawnFn } from "./runner.ts";
 
 /**
  * Deploy/promote/rollback via the battle-tested @milo/publish (NOT the spike's deploy.mjs —
@@ -24,10 +26,58 @@ export async function runDeploy(opts: {
   distDir: string;
   gymJsonPath: string;
   log: (line: string) => Promise<void>;
+  sp?: SpawnFn;
 }): Promise<void> {
-  const { db, job, site, distDir, gymJsonPath, log } = opts;
+  const { db, job, site, distDir, log, sp } = opts;
 
-  const config = await resolveOrInitConfig({ gymJsonPath });
+  if (site.seedType === "clone") {
+    if (job.type !== "deploy-staging") {
+      throw new Error("promote/rollback aren't supported for clone seeds yet — deploy-staging only.");
+    }
+    if (!sp) throw new Error("clone deploy requires a process spawner.");
+    const company = await db
+      .selectFrom("companies")
+      .select("name")
+      .where("id", "=", site.companyId)
+      .executeTakeFirstOrThrow();
+    const slug =
+      site.slug ??
+      company.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") +
+        "-" +
+        randomUUID().slice(0, 6);
+    const cloneCli = path.join(opts.config.repoRoot, "packages/clone-engine/src/cli.ts");
+    await log(`$ node packages/clone-engine/src/cli.ts deploy --dist dist/ --slug ${slug}`);
+    const r = await sp("node", [cloneCli, "deploy", "--dist", distDir, "--slug", slug], {
+      cwd: opts.config.repoRoot,
+      env: {},
+    });
+    if (r.code !== 0) throw new Error(`clone deploy exited ${r.code}`);
+
+    const url = `https://${slug}-staging.mygymseo.com`;
+    await db
+      .insertInto("deploys")
+      .values({
+        id: randomUUID(),
+        workspaceId: site.workspaceId,
+        companyId: site.companyId,
+        siteId: site.id,
+        env: "staging",
+        versionId: null,
+        url,
+        status: "deployed",
+        createdAt: new Date().toISOString(),
+      })
+      .execute();
+    await db
+      .updateTable("sites")
+      .set({ slug, status: "deployed", stage: "in-review" })
+      .where("id", "=", site.id)
+      .execute();
+    await log(`live: ${url}`);
+    return;
+  }
+
+  const config = await resolveOrInitConfig({ gymJsonPath: opts.gymJsonPath });
   const s3 = createRealS3Adapter({ bucket: config.bucket, region: config.region, awsProfile: config.awsProfile });
   const kvs = createRealKvsAdapter({ kvsArn: config.kvsArn, region: config.region, awsProfile: config.awsProfile });
 

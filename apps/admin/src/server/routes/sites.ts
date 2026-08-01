@@ -29,10 +29,8 @@ export function registerSiteRoutes(app: FastifyInstance, db: AdminDb, queue: Eng
         .code(400)
         .send({ error: "Template seed requires sourceUrl, name, city, and state." });
     }
-    if (body.seedType === "clone") {
-      return reply
-        .code(400)
-        .send({ error: "Clone seed is gated on the page-clone TypeScript engine port." });
+    if (body.seedType === "clone" && !body.sourceUrl) {
+      return reply.code(400).send({ error: "Clone seed requires sourceUrl." });
     }
 
     // Deactivate previous sites for this company — one is `active`.

@@ -91,16 +91,28 @@ describe("sites + jobs routes", () => {
     await app.close();
   });
 
-  it("clone seed is gated on the TS engine port", async () => {
-    const { app, db } = await testApp(fakeQueue());
+  it("clone seed works via the TS clone engine — requires only sourceUrl", async () => {
+    const queue = fakeQueue();
+    const { app, db } = await testApp(queue);
     await seedRegistry(db);
+
+    const missing = await app.inject({
+      method: "POST",
+      url: "/api/v1/sites",
+      payload: { companyId: "co1", seedType: "clone" },
+    });
+    expect(missing.statusCode).toBe(400);
+
     const res = await app.inject({
       method: "POST",
       url: "/api/v1/sites",
-      payload: { companyId: "co1", seedType: "clone", sourceUrl: "https://gym.example.com" },
+      payload: { companyId: "co1", seedType: "clone", sourceUrl: "https://speakeasyofstrength.com" },
     });
-    expect(res.statusCode).toBe(400);
-    expect((res.json() as { error: string }).error).toMatch(/TypeScript engine port/);
+    expect(res.statusCode).toBe(201);
+    const body = res.json() as { site: { seedType: string }; seedJob: { status: string } };
+    expect(body.site.seedType).toBe("clone");
+    expect(body.seedJob.status).toBe("queued");
+    expect(queue.added).toHaveLength(1);
     await app.close();
   });
 });
