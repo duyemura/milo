@@ -49,12 +49,14 @@ export async function ensureProperty(opts: {
   }
 
   // 3. Mint META_TAG verification token for the build job to inject, then verify once served.
+  // URL_PREFIX covers subdomain URLs (staging subdomains + any https:// prefix case);
+  // INET_DOMAIN is only correct for bare apex domains.
   const tok = await apiCall({
     sa,
     scope: SC_SCOPE,
     url: "https://www.googleapis.com/siteverification/v1/token",
     method: "POST",
-    body: { site: { type: "INET_DOMAIN", identifier: schemeUrl }, verificationMethod: "META_TAG" },
+    body: { site: { type: "URL_PREFIX", identifier: schemeUrl }, verificationMethod: "META_TAG" },
     fetchFn,
   });
   const token =
@@ -74,7 +76,7 @@ export async function verifyNow(opts: {
     scope: SC_SCOPE,
     url: "https://www.googleapis.com/siteverification/v1/webResource?verificationMethod=META_TAG",
     method: "POST",
-    body: { site: { type: "INET_DOMAIN", identifier: opts.schemeUrl } },
+    body: { site: { type: "URL_PREFIX", identifier: opts.schemeUrl } },
     fetchFn: opts.fetchFn,
   });
   return r.status === 200;
