@@ -69,3 +69,26 @@ export interface Labels {
   elements: ElementLabel[];
   assets: AssetLabel[];
 }
+
+// ---- site.json manifest (Plan 2, Task 4) ----
+
+/** One section entry: the region name, its semantic role, and the component filename (e.g. "HeroSection.astro"). */
+export interface ManifestSection { name: string; role: string; file: string; }
+
+/** One addressable element: the semantic role, the CSS class handle (e.g. "p42"), and the data-role selector. */
+export interface ManifestElement { role: string; id: string; selector: string; }
+
+/** One rehosted asset: the semantic alias (e.g. "logo") and its disk path relative to OUT (e.g. "assets/a1.png"). */
+export interface ManifestAsset { alias: string; file: string; }
+
+/** All manifest data for a single projected page. */
+export interface ManifestPage {
+  route: string;
+  component: string;
+  sections: ManifestSection[];
+  elements: ManifestElement[];
+  assets: ManifestAsset[];
+}
+
+/** The machine-readable site map written to `site.json`. An LLM agent uses this to address any part of the site. */
+export interface SiteManifest { brand: string; pages: ManifestPage[]; }

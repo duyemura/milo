@@ -17,6 +17,7 @@ import { esc, escA, diff } from "./html.ts";
 import { pixelDiff } from "./pixel.ts";
 import { heuristicLabels } from "./labels.ts";
 import { buildBrand, brandSlotOfCanon, deriveVariants, flattenRoot } from "./brand.ts";
+import { buildManifest } from "./manifest.ts";
 
 export interface ProjectOpts {
   dir: string;
@@ -279,6 +280,18 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   fs.writeFileSync(path.join(OUT, "tokens.css"), tokenRoot);
   // Editable global brand document (single source of truth for the brand slots).
   fs.writeFileSync(path.join(OUT, "brand.json"), JSON.stringify(brandDoc, null, 2));
+  // Agent-addressable site manifest (pure metadata — no render change).
+  const manifest = buildManifest({
+    base: BASE,
+    regions: regions.map((r) => ({
+      name: r.name,
+      file: r.file!,
+      sectionRole: sectionRoleOfRegionId.get(r.node.id) ?? r.name.toLowerCase(),
+    })),
+    elements: labels.elements,
+    assets: labels.assets,
+  });
+  fs.writeFileSync(path.join(OUT, "site.json"), JSON.stringify(manifest, null, 2));
 
   // ---- assemble whole page ----
   const head = CAP.head;

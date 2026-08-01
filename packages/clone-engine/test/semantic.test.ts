@@ -18,7 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { project } from "../src/project.ts";
 import { heuristicLabels } from "../src/labels.ts";
-import type { CaptureJson } from "../src/types.ts";
+import type { CaptureJson, SiteManifest } from "../src/types.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const SITES = ["speakeasy", "sweatshed"] as const;
@@ -190,5 +190,121 @@ describe("semantic data-* stamping", () => {
       const b = await projectTmp(goldenDir);
       expect(a.indexHtml).toEqual(b.indexHtml);
     }, 180_000);
+  }
+});
+
+/**
+ * Task 4: site.json manifest — the agent-addressable site map.
+ *
+ * Assertions per site:
+ *  - site.json parses to the SiteManifest shape (brand, pages[])
+ *  - every page has route, component, sections[], elements[], assets[]
+ *  - every elements[].id (strip leading "p" → numeric) has a matching ".p<n>" class in the HTML
+ *  - every elements[].selector ("[data-role=<role>]") matches an attribute in the HTML
+ *  - every assets[].file exists on disk under OUT
+ *  - every sections[].file corresponds to an emitted component .astro file OR a data-component ref in the HTML
+ */
+describe("site.json manifest (Task 4)", () => {
+  for (const site of SITES) {
+    const goldenDir = path.join(dir, "golden", site);
+
+    it(`${site}: site.json has correct shape and all handles resolve`, async () => {
+      const out = await projectTmp(goldenDir);
+      const siteJsonPath = path.join(out.outDir, "site.json");
+
+      // File must exist.
+      expect(fs.existsSync(siteJsonPath), "site.json not found in outDir").toBe(true);
+
+      // Must parse to SiteManifest shape.
+      const manifest = JSON.parse(fs.readFileSync(siteJsonPath, "utf8")) as SiteManifest;
+      expect(typeof manifest.brand).toBe("string");
+      expect(manifest.brand).toBe("brand.json");
+      expect(Array.isArray(manifest.pages)).toBe(true);
+      expect(manifest.pages.length).toBeGreaterThan(0);
+
+      const page = manifest.pages[0];
+      expect(typeof page.route).toBe("string");
+      expect(typeof page.component).toBe("string");
+      expect(Array.isArray(page.sections)).toBe(true);
+      expect(Array.isArray(page.elements)).toBe(true);
+      expect(Array.isArray(page.assets)).toBe(true);
+
+      // route must be "/" or a BASE-relative path.
+      expect(page.route).toMatch(/^\//);
+      // component is always "index.astro" for a single-page project.
+      expect(page.component).toBe("index.astro");
+
+      // sections: non-empty, each entry has name/role/file.
+      expect(page.sections.length).toBeGreaterThan(0);
+      for (const sec of page.sections) {
+        expect(typeof sec.name).toBe("string");
+        expect(sec.name.length).toBeGreaterThan(0);
+        expect(typeof sec.role).toBe("string");
+        expect(sec.role.length).toBeGreaterThan(0);
+        // file must end in .astro and match an emitted component.
+        expect(sec.file).toMatch(/\.astro$/);
+        const compName = sec.file.replace(/\.astro$/, "");
+        const compPath = path.join(out.outDir, "components", sec.file);
+        expect(
+          fs.existsSync(compPath),
+          `sections[].file "${sec.file}" has no matching component on disk`,
+        ).toBe(true);
+        // data-component="<compName>" must appear in the HTML OR the file is Navbar/Footer
+        // (which carry data-component but not data-section — so just verify file exists).
+        const htmlHasRef = out.indexHtml.includes(`data-component="${compName}"`);
+        const isNavOrFooter = compName === "Navbar" || compName === "Footer";
+        expect(
+          htmlHasRef || isNavOrFooter,
+          `sections[].file "${sec.file}" has no data-component="${compName}" in HTML`,
+        ).toBe(true);
+      }
+
+      // elements: each entry has role/id/selector and resolves in the HTML.
+      for (const el of page.elements) {
+        expect(typeof el.role).toBe("string");
+        expect(el.role.length).toBeGreaterThan(0);
+        // id must be "p<numeric>".
+        expect(el.id).toMatch(/^p\d+$/);
+        // selector must be "[data-role=<role>]".
+        expect(el.selector).toBe(`[data-role=${el.role}]`);
+        // The HTML must contain class="... p<n> ..." OR class="p<n>" for this element.
+        expect(
+          out.indexHtml.includes(`class="p${el.id.slice(1)}"`),
+          `elements[].id "${el.id}" — class "p${el.id.slice(1)}" not found in HTML`,
+        ).toBe(true);
+        // The data-role attribute must be stamped in the HTML.
+        expect(
+          out.indexHtml.includes(`data-role="${el.role}"`),
+          `elements[].selector "${el.selector}" — data-role="${el.role}" not found in HTML`,
+        ).toBe(true);
+      }
+
+      // assets: each alias→file entry must have the file on disk under OUT.
+      for (const asset of page.assets) {
+        expect(typeof asset.alias).toBe("string");
+        expect(asset.alias.length).toBeGreaterThan(0);
+        expect(typeof asset.file).toBe("string");
+        // file is "assets/aN.ext" — must exist in the captured assets directory used by project.
+        const assetPath = path.join(goldenDir, asset.file);
+        expect(
+          fs.existsSync(assetPath),
+          `assets[].file "${asset.file}" not found on disk at ${assetPath}`,
+        ).toBe(true);
+      }
+    }, 120_000);
+
+    it(`${site}: site.json elements have no raw capture-id leakage beyond p<n> handle`, async () => {
+      const out = await projectTmp(goldenDir);
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(out.outDir, "site.json"), "utf8"),
+      ) as SiteManifest;
+      const page = manifest.pages[0];
+      // The manifest must NOT expose raw numeric ids — only the "p<n>" string form.
+      for (const el of page.elements) {
+        // id field must be "p<digits>" — not a bare number.
+        expect(typeof el.id).toBe("string");
+        expect(el.id).toMatch(/^p\d+$/);
+      }
+    }, 120_000);
   }
 });
