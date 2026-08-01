@@ -148,7 +148,7 @@ function sniffExt(b) { // type by magic bytes; "HTML" means it's a document, not
   if (b[0] === 0xff && b[1] === 0xd8) return "jpg";
   if (h === "RIFF" && b.toString("latin1", 8, 12) === "WEBP") return "webp";
   if (b[0] === 0x00 && b[1] === 0x01 && b[2] === 0x00 && b[3] === 0x00) return "ttf";
-  const head = b.toString("latin1", 0, 200).trim().toLowerCase();
+  const head = b.toString("latin1", 0, 200).replace(/^\xEF\xBB\xBF/, "").trim().toLowerCase(); // strip UTF-8 BOM before sniffing
   if (head.startsWith("<!doctype html") || head.startsWith("<html")) return "HTML";
   if (head.startsWith("<svg") || (head.startsWith("<?xml") && head.includes("<svg"))) return "svg";
   return null;
@@ -320,7 +320,7 @@ async function settle(page) {
 
   // ---- self-containment assertion (must fail, not just log) ----
   const leftovers = [];
-  const flag = (u) => { try { if (u && /^https?:/.test(u) && sourceOrigins.has(new URL(u).host)) leftovers.push(u); } catch { /* unparseable fragment (e.g. comma inside a srcset URL) — ignore, don't throw */ } };
+  const flag = (u) => { try { if (!u) return; const t = u.startsWith("//") ? "https:" + u : u; if (/^https?:/.test(t) && sourceOrigins.has(new URL(t).host)) leftovers.push(u); } catch { /* unparseable fragment (e.g. comma inside a srcset URL) — ignore, don't throw */ } };
   const scanTree = (node) => { if (node.t !== undefined) return; for (const key of ["src", "srcset", "poster"]) if (node.attrs[key]) for (const part of String(node.attrs[key]).split(",")) flag(part.trim().split(/\s+/)[0]); node.children.forEach(scanTree); };
   scanTree(tree);
   for (const w of WIDTHS) for (const id in styles[w]) for (const v of Object.values(styles[w][id])) if (v.includes("url(")) for (const m of v.matchAll(URL_RE)) flag(m[2]);

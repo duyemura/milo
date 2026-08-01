@@ -32,7 +32,9 @@ const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 const escA = (s) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 const VOID = new Set(["img", "br", "hr", "input", "source", "use", "path", "circle", "rect", "line", "polygon", "polyline", "ellipse", "col", "area"]);
 const SVG = new Set(["svg", "path", "g", "circle", "rect", "line", "polygon", "polyline", "ellipse", "use", "defs", "text", "tspan", "clippath", "lineargradient", "radialgradient", "stop", "mask", "symbol", "marker", "pattern", "filter", "image"]);
-const ALWAYS_KEEP = new Set(["text-decoration", "text-decoration-line", "text-decoration-color", "text-decoration-style", "text-decoration-thickness"]);
+const ALWAYS_KEEP = new Set(["text-decoration", "text-decoration-line", "text-decoration-color", "text-decoration-style", "text-decoration-thickness",
+  // never trim core font properties — losing weight/style/family is unacceptable and they're cheap (few per element)
+  "font-weight", "font-style", "font-family", "font-stretch", "font-variation-settings", "font-size", "line-height"]);
 const INHERITED = new Set(["color", "cursor", "direction", "font-family", "font-size", "font-style", "font-variant", "font-weight", "font-stretch", "letter-spacing", "line-height", "list-style-image", "list-style-position", "list-style-type", "quotes", "tab-size", "text-align", "text-align-last", "text-indent", "text-transform", "visibility", "white-space", "white-space-collapse", "word-break", "word-spacing", "overflow-wrap", "writing-mode", "hyphens", "text-shadow", "caption-side", "border-collapse", "border-spacing", "empty-cells", "-webkit-font-smoothing", "-webkit-text-fill-color", "text-rendering", "orphans", "widows", "pointer-events", "color-scheme", "font-kerning", "font-feature-settings", "font-optical-sizing"]);
 const S1 = CAP.styles["1440"], S2 = CAP.styles["768"], S3 = CAP.styles["390"];
 
