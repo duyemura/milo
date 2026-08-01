@@ -2,6 +2,7 @@ import { apiCall, requireOk, type FetchLike } from "./http.ts";
 import type { ServiceAccount } from "./googleAuth.ts";
 
 export const SC_SCOPE = "https://www.googleapis.com/auth/webmasters";
+export const SV_SCOPE = "https://www.googleapis.com/auth/siteverification";
 
 export interface GscProperty {
   propertyUrl: string;
@@ -33,19 +34,20 @@ export async function ensureProperty(opts: {
     body: {},
     fetchFn,
   }).catch(() => {});
-  const site = await apiCall({ sa, scope: SC_SCOPE, url: `https://www.googleapis.com/webmasters/v3/sites/${enc}`, fetchFn });
-  const already = site.status === 200;
+  await apiCall({ sa, scope: SC_SCOPE, url: `https://www.googleapis.com/webmasters/v3/sites/${enc}`, fetchFn }).catch(() => ({}));
 
-  // 2. Verification status — if already verified, done.
-  try {
-    await apiCall({
-      sa,
-      scope: SC_SCOPE,
-      url: `https://siteverification.googleapis.com/v1/webResource?verificationMethod=META_TAG`,
-      fetchFn,
-    });
-  } catch {
-    /* best-effort pre-check */
+  // 2. TRUE verification status comes from the siteVerification resources list —
+  //    the webmasters sites list includes UNVERIFIED registrations, so it lies.
+  let already = false;
+  const verifiedList = await apiCall({
+    sa,
+    scope: SV_SCOPE,
+    url: `https://www.googleapis.com/siteVerification/v1/webResource`,
+    fetchFn,
+  });
+  if (verifiedList.status === 200) {
+    const items = ((verifiedList.data as { items?: unknown[] }).items ?? []) as { site?: { identifier?: string } }[];
+    already = items.some((i) => i.site?.identifier === schemeUrl);
   }
 
   // 3. Mint META_TAG verification token for the build job to inject, then verify once served.
@@ -53,14 +55,16 @@ export async function ensureProperty(opts: {
   // INET_DOMAIN is only correct for bare apex domains.
   const tok = await apiCall({
     sa,
-    scope: SC_SCOPE,
-    url: "https://siteverification.googleapis.com/v1/token",
+    scope: SV_SCOPE,
+    url: "https://www.googleapis.com/siteVerification/v1/token",
     method: "POST",
-    body: { site: { type: "URL_PREFIX", identifier: schemeUrl }, verificationMethod: "META_TAG" },
+    body: { site: { type: "SITE", identifier: schemeUrl }, verificationMethod: "META" },
     fetchFn,
   });
-  const token =
+  const rawToken =
     (requireOk("siteverification/token", tok, [200]) as { token?: string })?.token ?? null;
+  // API returns the full <meta … content="x" …> tag; the injector wants the bare value.
+  const token = rawToken ? (/(?:^| )content="([^"]+)"/.exec(rawToken)?.[1] ?? rawToken) : null;
 
   return { propertyUrl: schemeUrl, metaTagToken: token, verified: already };
 }
@@ -73,10 +77,10 @@ export async function verifyNow(opts: {
 }): Promise<boolean> {
   const r = await apiCall({
     sa: opts.sa,
-    scope: SC_SCOPE,
-    url: "https://siteverification.googleapis.com/v1/webResource?verificationMethod=META_TAG",
+    scope: SV_SCOPE,
+    url: "https://www.googleapis.com/siteVerification/v1/webResource?verificationMethod=META",
     method: "POST",
-    body: { site: { type: "URL_PREFIX", identifier: opts.schemeUrl } },
+    body: { site: { type: "SITE", identifier: opts.schemeUrl } },
     fetchFn: opts.fetchFn,
   });
   return r.status === 200;
