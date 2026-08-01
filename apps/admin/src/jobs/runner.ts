@@ -104,7 +104,7 @@ export async function runJob(opts: {
         "--theme", payload["templateId"] ?? "modern",
         "--out", distDir,
       ]);
-      const injS = await injectIntoDist({ db, site, distDir });
+      const injS = await injectIntoDist({ db, site, distDir, config, env: "staging" });
       if (injS.injected > 0) await log(`analytics injected into ${injS.injected}/${injS.files} html file(s)`);
       await db
         .updateTable("sites")
@@ -121,7 +121,7 @@ export async function runJob(opts: {
         "--theme", payload["templateId"] ?? "modern",
         "--out", distDir,
       ]);
-      const inj = await injectIntoDist({ db, site, distDir });
+      const inj = await injectIntoDist({ db, site, distDir, config, env: "staging" });
       if (inj.injected > 0) await log(`analytics injected into ${inj.injected}/${inj.files} html file(s)`);
       await db
         .updateTable("sites")
@@ -195,7 +195,7 @@ async function runCloneSeed(opts: {
 
   fs.rmSync(distDir, { recursive: true, force: true });
   fs.cpSync(path.join(astroDir, "dist"), distDir, { recursive: true });
-  const inj = await injectIntoDist({ db, site, distDir });
+  const inj = await injectIntoDist({ db, site, distDir, config, env: "staging" });
   if (inj.injected > 0) await appendLog(db, job.id, `analytics injected into ${inj.injected}/${inj.files} html file(s)`);
   await db.updateTable("sites").set({ status: "built", stage: "building" }).where("id", "=", site.id).execute();
 }

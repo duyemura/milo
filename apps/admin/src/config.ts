@@ -22,6 +22,11 @@ export const AdminConfigSchema = z.object({
   chatModel: z.string().default("anthropic/claude-haiku-4.5"),
   gaAccountDisplay: z.string().default("PushPress sites"),
   gaAccountName: z.string().optional(),
+  /** POLICY (Dan 2026-08-01): analytics injection is production-only by default;
+   *  staging carries no tracking. Override exists for testing only. */
+  analyticsOnStaging: z
+    .preprocess((v) => v === "true" || v === true, z.boolean())
+    .default(false),
   gaPropertyDisplay: z.string().default("PushPress sites · staging"),
   googleServiceAccountJson: z.string().optional(),
   googlePlacesApiKey: z.string().optional(),
@@ -76,6 +81,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AdminConfig {
     chatModel: env["CHAT_MODEL"],
     gaAccountDisplay: env["GA_ACCOUNT_DISPLAY"],
     gaAccountName: env["GA_ACCOUNT_NAME"],
+    analyticsOnStaging: env["ANALYTICS_ON_STAGING"],
     gaPropertyDisplay: env["GA_PROPERTY_DISPLAY"],
     googleServiceAccountJson: env["GOOGLE_SERVICE_ACCOUNT_JSON"],
     googlePlacesApiKey: env["GOOGLE_PLACES_API_KEY"],

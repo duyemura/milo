@@ -121,8 +121,15 @@ export async function injectIntoDist(opts: {
   db: AdminDb;
   site: SiteRow;
   distDir: string;
+  config?: AdminConfig;
+  env?: "staging" | "production";
 }): Promise<{ injected: number; files: number }> {
   const { db, site, distDir } = opts;
+  // Central policy gate: no tracking on staging by default (production gate lives at deploy).
+  const env = opts.env ?? "staging";
+  if (opts.config && env !== "production" && !opts.config.analyticsOnStaging) {
+    return { injected: 0, files: 0 };
+  }
   const conns = await db.selectFrom("google_connections").selectAll().where("siteId", "=", site.id).execute();
   const ga4 = conns.find((c) => c.kind === "ga4" && c.status === "active");
   const gsc = conns.find((c) => c.kind === "gsc" && c.status === "active");
@@ -223,7 +230,18 @@ export async function runMeasureJob(opts: {
     await log("places skipped: no GOOGLE_PLACES_API_KEY or gym facts in seed payload");
   }
 
-  // 2. Google APIs (GSC + GA4) — require service account.
+  // 2. Google APIs (GSC + GA4) — require service account AND production policy:
+  //    registration only when the site publishes to production (future: + paying).
+  const hasProductionDeploy = await db
+    .selectFrom("deploys")
+    .select(["id"])
+    .where("siteId", "=", site.id)
+    .where("env", "=", "production")
+    .limit(1)
+    .executeTakeFirst();
+  const policyAllowsGoogle = Boolean(hasProductionDeploy) || config.analyticsOnStaging;
+  void policyAllowsGoogle;
+
   let sa: ServiceAccount | null = null;
   if (config.googleServiceAccountJson) {
     try {
@@ -234,6 +252,8 @@ export async function runMeasureJob(opts: {
   }
   if (!sa) {
     await log("google APIs scaffold-mode: no GOOGLE_SERVICE_ACCOUNT_JSON — GSC/GA4 skipped this run");
+  } else if (!policyAllowsGoogle) {
+    await log("google APIs skipped: staging-only site carries no GSC/GA4 registration (gate: production publish + paying");
   } else {
     const siteUrl = stagingUrl(site);
     // GA4 ensure (works for any site URL).
@@ -309,7 +329,7 @@ export async function runMeasureJob(opts: {
   // New connections may have landed mid-run — re-inject into the built dist so the
   // next deploy carries analytics without a rebuild.
   const distDir = path.join(config.dataDir, "sites", site.id, "dist");
-  const inj = await injectIntoDist({ db, site, distDir });
+  const inj = await injectIntoDist({ db, site, distDir, config, env: "staging" });
   if (inj.injected > 0) await log(`analytics injected into ${inj.injected}/${inj.files} html file(s)`);
 
   if (digest.length === 0) {

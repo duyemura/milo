@@ -19,15 +19,25 @@ import { injectIntoDist, gscEnsureBeforeDeploy } from "./measure.ts";
  * per the consolidation map, v2's publish is the capable one). Site slug comes from the
  * publish.json that resolveOrInitConfig materializes next to gym.json.
  */
-/** GSC ensure + analytics injection once the deploy slug/URL is known. */
+/** GSC ensure + analytics injection once the deploy slug/URL is known.
+ *  Policy gate: production publishes only (staging ships clean); the paying-client
+ *  check is the future-work placeholder at exactly this seam. */
 async function ensureAndInject(opts: {
   db: AdminDb;
   adminConfig: AdminConfig;
   site: SiteRow;
   distDir: string;
   schemeUrl: string;
+  env: "staging" | "production";
   log: (line: string) => Promise<void>;
 }): Promise<void> {
+  if (opts.env !== "production" && !opts.adminConfig.analyticsOnStaging) {
+    await opts.log("analytics skipped (staging publishes carry no tracking — production gate");
+    return;
+  }
+  // FUTURE WORK: paying-client gate goes here — if the gym isn't paying, the gate
+  // verifies GSC/GA4/GSC-meta are NOT on the site and skips provisioning too.
+
   const ensured = await gscEnsureBeforeDeploy({
     db: opts.db,
     config: opts.adminConfig,
@@ -68,7 +78,7 @@ export async function runDeploy(opts: {
         "-" +
         randomUUID().slice(0, 6);
     const cloneUrl = `https://${slug}-staging.mygymseo.com/`;
-    await ensureAndInject({ db, adminConfig: opts.config, site, distDir, schemeUrl: cloneUrl, log });
+    await ensureAndInject({ db, adminConfig: opts.config, site, distDir, schemeUrl: cloneUrl, env: "staging", log });
     const cloneCli = path.join(opts.config.repoRoot, "packages/clone-engine/src/cli.ts");
     await log(`$ node packages/clone-engine/src/cli.ts deploy --dist dist/ --slug ${slug}`);
     const r = await sp("node", [cloneCli, "deploy", "--dist", distDir, "--slug", slug], {
@@ -110,7 +120,7 @@ export async function runDeploy(opts: {
   const url = `https://${host}`;
 
   const stagingScheme = `https://${config.slug}-staging.${config.siteDomain}/`;
-  await ensureAndInject({ db, adminConfig: opts.config, site, distDir, schemeUrl: stagingScheme, log });
+  await ensureAndInject({ db, adminConfig: opts.config, site, distDir, schemeUrl: stagingScheme, env, log });
 
   if (job.type === "deploy-staging") {
     await log(`publishing staging → ${url}`);

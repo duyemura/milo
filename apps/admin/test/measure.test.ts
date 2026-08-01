@@ -111,7 +111,7 @@ describe("measure job", () => {
 
     const digest = await runJob({
       db,
-      config: testConfig({ dataDir, googlePlacesApiKey: "k", googleServiceAccountJson: "/tmp/x" }),
+      config: testConfig({ dataDir, googlePlacesApiKey: "k", googleServiceAccountJson: "/tmp/x", analyticsOnStaging: true }),
       job,
       site,
       spawn: async () => ({ code: 1, lines: [] }),
@@ -171,6 +171,51 @@ describe("measure job", () => {
     expect(digest).toContain("4.1");
     const conns = await db.selectFrom("google_connections").selectAll().where("siteId", "=", "m-site").execute();
     expect(conns.map((c) => c.kind)).toEqual(["places"]);
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  it("production gate: google registration waits for a production deploy (staging flag off)", async () => {
+    const db = await testDb();
+    await seededSite(db);
+    const dataDir = await mkdtemp(path.join(tmpdir(), "measure-"));
+    const site = await db.selectFrom("sites").selectAll().where("id", "=", "m-site").executeTakeFirstOrThrow();
+    const job = {
+      id: "mj3",
+      workspaceId: "ws1",
+      companyId: "co1",
+      siteId: "m-site",
+      type: "measure" as const,
+      status: "running" as const,
+      payload: "{}",
+      error: null,
+      result: null,
+      createdAt: new Date().toISOString(),
+      startedAt: null,
+      finishedAt: null,
+    };
+    await db.insertInto("jobs").values(job).execute();
+    const fetchFn = async (url: string) => {
+      if (url.includes("places.googleapis.com/v1/places:searchText")) {
+        return { ok: true, status: 200, json: async () => ({ places: [{ id: "pid", rating: 4.2, userRatingCount: 9, reviews: [] }] }) };
+      }
+      if (url.includes("oauth2.googleapis.com/token")) {
+        return { ok: true, status: 200, json: async () => ({ access_token: "t", expires_in: 3600 }) };
+      }
+      throw new Error("google call that must never happen pre-production: " + url);
+    };
+    const digest = await runJob({
+      db,
+      config: testConfig({ dataDir, googlePlacesApiKey: "k", googleServiceAccountJson: "/tmp/x" }),
+      job,
+      site,
+      spawn: async () => ({ code: 1, lines: [] }),
+      measure: { fetchFn: fetchFn as never, loadSa: () => FAKE_SA },
+    });
+    expect(digest).toContain("4.2");
+    const conns = await db.selectFrom("google_connections").selectAll().where("siteId", "=", "m-site").execute();
+    expect(conns.map((c) => c.kind)).toEqual(["places"]);
+    const logs = await db.selectFrom("job_logs").selectAll().where("jobId", "=", "mj3").execute();
+    expect(logs.some((l) => l.line.includes("skipped: staging-only"))).toBe(true);
     await rm(dataDir, { recursive: true, force: true });
   });
 });
