@@ -189,6 +189,22 @@ export async function executeAction(
       if (!["seed", "build", "deploy-staging", "promote", "rollback"].includes(jobType)) {
         return { type: action.type, ok: false, detail: `Unknown job type “${a["jobType"] ?? ""}”.` };
       }
+      // Same guards the UI buttons enforce — the chat can't skip state checks,
+      // and production mutations must be explicit.
+      if ((jobType === "deploy-staging" || jobType === "build") && site.status !== "built" && site.status !== "deployed" && site.status !== "seeded") {
+        return {
+          type: action.type,
+          ok: false,
+          detail: `${site.companyName ?? site.id} isn't built yet (status=${site.status}). Run the seed first.`,
+        };
+      }
+      if ((jobType === "promote" || jobType === "rollback") && site.status !== "deployed") {
+        return {
+          type: action.type,
+          ok: false,
+          detail: `${site.companyName ?? site.id} has no staging deploy (status=${site.status}) — nothing to ${jobType}. Publish staging first.`,
+        };
+      }
       const job = await enqueueJob(db, queue, {
         siteId: site.id,
         workspaceId: site.workspaceId,

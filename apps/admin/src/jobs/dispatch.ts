@@ -149,16 +149,23 @@ export async function appendLog(
   line: string,
   now: () => string = () => new Date().toISOString(),
 ): Promise<void> {
-  const rows = stripControl(line).split("\n").filter((l) => l.trim());
-  if (rows.length === 0) return;
-  const { maxSeq } = await db
-    .selectFrom("job_logs")
-    .select((eb) => eb.fn.max("seq").as("maxSeq"))
-    .where("jobId", "=", jobId)
-    .executeTakeFirstOrThrow();
-  let seq = ((maxSeq as number | null) ?? 0) + 1;
-  for (const l of rows) {
-    await db.insertInto("job_logs").values({ jobId, seq, line: l, createdAt: now() }).execute();
-    seq += 1;
+  try {
+    const rows = stripControl(line).split("\n").filter((l) => l.trim());
+    if (rows.length === 0) return;
+    const { maxSeq } = await db
+      .selectFrom("job_logs")
+      .select((eb) => eb.fn.max("seq").as("maxSeq"))
+      .where("jobId", "=", jobId)
+      .executeTakeFirstOrThrow();
+    let seq = ((maxSeq as number | null) ?? 0) + 1;
+    for (const l of rows) {
+      await db.insertInto("job_logs").values({ jobId, seq, line: l, createdAt: now() }).execute();
+      seq += 1;
+    }
+  } catch (err) {
+    // Logging must NEVER wedge a job — a stuck log write once stranded a job at
+    // "running" forever (see 2026-08-01 retro). Loud in-process, silent in DB.
+    console.error(`[admin] appendLog failed for job ${jobId}:`, err);
+    console.error(line);
   }
 }

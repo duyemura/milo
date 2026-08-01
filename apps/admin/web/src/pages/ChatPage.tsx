@@ -28,12 +28,14 @@ const ACTION_LABEL: Record<string, string> = {
   "launch-site": "Launch now",
   "deploy-staging": "Launch now",
   "investigate-job": "Investigate",
+  "follow-up": "Nudge client",
 };
 
 const ACTION_MESSAGE: Record<string, (p: Record<string, string>) => string> = {
   "launch-site": (p) => `launch ${p["companyName"] ?? "this site"}`,
   "deploy-staging": (p) => `launch ${p["companyName"] ?? "this site"}`,
   "investigate-job": (p) => `investigate the failed job for ${p["companyName"] ?? "this site"}`,
+  "follow-up": (p) => `task: nudge ${p["companyName"] ?? "the client"} to approve their staging site`,
 };
 
 export function ChatPage() {

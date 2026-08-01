@@ -4,7 +4,7 @@ import type { TodoRow } from "../db/types.ts";
 export interface SuggestedTodo {
   id: string;
   title: string;
-  actionType: "launch-site" | "investigate-job" | "deploy-staging";
+  actionType: "launch-site" | "investigate-job" | "deploy-staging" | "follow-up";
   actionPayload: Record<string, string>;
   hint: string;
 }
@@ -66,6 +66,25 @@ export async function deriveSuggestions(db: AdminDb): Promise<SuggestedTodo[]> {
       actionType: "investigate-job",
       actionPayload: { jobId: j.id, siteId: j.siteId, companyName: j.companyName },
       hint: j.error ?? "Job failed — worth a look.",
+    });
+  }
+
+  // In-review sites awaiting the client: the pipeline stalls silently without a nudge.
+  const inReview = await db
+    .selectFrom("sites")
+    .innerJoin("companies", "companies.id", "sites.companyId")
+    .select(["sites.id", "sites.slug", "sites.createdAt", "companies.name as companyName"])
+    .where("sites.stage", "=", "in-review")
+    .where("sites.active", "=", 1)
+    .execute();
+  for (const s of inReview) {
+    if (busy.has(s.id)) continue;
+    suggestions.push({
+      id: `review-${s.id}`,
+      title: `Check in with ${s.companyName} — staging is live, pending approval`,
+      actionType: "follow-up",
+      actionPayload: { siteId: s.id, companyName: s.companyName },
+      hint: "Client review blocks go-live — a nudge today beats a call next week.",
     });
   }
 
