@@ -76,11 +76,21 @@ export function ChatPage() {
       return (await res.json()) as { reply: string; effects: ChatMsg["effects"]; suggestedReplies?: string[] };
     },
     onSuccess: (data, message) => {
-      setMessages((m) => [
-        ...m.slice(0, -1),
-        { role: "user", content: message },
-        { role: "assistant", content: data.reply, effects: data.effects, suggestedReplies: data.suggestedReplies },
-      ]);
+      setMessages((m) => {
+        // Swap the trailing "…" placeholder for the real reply (user bubble was
+        // already added by dispatch — re-appending it made every message appear twice).
+        const last = m[m.length - 1];
+        if (last?.role === "assistant" && last.content === "…") {
+          return [
+            ...m.slice(0, -1),
+            { role: "assistant", content: data.reply, effects: data.effects, suggestedReplies: data.suggestedReplies },
+          ];
+        }
+        return [
+          ...m,
+          { role: "assistant", content: data.reply, effects: data.effects, suggestedReplies: data.suggestedReplies },
+        ];
+      });
       void qc.invalidateQueries();
     },
   });

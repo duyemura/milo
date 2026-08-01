@@ -30,12 +30,20 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, "..", "..", "..");
 const ADMIN_DIR = path.resolve(HERE, "..");
 
-/** Minimal .env loader: KEY=VALUE lines, doesn't override existing env. */
+/** Minimal .env loader: KEY=VALUE lines, doesn't override existing env.
+ *  Strips matched surrounding quotes like real dotenv ("..." / '...') —
+ *  a quoted S3_REGION="us-east-1" once shipped literal quotes into the AWS SDK. */
 export function loadDotEnv(file: string, env: NodeJS.ProcessEnv = process.env): void {
   if (!existsSync(file)) return;
   for (const line of readFileSync(file, "utf-8").split("\n")) {
     const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
-    if (m && env[m[1]] === undefined) env[m[1]] = m[2];
+    if (!m || env[m[1]] !== undefined) continue;
+    let v = m[2];
+    if (v.length >= 2 && ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))) {
+      v = v.slice(1, -1);
+    }
+    if (v === "") continue; // empty stays unset so ??-defaults actually kick in
+    env[m[1]] = v;
   }
 }
 

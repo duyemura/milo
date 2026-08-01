@@ -56,7 +56,12 @@ export function createWorkosAuth(config: AdminConfig): WorkosAuth {
           sessionData: sealed,
           cookiePassword,
         });
-        if (!result.authenticated) return null;
+        if (!result.authenticated) {
+          // Session rejection is exactly the reload-starts-at-login symptom;
+          // the reason code is the diagnosis (expired, rotated, mismatched key…).
+          console.warn(`[admin] workos session rejected: reason=${"reason" in result ? result.reason : "unknown"}`);
+          return null;
+        }
         const email = result.user?.email ?? "";
         if (!domainOk(email)) return null;
         // Refresh token rotation: roll the sealed cookie forward when the SDK hands us a new one.
