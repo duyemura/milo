@@ -263,6 +263,14 @@ there).
 Edit operations / agent tools (C), page types + goals (D), new-section generation (E), goal
 measurement (F). A+B deliver only the representation + brand doc + manifest they consume.
 
+**Business-context documents (ICP, location, GMB, brand kit) are explicitly out of scope.** The
+clone seed reads **zero** external business docs today (verified: the engine reads only its own
+derived `capture.json` / link map / screenshots) — and it must stay that way. "Documents build
+the site" is a *generation* architecture that discards the DOM; it is why the docs-first approach
+cloned poorly, and it is the exact trap the clone doctrine avoids. When context docs return later,
+they are **editing context for the agent** (inform *what* to change) — **never a source of truth
+for layout.** Deferred without cost to the clone.
+
 ## Open implementation details (resolve in planning)
 
 - Exact digest size/shape fed to the labeler (token budget vs. labeling accuracy).
