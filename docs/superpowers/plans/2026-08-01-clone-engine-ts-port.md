@@ -218,7 +218,9 @@ git commit -m "test(clone-engine): freeze golden baseline (3 proven sites) for p
 
 ## Task 2: Projection parity harness (RED first)
 
-Projection is a **pure function of `capture.json`** → fully deterministic. The harness asserts the TS `project()` reproduces the golden clone `index.html` byte-for-byte AND that the assembled page has 0-px oracle drift. Written RED (no `project.ts` yet).
+Projection is a **pure function of `capture.json`** → fully deterministic. The harness asserts the TS `project()` reproduces the `.mjs` **projection** output byte-for-byte AND that the assembled page has 0-px oracle drift vs the capture clone. Written RED (no `project.ts` yet).
+
+> **CORRECTION (applied in Task 3):** The projection reference is NOT `golden/<site>/index.html` — that file is the *capture's* clone (`.pc-<id>` classes, full computed styles). `project()` emits a *different* artifact (`.p<id>` classes, tokenized `var(--cN)`, trimmed CSS). Byte parity is therefore against the frozen **`.mjs` projection** output `golden/<site>/projected-mjs.html` (Task 3 Step A freezes it). The capture clone `golden/<site>/index.html` is used only for the **pixel oracle** (assembled-vs-clone 0-px). The naive `toEqual(golden index.html)` written below is corrected in Task 3 Step C.
 
 **Files:**
 - Create: `packages/clone-engine/test/helpers/pixel.ts`
@@ -306,6 +308,19 @@ Translate `page-clone-spike/project-page.mjs` into `packages/clone-engine/src/pr
 
 **Files:**
 - Create: `packages/clone-engine/src/project.ts`
+- Create (frozen reference): `packages/clone-engine/test/golden/{torrance,speakeasy,sweatshed}/projected-mjs.html`
+- Modify: `packages/clone-engine/test/parity-project.test.ts` (correct the reference — see Task 2 correction note)
+
+- [ ] **Step A: Freeze the `.mjs` projection reference**
+
+For each site, run the frozen `.mjs` projector on its golden `capture.json` and save the output as the byte-parity reference:
+```bash
+cd /Users/dan/pushpress/milo/page-clone-spike
+for s in torrance speakeasy sweatshed; do
+  node project-page.mjs --dir ../packages/clone-engine/test/golden/$s --out /tmp/proj-$s --no-diff
+  cp /tmp/proj-$s/index.html ../packages/clone-engine/test/golden/$s/projected-mjs.html
+done
+```
 
 - [ ] **Step 1: Port the module**
 
@@ -322,25 +337,20 @@ Translate `project-page.mjs` verbatim into `project.ts` with these mechanical ch
 - Keep writing the same files to `opts.out` (default `out-project-page`) so existing consumers still work; ALSO return `indexHtml` for the harness.
 - Preserve exact string output: same escaping, same `.p{id}` classes, same CSS ordering, same token names. **Any divergence from golden is a port bug.**
 
-- [ ] **Step 2: Run the parity harness — iterate to GREEN**
+- [ ] **Step C: Correct the test reference, then iterate to GREEN**
+
+Rewrite `parity-project.test.ts` per site: **byte** — `expect(out.indexHtml).toEqual(read(golden/<site>/projected-mjs.html))` with `project({dir, trim:true, noDiff:true})`; **pixel oracle** — render `out.indexHtml` and the capture clone `golden/<site>/index.html` (serving `/assets/` from `golden/<site>/assets`, per `project-page.mjs:218`) at 1440w and 390w, assert `pixelDiff(...).pct === 0`.
 
 Run: `cd /Users/dan/pushpress/milo/packages/clone-engine && pnpm vitest run test/parity-project.test.ts`
-Expected: PASS for all three sites (byte-identical to golden).
-If a site diverges: diff `out.indexHtml` vs golden, find the translated line that changed behavior, fix the port (never edit the golden).
-
-- [ ] **Step 3: Add the 0-px oracle assertion**
-
-Extend `parity-project.test.ts` with a second assertion per site: render both `out.indexHtml` and golden `index.html` (serving `/assets/` from `golden/<site>/assets`, per `project-page.mjs:218`) at 1440w and 390w, and assert `pixelDiff(...).pct === 0`. Reuse `helpers/pixel.ts`.
-
-Run: `pnpm vitest run test/parity-project.test.ts`
-Expected: PASS — byte-identical AND 0-px at both widths.
+Expected: PASS for all three sites — byte-identical to `projected-mjs.html` AND 0-px at both widths.
+If a site diverges: diff `out.indexHtml` vs `projected-mjs.html`, find the translated line that changed behavior, fix the port (never edit the reference).
 
 - [ ] **Step 4: Commit**
 
 ```bash
 cd /Users/dan/pushpress/milo
-git add packages/clone-engine/src/project.ts packages/clone-engine/test/parity-project.test.ts
-git commit -m "feat(clone-engine): port projection to TS at parity (byte + 0-px vs golden)"
+git add packages/clone-engine/src/project.ts packages/clone-engine/test/parity-project.test.ts packages/clone-engine/test/golden/*/projected-mjs.html
+git commit -m "feat(clone-engine): port projection to TS at parity (byte vs .mjs projection + 0-px oracle)"
 ```
 
 ---
