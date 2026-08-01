@@ -27,6 +27,24 @@ guarantee — it is only the **capture guarantee**: the clone *starts* faithful 
 The moment the agent edits, drift is the point. Fidelity is the starting state, never the
 end goal.
 
+## Coding rule: never regress — continually eval
+
+The engine is already a very strong page-clone system. **We do not go backwards on eval or
+results.** Any change to website/HTML-adjusting code (capture, projection, tokenization,
+assembly, anything that touches the rendered output) must be **continually evaluated to
+confirm it makes results better, not worse.**
+
+- The existing gates are the floor, not the ceiling: the **capture screenshot diff vs source**
+  and the **assembled-vs-clone 0-pixel oracle** must keep passing. A change that makes them
+  worse is rejected, not shipped.
+- Before and after any such change, run the eval (re-diff the affected pages) and compare.
+  **If results get worse, stop and say so** — surface the regression explicitly rather than
+  papering over it.
+- New capabilities must be additive: they may not degrade fidelity, self-containment, or the
+  lossless-projection guarantee for the un-edited site.
+
+This rule applies to *every* engineer/agent touching this code, on *every* change.
+
 ## Scope decomposition
 
 What "LLM-editable site" requires is six subsystems, not one feature. Each gets its own
