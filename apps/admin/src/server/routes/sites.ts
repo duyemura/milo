@@ -97,10 +97,37 @@ export function registerSiteRoutes(app: FastifyInstance, db: AdminDb, queue: Eng
       .limit(10)
       .execute();
     const latestStaging = deploys.find((d) => d.env === "staging" && d.url);
+    const connections = await db
+      .selectFrom("google_connections")
+      .selectAll()
+      .where("siteId", "=", id)
+      .execute();
+    const metrics = await db
+      .selectFrom("site_metrics")
+      .selectAll()
+      .where("siteId", "=", id)
+      .orderBy("collectedAt", "desc")
+      .limit(200)
+      .execute();
+    // Latest value per (source, metric) for the Signals tab.
+    interface MetricValue {
+      value: string;
+      collectedAt: string;
+      dimensions: Record<string, unknown>;
+    }
+    const latest: Record<string, MetricValue> = {};
+    for (const m of metrics) {
+      const key = `${m.source}:${m.metric}`;
+      if (!latest[key]) {
+        latest[key] = { value: m.value, collectedAt: m.collectedAt, dimensions: JSON.parse(m.dimensions) as Record<string, unknown> };
+      }
+    }
     return {
       site,
       jobs,
       deploys,
+      connections,
+      metricsLatest: latest,
       previewUrl: site.slug ? `https://${site.slug}-staging.mygymseo.com` : (latestStaging?.url ?? null),
     };
   });

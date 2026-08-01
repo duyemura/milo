@@ -12,6 +12,7 @@ import type { AdminDb } from "../db/index.ts";
 import type { AdminConfig } from "../config.ts";
 import type { JobRow, SiteRow } from "../db/types.ts";
 import type { SpawnFn } from "./runner.ts";
+import { injectIntoDist } from "./measure.ts";
 
 /**
  * Deploy/promote/rollback via the battle-tested @milo/publish (NOT the spike's deploy.mjs —
@@ -29,6 +30,10 @@ export async function runDeploy(opts: {
   sp?: SpawnFn;
 }): Promise<void> {
   const { db, job, site, distDir, log, sp } = opts;
+
+  // Analytics rides every deploy: inject gtag/GSC meta (idempotent) before publishing.
+  const inj = await injectIntoDist({ db, site, distDir });
+  if (inj.injected > 0) await log(`analytics injected into ${inj.injected}/${inj.files} html file(s)`);
 
   if (site.seedType === "clone") {
     if (job.type !== "deploy-staging") {

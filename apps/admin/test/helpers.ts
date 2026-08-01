@@ -8,13 +8,16 @@ import type { EngineQueue } from "../src/jobs/dispatch.ts";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 export function testConfig(overrides: Partial<AdminConfig> = {}): AdminConfig {
-  return loadConfig({
-    ...process.env,
-    AUTH_MODE: "dev",
-    QUEUE_DRIVER: "local",
-    DB_PATH: ":memory:",
-    REPO_ROOT: path.resolve(HERE, "..", "..", ".."),
-  } as NodeJS.ProcessEnv);
+  return {
+    ...loadConfig({
+      ...process.env,
+      AUTH_MODE: "dev",
+      QUEUE_DRIVER: "local",
+      DB_PATH: ":memory:",
+      REPO_ROOT: path.resolve(HERE, "..", "..", ".."),
+    } as NodeJS.ProcessEnv),
+    ...overrides,
+  };
 }
 
 export async function testDb(): Promise<AdminDb> {

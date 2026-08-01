@@ -23,7 +23,7 @@ export const createSiteBody = z.object({
 });
 
 export const createJobBody = z.object({
-  type: z.enum(["seed", "build", "deploy-staging", "promote", "rollback", "keyword-cycle"]),
+  type: z.enum(["seed", "build", "deploy-staging", "promote", "rollback", "keyword-cycle", "measure"]),
   payload: z.record(z.string()).optional(),
 });
 

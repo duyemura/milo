@@ -7,6 +7,7 @@ import type { JobRow, SiteRow } from "../db/types.ts";
 import { appendLog } from "./dispatch.ts";
 import { runDeploy } from "./deploy.ts";
 import { runKeywordCycleJob, type BrainDeps } from "./keywordCycle.ts";
+import { runMeasureJob, injectIntoDist, type MeasureDeps } from "./measure.ts";
 
 export interface SpawnFn {
   (cmd: string, args: string[], opts: { cwd: string; env: NodeJS.ProcessEnv }): Promise<{
@@ -56,6 +57,7 @@ export async function runJob(opts: {
   site: SiteRow;
   spawn?: SpawnFn;
   brain?: BrainDeps;
+  measure?: MeasureDeps;
 }): Promise<string | void> {
   const { db, config, job, site } = opts;
   const log = async (line: string) => {
@@ -102,6 +104,8 @@ export async function runJob(opts: {
         "--theme", payload["templateId"] ?? "modern",
         "--out", distDir,
       ]);
+      const injS = await injectIntoDist({ db, site, distDir });
+      if (injS.injected > 0) await log(`analytics injected into ${injS.injected}/${injS.files} html file(s)`);
       await db
         .updateTable("sites")
         .set({ status: "built", stage: "building" })
@@ -117,6 +121,8 @@ export async function runJob(opts: {
         "--theme", payload["templateId"] ?? "modern",
         "--out", distDir,
       ]);
+      const inj = await injectIntoDist({ db, site, distDir });
+      if (inj.injected > 0) await log(`analytics injected into ${inj.injected}/${inj.files} html file(s)`);
       await db
         .updateTable("sites")
         .set({ status: "built", stage: "building" })
@@ -132,6 +138,9 @@ export async function runJob(opts: {
     }
     case "keyword-cycle": {
       return await runKeywordCycleJob({ db, config, job, site, brain: opts.brain ?? { chat: null } });
+    }
+    case "measure": {
+      return await runMeasureJob({ db, config, job, site, deps: opts.measure });
     }
   }
 }
@@ -186,5 +195,7 @@ async function runCloneSeed(opts: {
 
   fs.rmSync(distDir, { recursive: true, force: true });
   fs.cpSync(path.join(astroDir, "dist"), distDir, { recursive: true });
+  const inj = await injectIntoDist({ db, site, distDir });
+  if (inj.injected > 0) await appendLog(db, job.id, `analytics injected into ${inj.injected}/${inj.files} html file(s)`);
   await db.updateTable("sites").set({ status: "built", stage: "building" }).where("id", "=", site.id).execute();
 }

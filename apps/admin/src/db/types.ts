@@ -38,7 +38,7 @@ export interface SiteRow {
   createdAt: string;
 }
 
-export type JobType = "seed" | "build" | "deploy-staging" | "promote" | "rollback" | "keyword-cycle";
+export type JobType = "seed" | "build" | "deploy-staging" | "promote" | "rollback" | "keyword-cycle" | "measure";
 export type JobStatus = "waiting" | "queued" | "running" | "succeeded" | "failed";
 
 export interface JobRow {
@@ -100,6 +100,31 @@ export interface PageBriefRow {
   updatedAt: string;
 }
 
+export interface GoogleConnectionRow {
+  id: string;
+  workspaceId: string;
+  companyId: string;
+  siteId: string;
+  kind: "gsc" | "ga4" | "gbp" | "places";
+  externalId: string | null;
+  status: "pending" | "active" | "error";
+  meta: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SiteMetricRow {
+  id: string;
+  workspaceId: string;
+  companyId: string;
+  siteId: string;
+  source: string;
+  metric: string;
+  dimensions: string;
+  value: string;
+  collectedAt: string;
+}
+
 export interface Database {
   workspaces: WorkspaceRow;
   companies: CompanyRow;
@@ -109,4 +134,6 @@ export interface Database {
   job_logs: JobLogRow;
   todos: TodoRow;
   page_briefs: PageBriefRow;
+  google_connections: GoogleConnectionRow;
+  site_metrics: SiteMetricRow;
 }

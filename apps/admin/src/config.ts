@@ -20,6 +20,9 @@ export const AdminConfigSchema = z.object({
   openrouterApiKey: z.string().optional(),
   openrouterBaseUrl: z.string().default("https://openrouter.ai/api/v1"),
   chatModel: z.string().default("anthropic/claude-haiku-4.5"),
+  gaAccountDisplay: z.string().default("PushPress sites"),
+  googleServiceAccountJson: z.string().optional(),
+  googlePlacesApiKey: z.string().optional(),
   repoRoot: z.string(),
 });
 
@@ -69,6 +72,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AdminConfig {
     openrouterApiKey: env["OPENROUTER_API_KEY"],
     openrouterBaseUrl: env["OPENROUTER_BASE_URL"],
     chatModel: env["CHAT_MODEL"],
+    gaAccountDisplay: env["GA_ACCOUNT_DISPLAY"],
+    googleServiceAccountJson: env["GOOGLE_SERVICE_ACCOUNT_JSON"],
+    googlePlacesApiKey: env["GOOGLE_PLACES_API_KEY"],
     repoRoot: REPO_ROOT,
   });
 }

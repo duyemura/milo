@@ -139,9 +139,47 @@ const migration4 = {
   },
 };
 
+const migration5 = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable("google_connections")
+      .addColumn("id", "text", (c) => c.primaryKey())
+      .addColumn("workspaceId", "text", (c) => c.notNull())
+      .addColumn("companyId", "text", (c) => c.notNull())
+      .addColumn("siteId", "text", (c) => c.notNull().references("sites.id"))
+      .addColumn("kind", "text", (c) => c.notNull())
+      .addColumn("externalId", "text")
+      .addColumn("status", "text", (c) => c.notNull().defaultTo("pending"))
+      .addColumn("meta", "text", (c) => c.notNull().defaultTo("{}"))
+      .addColumn("createdAt", "text", (c) => c.notNull())
+      .addColumn("updatedAt", "text", (c) => c.notNull())
+      .execute();
+    await db.schema.createIndex("gconn_site").on("google_connections").columns(["siteId", "kind"]).execute();
+
+    await db.schema
+      .createTable("site_metrics")
+      .addColumn("id", "text", (c) => c.primaryKey())
+      .addColumn("workspaceId", "text", (c) => c.notNull())
+      .addColumn("companyId", "text", (c) => c.notNull())
+      .addColumn("siteId", "text", (c) => c.notNull().references("sites.id"))
+      .addColumn("source", "text", (c) => c.notNull())
+      .addColumn("metric", "text", (c) => c.notNull())
+      .addColumn("dimensions", "text", (c) => c.notNull().defaultTo("{}"))
+      .addColumn("value", "text", (c) => c.notNull())
+      .addColumn("collectedAt", "text", (c) => c.notNull())
+      .execute();
+    await db.schema.createIndex("smetrics_site").on("site_metrics").columns(["siteId", "metric"]).execute();
+  },
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable("site_metrics").execute();
+    await db.schema.dropTable("google_connections").execute();
+  },
+};
+
 export const migrations: Record<string, { up: typeof migration1.up; down: typeof migration1.down }> = {
   migration1,
   migration2,
   migration3,
   migration4,
+  migration5,
 };

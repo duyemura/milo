@@ -4,6 +4,7 @@ import { NavLink, useLocation, useParams } from "react-router-dom";
 import { Badge, Button } from "@pushpress/pushpress-ui";
 import { api, type Job } from "../api.ts";
 import { BriefsTab } from "../components/BriefsTab.tsx";
+import { SignalsTab } from "../components/SignalsTab.tsx";
 
 const STAGE_LABELS: Record<string, string> = {
   onboarding: "Onboarding",
@@ -61,6 +62,9 @@ function OverviewTab({ siteId }: { siteId: string }) {
       <div className="actions">
         <Button disabled={trigger.isPending} onClick={() => trigger.mutate("keyword-cycle")}>
           Run keyword cycle
+        </Button>
+        <Button disabled={trigger.isPending} onClick={() => trigger.mutate("measure")}>
+          Measure signals
         </Button>
         <Button disabled={trigger.isPending} onClick={() => trigger.mutate("build")}>
           Rebuild
@@ -241,12 +245,15 @@ export function SiteDetailPage() {
           Overview
         </NavLink>
         <NavLink to={`/sites/${siteId}/briefs`}>Briefs</NavLink>
+        <NavLink to={`/sites/${siteId}/signals`}>Signals</NavLink>
         <NavLink to={`/sites/${siteId}/preview`}>Preview</NavLink>
         <NavLink to={`/sites/${siteId}/versions`}>Versions</NavLink>
       </nav>
 
       {pathname.endsWith("/briefs") ? (
         <BriefsTab siteId={siteId} />
+      ) : pathname.endsWith("/signals") ? (
+        <SignalsTab siteId={siteId} />
       ) : pathname.endsWith("/preview") ? (
         <PreviewTab siteId={siteId} />
       ) : pathname.endsWith("/versions") ? (

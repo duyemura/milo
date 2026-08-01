@@ -1,7 +1,7 @@
 import type { AdminDb } from "../db/index.ts";
 import type { AdminConfig } from "../config.ts";
 import type { EngineQueue } from "./dispatch.ts";
-import { finishJob, markRunning, appendLog } from "./dispatch.ts";
+import { finishJob, markRunning, appendLog, enqueueJob } from "./dispatch.ts";
 import { runJob } from "./runner.ts";
 import type { BrainDeps } from "./keywordCycle.ts";
 
@@ -43,6 +43,15 @@ async function execute(
   try {
     const text = await runJob({ db, config, job, site, brain: deps.brain });
     await finishJob(db, queue, jobId, { status: "succeeded", text: typeof text === "string" ? text : undefined });
+    // After a staging deploy, follow up with measurement automatically.
+    if (job.type === "deploy-staging") {
+      await enqueueJob(db, queue, {
+        siteId: site.id,
+        workspaceId: site.workspaceId,
+        companyId: site.companyId,
+        type: "measure",
+      });
+    }
   } catch (err) {
     await appendLog(db, jobId, `ERROR: ${err instanceof Error ? err.message : String(err)}`);
     await db.updateTable("sites").set({ status: "error" }).where("id", "=", job.siteId).execute();
