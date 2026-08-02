@@ -101,8 +101,13 @@ function insertGeneratedSection(
   const targetPage = manifest.pages.find((p) => p.route === targetRoute) ?? manifest.pages[0];
   const beforeOrder = targetPage.sections.map((s) => s.name);
 
-  // Resolve the page file: "/" → index.astro; "/about/" → about.astro.
-  const routeSlug = targetRoute.replace(/^\/|\/$/g, "");
+  // Resolve the page file using the SAME 4-step sanitizer addPage uses (ops.ts:1096-1100).
+  // Any divergence causes a path mismatch — the sanitizers must be byte-identical.
+  const routeSlug = targetRoute
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/[^a-z0-9-]/gi, "-")
+    .toLowerCase()
+    .replace(/^-+|-+$/g, "");
   const pageFile = routeSlug === "" ? "index.astro" : `${routeSlug}.astro`;
   const idxPath = path.join(site.dir, "astro", "src", "pages", pageFile);
   let idx = fs.readFileSync(idxPath, "utf8");
@@ -323,12 +328,13 @@ export async function generateSection(
     const failures: string[] = [];
     const compFile = path.join(site.dir, "astro", "src", "components", `${componentName}.astro`);
     if (!fs.existsSync(compFile)) failures.push(`component file missing: ${compFile}`);
-    const routeSlug = targetRoute.replace(/^\/|\/$/g, "");
-    const pageFile = path.join(site.dir, "astro", "src", "pages", `${routeSlug}.astro`);
+    // Same sanitizer as addPage (ops.ts:1096-1100) — must match exactly.
+    const routeSlug2 = targetRoute.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase().replace(/^-+|-+$/g, "");
+    const pageFile = path.join(site.dir, "astro", "src", "pages", `${routeSlug2}.astro`);
     if (!fs.existsSync(pageFile)) failures.push(`page file missing: ${pageFile}`);
     else {
       const pageContent = fs.readFileSync(pageFile, "utf8");
-      if (!pageContent.includes(componentName)) failures.push(`${componentName} not found in ${routeSlug}.astro`);
+      if (!pageContent.includes(componentName)) failures.push(`${componentName} not found in ${routeSlug2}.astro`);
     }
     const updatedManifest = loadSite(site);
     const targetManifestPage = updatedManifest.pages.find((p) => p.route === targetRoute);

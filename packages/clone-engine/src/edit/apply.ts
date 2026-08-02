@@ -214,7 +214,7 @@ async function applyOpsDeterministically(site: SiteRef, ops: EditOp[], opts: App
         // generateSection runs its own internal verify. If it fails, throw so apply() can retry.
         const genResult = await generateSection(
           site,
-          { role: op.role, brief: op.brief, afterSection: op.afterSection },
+          { role: op.role, brief: op.brief, afterSection: op.afterSection, targetRoute: op.targetRoute },
           opts.chat,
           opts.model,
           opts.browser,
