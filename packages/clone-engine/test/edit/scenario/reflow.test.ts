@@ -116,7 +116,7 @@ describe.skipIf(!ASTRO_MODULES)("reflow ops — removeSection + reorderSection (
   //    Without the expectedSectionOrder fix in verify.ts this test would false-fail because
   //    expectedSectionOrder() would default to beforeOrder and the structural check would flag
   //    the reordered DOM as mismatched.
-  it("reorderSection passes: new order confirmed in DOM and site.json, survivors 0-px", async () => {
+  it("reorderSection passes: new order confirmed in DOM and site.json, sections outside the affected range stay 0-px", async () => {
     const { out, site } = await projectFixture();
     cleanup.add(out);
 
@@ -167,6 +167,19 @@ describe.skipIf(!ASTRO_MODULES)("reflow ops — removeSection + reorderSection (
 
     // The moved section itself must appear at the correct index in the DOM.
     expect(report.structural.actual[TO_INDEX], `${MOVED} must be at index ${TO_INDEX} in DOM`).toBe(MOVED);
+
+    // T8 — sections OUTSIDE the affected range [lo..hi] must be pixel-clean (outScopePx === 0).
+    // The affected range is result.targetSections (min(from,to)..max(from,to)); everything else —
+    // Navbar/AwesomeForEveryoneSection above and Discover…/Stories…/Footer below — did not move
+    // relative to its own box, so a reorder must not leak a single pixel onto them.
+    const affected = new Set(result.targetSections);
+    for (const s of report.sections) {
+      if (affected.has(s.section)) continue;
+      expect(
+        s.outScopePx,
+        `section '${s.section}' is OUTSIDE the reorder range [${result.targetSections.join(",")}] but leaked ${s.outScopePx}px`,
+      ).toBe(0);
+    }
   }, 300_000);
 
   // 3. Corrupting reflow FAILS: after removeSection, a visible change to a surviving sibling

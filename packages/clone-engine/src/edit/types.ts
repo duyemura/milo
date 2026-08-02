@@ -7,7 +7,7 @@ export type EditOp =
   | { op: "editCopy"; copyKey: string; text: string }
   | { op: "setBrand"; slot: "primary" | "accent" | "surface" | "text" | "muted"; value: string }
   | { op: "swapAsset"; alias: string; source: string }  // source = file path or URL of the new asset
-  | { op: "styleTweak"; target: string; prop: string; value: string }  // target = data-role or section; prop ∈ STYLE_PROPS
+  | { op: "styleTweak"; target: string; prop: StyleProp; value: string }  // target = data-role or section; prop ∈ STYLE_PROPS
   | { op: "removeSection"; section: string }            // section = data-section role or component name
   | { op: "reorderSection"; section: string; toIndex: number }
   | { op: "addSection"; cloneOf: string; afterSection?: string }
@@ -15,11 +15,13 @@ export type EditOp =
 
 export interface OpResult { op: EditOp; changedFiles: string[]; targetSections: string[]; }
 
-export interface PlanResult {
-  needsInfo: boolean;
-  questions?: string[];               // present when needsInfo
-  ops?: EditOp[]; summary?: string;   // present when ready (needsInfo === false)
-}
+/**
+ * The planner result — a proper discriminated union derived from PlanSchema (source of truth).
+ * Either `needsInfo: true` with clarifying questions, OR `needsInfo: false` with the validated
+ * ops + summary (+ any ops that were dropped as hallucinated, so the caller can surface a partial
+ * edit rather than reporting full success). The XOR is enforced by the schema, not by optionality.
+ */
+export type PlanResult = z.infer<typeof PlanSchema>;
 
 export interface SectionDiff { section: string; changed: boolean; inScopePx: number; outScopePx: number; }
 
@@ -32,6 +34,30 @@ export interface VerifierReport {
 }
 
 export interface EditResult { ok: boolean; verifierReport: VerifierReport; opsApplied: EditOp[]; reverted?: boolean; }
+
+/** The edit's declared intent: which sections it meant to touch, and the op that did it. */
+export interface EditIntent {
+  /** data-component names (or section roles) the edit was allowed to change. */
+  editedSections: string[];
+  op: EditOp;
+  /** setBrand only: the before/after hex of the recolored slot (drives the delta-vector scope). */
+  brandRecolor?: { oldHex: string; newHex: string };
+  /**
+   * Element-targeted ops (editCopy/styleTweak/swapAsset): a CSS selector for the edited ELEMENT
+   * (e.g. the manifest element selector, or `[data-copy="Key"]`). When present, the verifier
+   * sub-scopes the edited section to this element's box — changed pixels INSIDE the section but
+   * OUTSIDE the element box are flagged as intra-section collateral. Omit for a whole-section trust.
+   */
+  elementSelector?: string;
+  /**
+   * REFLOW ops (removeSection/reorderSection): the caller declares the intended post-edit section
+   * order by name. When provided, the structural check uses this as the expected order instead of
+   * deriving it heuristically — the op declares what it intended and the verifier confirms both the
+   * rendered DOM and site.json match. This makes the check non-circular: the op is the authority,
+   * the verifier is the confirmation. Omit to keep the current default behavior (backward-compat).
+   */
+  expectedSectionOrder?: string[];
+}
 
 /** Bounded property set styleTweak is allowed to change (keeps local styling predictable). */
 export const STYLE_PROPS = [
@@ -117,7 +143,7 @@ const BrandSlotZ = z.enum(["primary", "accent", "surface", "text", "muted"]);
 
 export const EditOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("editCopy"), copyKey: z.string(), text: z.string() }),
-  z.object({ op: z.literal("setBrand"), slot: BrandSlotZ, value: z.string() }),
+  z.object({ op: z.literal("setBrand"), slot: BrandSlotZ, value: z.string().regex(/^#[0-9a-fA-F]{6}$/) }),
   z.object({ op: z.literal("swapAsset"), alias: z.string(), source: z.string() }),
   z.object({ op: z.literal("styleTweak"), target: z.string(), prop: StylePropZ, value: z.string() }),
   z.object({ op: z.literal("removeSection"), section: z.string() }),
@@ -131,7 +157,15 @@ export const EditOpSchema = z.discriminatedUnion("op", [
   }),
 ]);
 
-/** The full PlanResult schema for the LLM to fill (needsInfo=true XOR needsInfo=false). */
+/**
+ * The full PlanSchema (needsInfo=true XOR needsInfo=false). Also the source of truth for
+ * `PlanResult` (a discriminated union — no XOR-via-optionality).
+ *
+ * The LLM only ever fills the raw shape (questions OR ops+summary). `dropped` is NOT LLM output:
+ * it's populated post-hoc by plan.ts when it drops a hallucinated op, so the caller can surface a
+ * PARTIAL edit ("I couldn't apply X — only Y will change") instead of reporting full success. It
+ * is `.optional()` so a plan with no drops stays exactly the shape the LLM produced.
+ */
 export const PlanSchema = z.discriminatedUnion("needsInfo", [
   z.object({
     needsInfo: z.literal(true),
@@ -141,6 +175,7 @@ export const PlanSchema = z.discriminatedUnion("needsInfo", [
     needsInfo: z.literal(false),
     ops: z.array(EditOpSchema).min(1),
     summary: z.string(),
+    dropped: z.array(z.object({ op: z.unknown(), reason: z.string() })).optional(),
   }),
 ]);
 

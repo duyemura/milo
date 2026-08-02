@@ -201,6 +201,37 @@ describe.skipIf(!ASTRO_MODULES)("edit verifier — negative controls", () => {
     expect(brand.outScopePx, "no collateral outside the recolor vector").toBe(0);
   }, 300_000);
 
+  // 4b. T1 — setBrand NEGATIVE control: the setBrand verify branch MUST be falsifiable. Paint an
+  //     UNRELATED section bright red (collateral that does NOT track the recolor delta-vector), then
+  //     verify with a setBrand intent + brandRecolor at the primary slot. The red is off-vector, so
+  //     it lands in outScope → pass MUST be false. (Test 4 only proves the PASS path; this proves the
+  //     setBrand branch CAN fail — a real recolor with unrelated collateral is caught.)
+  it("setBrand FAILS when unrelated collateral doesn't track the recolor delta-vector (negative control)", async () => {
+    const { out, site } = await projectFixture();
+    cleanup.add(out);
+    const before = await renderSnapshot(browser, site, { width: WIDTH });
+
+    const oldHex = currentBrandHex(site, "primary"); // "#ec008c"
+    const newHex = "#1e40af"; // a strong blue — the intended recolor vector (magenta → blue)
+
+    // Do the real recolor AND introduce off-vector collateral: paint an unrelated section red.
+    // Red is not on the magenta→blue delta-vector, so it is collateral the verifier must catch.
+    setBrand(site, "primary", newHex);
+    styleTweak(site, "StoriesOfGlorySection", "background-color", "#ff0000");
+
+    const intent: EditIntent = {
+      editedSections: [],
+      op: { op: "setBrand", slot: "primary", value: newHex },
+      brandRecolor: { oldHex, newHex },
+    };
+
+    const report = await verify(browser, before, site, intent, { width: WIDTH });
+
+    expect(report.pass, "off-vector collateral during a recolor MUST fail the setBrand branch").toBe(false);
+    const brand = report.sections.find((s) => s.section === "(brand)")!;
+    expect(brand.outScopePx, "the red collateral must land outside the recolor vector (outScope > 0)").toBeGreaterThan(0);
+  }, 300_000);
+
   // 5. swapAsset (PNG → GIF type-change) passes: image region changed, rest clean.
   it("swapAsset passes with a PNG→GIF type-change: image region changed, other sections clean", async () => {
     const { out, site } = await projectFixture();

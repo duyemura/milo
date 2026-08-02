@@ -21,7 +21,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { project } from "../../src/project.ts";
-import { editCopy, setBrand, swapAsset, styleTweak } from "../../src/edit/ops.ts";
+import { editCopy, setBrand, swapAsset, styleTweak, addPage } from "../../src/edit/ops.ts";
 import { resolveCopy, TargetError } from "../../src/edit/target.ts";
 import type { SiteRef } from "../../src/edit/types.ts";
 import type { SiteManifest, BrandDoc } from "../../src/types.ts";
@@ -33,6 +33,18 @@ import type { SiteManifest, BrandDoc } from "../../src/types.ts";
 const TINY_PNG_BUF = Buffer.from(
   "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489" +
   "0000000a49444154789c6260000000020001e221bc330000000049454e44ae426082",
+  "hex",
+);
+
+/**
+ * A minimal valid WEBP (a DIFFERENT type than the PNG logo). RIFF container + lossy VP8 chunk.
+ * Used to exercise swapAsset's type-CHANGE path: the extension flips to .webp and every ref +
+ * the site.json asset entry must be rewritten.
+ */
+const TINY_WEBP_BUF = Buffer.from(
+  "524946465a00000057454250565038204e0000003001009d012a0100010000c700" +
+  "0000feffffffdcfdfefeffffffffffffffffffffffffffffffffffffffffffffff" +
+  "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8f000000",
   "hex",
 );
 
@@ -244,6 +256,60 @@ describe("swapAsset", () => {
 
     fs.rmSync(tmpPng, { force: true });
   });
+
+  // T2 — swapAsset TYPE-CHANGE (PNG → WEBP): the extension flips, so the new /assets/*.webp path
+  //       must be written + referenced everywhere, the OLD path must be gone from the component
+  //       .astro files, and site.json's asset entry extension must update to .webp.
+  it("type-change (→ webp): new .webp path present in components + site.json, old path absent", async () => {
+    const tmpWebp = path.join(os.tmpdir(), "milo-swap-test-logo.webp");
+    fs.writeFileSync(tmpWebp, TINY_WEBP_BUF);
+
+    // Current logo file (whatever type it is at this point in the shared fixture).
+    const preManifest = JSON.parse(
+      fs.readFileSync(path.join(outDir, "site.json"), "utf8"),
+    ) as SiteManifest;
+    const preAsset = preManifest.pages[0].assets.find((a) => a.alias === "logo")!;
+    const oldBase = path.basename(preAsset.file, path.extname(preAsset.file)); // e.g. "a23"
+    const oldRefPath = `/${preAsset.file}`; // e.g. "/assets/a23.png"
+    const newRel = `assets/${oldBase}.webp`;
+    const newRefPath = `/${newRel}`;
+
+    // Identify which component(s) reference the logo BEFORE the swap so we can assert the rewrite.
+    const componentsDir = path.join(outDir, "astro", "src", "components");
+    const referencingComps = fs
+      .readdirSync(componentsDir)
+      .filter((f) => f.endsWith(".astro"))
+      .filter((f) => fs.readFileSync(path.join(componentsDir, f), "utf8").includes(oldRefPath));
+    expect(referencingComps.length, "no component references the logo before the swap").toBeGreaterThan(0);
+
+    const result = await swapAsset(site, "logo", tmpWebp);
+
+    // The new .webp file exists in astro/public/assets; the old file is gone (renamed).
+    const publicNew = path.join(outDir, "astro", "public", newRel);
+    expect(fs.existsSync(publicNew), "new .webp asset must exist in public/assets").toBe(true);
+    expect(fs.readFileSync(publicNew).equals(TINY_WEBP_BUF)).toBe(true);
+
+    // Every component that referenced the old path now references the NEW .webp path,
+    // and the OLD path is ABSENT from all component files.
+    for (const f of referencingComps) {
+      const src = fs.readFileSync(path.join(componentsDir, f), "utf8");
+      expect(src, `${f} should reference the new .webp path`).toContain(newRefPath);
+      expect(src.includes(oldRefPath), `${f} still references the old path`).toBe(false);
+    }
+    // changedFiles includes the rewritten components + site.json.
+    expect(result.changedFiles.some((cf) => cf.endsWith(".astro"))).toBe(true);
+    expect(result.changedFiles.some((cf) => cf.endsWith("site.json"))).toBe(true);
+
+    // site.json's logo asset entry now has the .webp extension.
+    const postManifest = JSON.parse(
+      fs.readFileSync(path.join(outDir, "site.json"), "utf8"),
+    ) as SiteManifest;
+    const postAsset = postManifest.pages[0].assets.find((a) => a.alias === "logo")!;
+    expect(postAsset.file).toBe(newRel);
+    expect(postAsset.file.endsWith(".webp")).toBe(true);
+
+    fs.rmSync(tmpWebp, { force: true });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -316,6 +382,38 @@ describe("styleTweak", () => {
     expect(() => styleTweak(site, "primary-cta", "position", "absolute")).toThrow(
       /styleTweak: prop 'position' not in the bounded set/,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// addPage — route sanitize + throw edges (T5). No browser: these assert the pure
+// sanitize/throw behavior + the site.json page entry the sanitized route produces.
+// ---------------------------------------------------------------------------
+
+describe("addPage route sanitize/throw", () => {
+  it("sanitizes a slash-wrapped route '/about/' → clean 'about' slug + '/about/' route", () => {
+    const result = addPage(site, "/about/", undefined, "pillar");
+    expect(result.op).toMatchObject({ op: "addPage", route: "/about/" });
+
+    const m = JSON.parse(fs.readFileSync(path.join(outDir, "site.json"), "utf8")) as SiteManifest;
+    const page = m.pages.find((p) => p.route === "/about/");
+    expect(page, "the /about/ page must be added to site.json").toBeDefined();
+    // The operator-specified pageType is honored (not re-classified).
+    expect(page!.type).toBe("pillar");
+    // New components are prefixed from the sanitized slug ("About").
+    expect(result.targetSections.every((n) => n.startsWith("About"))).toBe(true);
+  });
+
+  it("sanitizes a spaced route 'About Me' → 'about-me' slug (non-alphanumerics → hyphen)", () => {
+    const result = addPage(site, "About Me", undefined, "pillar");
+    const m = JSON.parse(fs.readFileSync(path.join(outDir, "site.json"), "utf8")) as SiteManifest;
+    const page = m.pages.find((p) => p.route === "/about-me/");
+    expect(page, "the /about-me/ page must be added to site.json").toBeDefined();
+    expect(result.targetSections.every((n) => n.startsWith("About-me"))).toBe(true);
+  });
+
+  it("throws 'invalid route' for a route with no alphanumeric content ('---')", () => {
+    expect(() => addPage(site, "---")).toThrow(/addPage: invalid route/);
   });
 });
 

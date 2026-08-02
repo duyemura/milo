@@ -25,13 +25,45 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import crypto from "node:crypto";
 import { project } from "../../../src/project.ts";
 import { generateSection } from "../../../src/edit/generate.ts";
 import { editCopy } from "../../../src/edit/ops.ts";
 import { resolveCopy } from "../../../src/edit/target.ts";
+import { renderSnapshot } from "../../../src/edit/verify.ts";
 import type { ChatFn } from "@milo/llm";
 import type { SiteRef } from "../../../src/edit/types.ts";
 import type { SiteManifest } from "../../../src/types.ts";
+
+/**
+ * Content hash of every editable file under the site — the byte-identical rollback oracle
+ * (mirrors the subtree set history.ts snapshots + apply.test.ts's editableHash).
+ */
+function editableHash(siteDir: string): string {
+  const files: string[] = [];
+  const walk = (abs: string, rel: string) => {
+    if (!fs.existsSync(abs)) return;
+    const st = fs.statSync(abs);
+    if (st.isSymbolicLink()) return;
+    if (st.isDirectory()) {
+      for (const c of fs.readdirSync(abs).sort()) walk(path.join(abs, c), path.join(rel, c));
+    } else {
+      files.push(rel);
+    }
+  };
+  const push = (rel: string) => walk(path.join(siteDir, rel), rel);
+  push("site.json");
+  push(path.join("astro", "brand.json"));
+  push(path.join("astro", "src"));
+  push(path.join("astro", "public", "assets"));
+  push("assets");
+  const h = crypto.createHash("sha256");
+  for (const rel of files.sort()) {
+    h.update(rel); h.update("\0");
+    h.update(fs.readFileSync(path.join(siteDir, rel))); h.update("\0");
+  }
+  return h.digest("hex");
+}
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const PKG = path.resolve(dir, "../../..");
@@ -213,6 +245,83 @@ describe.skipIf(!ASTRO_MODULES)("subsystem E — bounded on-brand section genera
     expect(scopedBlock).toContain("var(--color-text)");
     expect(scopedBlock).toContain("grid-template-columns");
     expect(scopedBlock).toContain("var(--radius-card)");
+  }, 300_000);
+
+  // 2b. FIX #2 — a FAILED generation leaves the site BYTE-IDENTICAL. insertGeneratedSection mutates
+  //     4 files (new .astro, APPENDS to global.css, edits index.astro, rewrites site.json); if the
+  //     oracle fails, none of that may remain on disk (same "never ships broken" invariant apply
+  //     upholds). We force the failure deterministically: the AFTER render inside verify() throws,
+  //     so verify returns pass:false → generateSection must restore. We hash the editable subtree
+  //     BEFORE and assert it is unchanged AFTER (byte-identical), mirroring apply's revert test.
+  it("failed generation reverts byte-identically (never ships a broken/half-inserted section)", async () => {
+    const { out, site } = await projectFixture("gen-fail-");
+    cleanup.add(out);
+
+    // Measure how many newPage() calls a full render costs on THIS fixture, so we can let
+    // generateSection's own BEFORE render succeed and make its verify() AFTER render throw.
+    let probeCalls = 0;
+    const probeBrowser = new Proxy(browser, {
+      get(target, prop, receiver) {
+        if (prop === "newPage") {
+          return (...args: unknown[]) => {
+            probeCalls++;
+            return (target.newPage as (...a: unknown[]) => unknown)(...args);
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    }) as Browser;
+    await renderSnapshot(probeBrowser, site, { width: WIDTH });
+    const beforeRenderCalls = probeCalls; // cost of one full render
+
+    // Byte-hash of the editable state BEFORE generation.
+    const beforeHash = editableHash(out);
+
+    // A browser that throws on the AFTER render (calls after generateSection's own before render):
+    // its before render = `beforeRenderCalls` calls, so throw once we're past that → verify's AFTER
+    // render fails → renderSane:false → pass:false → generateSection restores the pre-insert state.
+    let calls = 0;
+    const throwingBrowser = new Proxy(browser, {
+      get(target, prop, receiver) {
+        if (prop === "newPage") {
+          return (...args: unknown[]) => {
+            calls++;
+            if (calls > beforeRenderCalls) {
+              throw new Error(`injected AFTER-render failure at call ${calls}`);
+            }
+            return (target.newPage as (...a: unknown[]) => unknown)(...args);
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    }) as Browser;
+
+    const CTA_COPY = {
+      eyebrow: "Ready?",
+      headline: "Join Today",
+      subcopy: "First week free.",
+      buttonLabel: "Book a class",
+    };
+    const result = await generateSection(
+      site,
+      { role: "cta-band", goal: "convert", brief: "A closing CTA." },
+      fakeChat([JSON.stringify(CTA_COPY)]),
+      MODEL,
+      throwingBrowser,
+      { width: WIDTH },
+    );
+
+    // The oracle failed → generation did NOT ship.
+    expect(result.ok, "a generation whose verify fails must report ok:false").toBe(false);
+    expect(calls, "the injected AFTER-render failure must have fired").toBeGreaterThan(beforeRenderCalls);
+
+    // HEADLINE: the site is byte-identical to before — the half-inserted section, the appended
+    // global.css block, the index.astro import/include, and the site.json entry are all gone.
+    expect(editableHash(out), "a failed generation must leave the site BYTE-IDENTICAL").toBe(beforeHash);
+    // Concretely: the generated component file must not exist and index.astro must not import it.
+    expect(fs.existsSync(path.join(out, `astro/src/components/${result.sectionName}.astro`))).toBe(false);
+    const idx = fs.readFileSync(path.join(out, "astro/src/pages/index.astro"), "utf8");
+    expect(idx).not.toContain(`import ${result.sectionName} from`);
   }, 300_000);
 
   // 3. bounded vocabulary: a role NOT in the library throws BEFORE any file mutation or LLM call.

@@ -26,9 +26,16 @@ import { project } from "../../../src/project.ts";
 import { plan } from "../../../src/edit/plan.ts";
 import { apply } from "../../../src/edit/apply.ts";
 import { revert, snapshot } from "../../../src/edit/history.ts";
-import type { SiteRef, EditOp, ConversationTurn } from "../../../src/edit/types.ts";
+import type { SiteRef, EditOp, ConversationTurn, PlanResult } from "../../../src/edit/types.ts";
 import type { SiteManifest } from "../../../src/types.ts";
 import type { ChatFn, ChatResponse } from "@milo/llm";
+
+/** Narrow a PlanResult to its ready (needsInfo:false) branch, failing the test otherwise. */
+function ready(r: PlanResult): Extract<PlanResult, { needsInfo: false }> {
+  expect(r.needsInfo, "planner must not ask for more info").toBe(false);
+  if (r.needsInfo) throw new Error("unreachable: needsInfo was true");
+  return r;
+}
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const PKG = path.resolve(dir, "../../..");
@@ -170,15 +177,13 @@ describe.skipIf(!ASTRO_MODULES)("integration scenario (a): editCopy plan→apply
     const conversation: ConversationTurn[] = [
       { role: "user", content: "Update the steps section text." },
     ];
-    const planResult = await plan(site, conversation, planChat, MODEL);
-
-    expect(planResult.needsInfo, "planner must not ask for more info").toBe(false);
+    const planResult = ready(await plan(site, conversation, planChat, MODEL));
     expect(planResult.ops).toHaveLength(1);
-    expect(planResult.ops![0]).toMatchObject({ op: "editCopy", copyKey: COPY_KEY, text: NEW_TEXT });
+    expect(planResult.ops[0]).toMatchObject({ op: "editCopy", copyKey: COPY_KEY, text: NEW_TEXT });
 
     // Apply — verifier should pass on attempt 0 (real text change, not a no-op).
     const applyChat = fakeApplyChat();
-    const result = await apply(site, planResult.ops!, { browser, chat: applyChat, model: MODEL, width: WIDTH });
+    const result = await apply(site, planResult.ops, { browser, chat: applyChat, model: MODEL, width: WIDTH });
 
     expect(result.ok, `apply must pass, failures: ${result.verifierReport.failures.join(" | ")}`).toBe(true);
     expect(result.reverted).toBeUndefined();
@@ -218,14 +223,12 @@ describe.skipIf(!ASTRO_MODULES)("integration scenario (b): setBrand plan→apply
     const conversation: ConversationTurn[] = [
       { role: "user", content: "Make the primary color blue (#0055cc)." },
     ];
-    const planResult = await plan(site, conversation, planChat, MODEL);
-
-    expect(planResult.needsInfo).toBe(false);
+    const planResult = ready(await plan(site, conversation, planChat, MODEL));
     expect(planResult.ops).toHaveLength(1);
-    expect(planResult.ops![0]).toMatchObject({ op: "setBrand", slot: "primary", value: NEW_HEX });
+    expect(planResult.ops[0]).toMatchObject({ op: "setBrand", slot: "primary", value: NEW_HEX });
 
     const applyChat = fakeApplyChat();
-    const result = await apply(site, planResult.ops!, { browser, chat: applyChat, model: MODEL, width: WIDTH });
+    const result = await apply(site, planResult.ops, { browser, chat: applyChat, model: MODEL, width: WIDTH });
 
     expect(result.ok, `apply must pass, failures: ${result.verifierReport.failures.join(" | ")}`).toBe(true);
     expect(result.reverted).toBeUndefined();
@@ -274,13 +277,11 @@ describe.skipIf(!ASTRO_MODULES)("integration scenario (c): removeSection plan→
     const conversation: ConversationTurn[] = [
       { role: "user", content: "Remove the stories section." },
     ];
-    const planResult = await plan(site, conversation, planChat, MODEL);
-
-    expect(planResult.needsInfo).toBe(false);
-    expect(planResult.ops![0]).toMatchObject({ op: "removeSection", section: SECTION });
+    const planResult = ready(await plan(site, conversation, planChat, MODEL));
+    expect(planResult.ops[0]).toMatchObject({ op: "removeSection", section: SECTION });
 
     const applyChat = fakeApplyChat();
-    const result = await apply(site, planResult.ops!, { browser, chat: applyChat, model: MODEL, width: WIDTH });
+    const result = await apply(site, planResult.ops, { browser, chat: applyChat, model: MODEL, width: WIDTH });
 
     expect(result.ok, `apply must pass, failures: ${result.verifierReport.failures.join(" | ")}`).toBe(true);
     expect(result.reverted).toBeUndefined();
@@ -341,11 +342,9 @@ describe.skipIf(!ASTRO_MODULES)("integration scenario (d): addPage plan→apply(
     const conversation: ConversationTurn[] = [
       { role: "user", content: "Add an about page." },
     ];
-    const planResult = await plan(site, conversation, planChat, MODEL);
-
-    expect(planResult.needsInfo).toBe(false);
+    const planResult = ready(await plan(site, conversation, planChat, MODEL));
     expect(planResult.ops).toHaveLength(1);
-    expect(planResult.ops![0]).toMatchObject({ op: "addPage", route: ROUTE });
+    expect(planResult.ops[0]).toMatchObject({ op: "addPage", route: ROUTE });
 
     // Apply the op directly (not via apply() which runs the full verifier —
     // see NOTE above: addPage is a lighter verify by design).

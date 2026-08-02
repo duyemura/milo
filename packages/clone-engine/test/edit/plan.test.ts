@@ -12,8 +12,21 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { plan } from "../../src/edit/plan.ts";
-import type { SiteRef, ConversationTurn } from "../../src/edit/types.ts";
+import type { SiteRef, ConversationTurn, PlanResult } from "../../src/edit/types.ts";
 import type { ChatFn } from "@milo/llm";
+
+/** Narrow a PlanResult to its ready (needsInfo:false) branch, failing the test otherwise. */
+function ready(r: PlanResult): Extract<PlanResult, { needsInfo: false }> {
+  expect(r.needsInfo, "expected a ready plan (needsInfo:false)").toBe(false);
+  if (r.needsInfo) throw new Error("unreachable: needsInfo was true");
+  return r;
+}
+/** Narrow a PlanResult to its needsInfo:true branch, failing the test otherwise. */
+function needsInfo(r: PlanResult): Extract<PlanResult, { needsInfo: true }> {
+  expect(r.needsInfo, "expected a needsInfo:true plan").toBe(true);
+  if (!r.needsInfo) throw new Error("unreachable: needsInfo was false");
+  return r;
+}
 
 // ---------------------------------------------------------------------------
 // Minimal fixture — written to a temp dir once for all tests.
@@ -123,19 +136,18 @@ describe("plan — clear request with real copy key", () => {
       summary: "Updated the hero headline copy.",
     });
 
-    const result = await plan(site, CLEAR_REQUEST, fakeChat([llmResponse]), MODEL);
+    const result = ready(await plan(site, CLEAR_REQUEST, fakeChat([llmResponse]), MODEL));
 
-    expect(result.needsInfo).toBe(false);
     expect(result.ops).toHaveLength(1);
-    expect(result.ops![0]).toEqual({
+    expect(result.ops[0]).toEqual({
       op: "editCopy",
       copyKey: "HeroSection.0",
       text: "Train Hard. Live Strong.",
     });
     expect(result.summary).toBeTypeOf("string");
-    expect(result.summary!.length).toBeGreaterThan(0);
-    // No questions on a confident plan.
-    expect(result.questions).toBeUndefined();
+    expect(result.summary.length).toBeGreaterThan(0);
+    // No hallucinated ops dropped on a clean plan.
+    expect(result.dropped).toBeUndefined();
   });
 });
 
@@ -153,11 +165,9 @@ describe("plan — vague request", () => {
       ],
     });
 
-    const result = await plan(site, VAGUE_REQUEST, fakeChat([llmResponse]), MODEL);
+    const result = needsInfo(await plan(site, VAGUE_REQUEST, fakeChat([llmResponse]), MODEL));
 
-    expect(result.needsInfo).toBe(true);
     expect(result.questions).toHaveLength(2);
-    expect(result.ops).toBeUndefined();
   });
 });
 
@@ -173,14 +183,11 @@ describe("plan — hallucinated copy key → all ops dropped", () => {
       summary: "Changed a headline that doesn't exist.",
     });
 
-    const result = await plan(site, CLEAR_REQUEST, fakeChat([llmResponse]), MODEL);
+    const result = needsInfo(await plan(site, CLEAR_REQUEST, fakeChat([llmResponse]), MODEL));
 
-    expect(result.needsInfo).toBe(true);
     // Should ask a clarifying question, not return the bogus op.
     expect(result.questions).toBeDefined();
-    expect(result.questions!.length).toBeGreaterThan(0);
-    // The bogus op must not appear anywhere.
-    expect(result.ops).toBeUndefined();
+    expect(result.questions.length).toBeGreaterThan(0);
   });
 });
 
@@ -199,19 +206,42 @@ describe("plan — mixed real + hallucinated ops", () => {
       summary: "Updated hero copy and removed a section.",
     });
 
-    const result = await plan(site, CLEAR_REQUEST, fakeChat([llmResponse]), MODEL);
+    const result = ready(await plan(site, CLEAR_REQUEST, fakeChat([llmResponse]), MODEL));
 
-    expect(result.needsInfo).toBe(false);
     expect(result.ops).toHaveLength(1);
-    expect(result.ops![0]).toEqual({
+    expect(result.ops[0]).toEqual({
       op: "editCopy",
       copyKey: "HeroSection.1",
       text: "Forge your best self.",
     });
     // The bogus removeSection op must not appear.
-    const hasRemovedBogus = result.ops?.some(
+    const hasRemovedBogus = result.ops.some(
       (o) => o.op === "removeSection" && (o as { section?: string }).section === "NONEXISTENT_SECTION_XYZ",
     );
     expect(hasRemovedBogus).toBeFalsy();
+    // Fix #3: a partial edit surfaces the drop — dropped[] populated + summary carries a note.
+    expect(result.dropped).toBeDefined();
+    expect(result.dropped!.length).toBe(1);
+    expect(result.summary).toMatch(/couldn't apply/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Test 5 — T7: addPage with a cloneOfPage that doesn't exist → dropped → downgrade
+// ---------------------------------------------------------------------------
+
+describe("plan — addPage cloneOfPage not found", () => {
+  it("drops an addPage whose cloneOfPage is missing and downgrades to needsInfo:true", async () => {
+    const llmResponse = JSON.stringify({
+      needsInfo: false,
+      ops: [{ op: "addPage", route: "blog", cloneOfPage: "NON_EXISTENT_PAGE" }],
+      summary: "Add a blog page cloned from a page that doesn't exist.",
+    });
+
+    // The only op references a cloneOfPage that isn't in the (single-page) manifest → it's dropped
+    // as hallucinated, and since ALL ops were dropped the planner downgrades to needsInfo:true
+    // (exercising the new dropped[] surfacing from fix #3 on the all-dropped path).
+    const result = needsInfo(await plan(site, CLEAR_REQUEST, fakeChat([llmResponse]), MODEL));
+    expect(result.questions.length).toBeGreaterThan(0);
   });
 });

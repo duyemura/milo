@@ -18,11 +18,11 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import type { SiteRef, EditOp, OpResult } from "./types.ts";
+import type { SiteRef, EditOp, OpResult, StyleProp } from "./types.ts";
 import { STYLE_PROPS } from "./types.ts";
 import { resolveCopy, resolveAsset, resolveSection, loadSite, TargetError } from "./target.ts";
 import { flattenRoot, canon } from "../brand.ts";
-import type { BrandDoc, SiteManifest, ManifestSection, ManifestCopyEntry, ManifestPage, ManifestElement, PageType } from "../types.ts";
+import type { BrandDoc, BrandColorSlot, SiteManifest, ManifestSection, ManifestCopyEntry, ManifestPage, ManifestElement, PageType } from "../types.ts";
 import { classifyPage, GOAL_OF_TYPE } from "../pagemodel.ts";
 
 // ---------------------------------------------------------------------------
@@ -158,13 +158,13 @@ export function setBrand(site: SiteRef, slot: string, newHex: string): OpResult 
   }
   const brand = JSON.parse(fs.readFileSync(brandPath, "utf8")) as BrandDoc;
 
-  const colorSlots = brand.colors as Record<string, { value: string; hex: string; variants: Record<string, string> }>;
-  if (!colorSlots[slot]) {
+  const colorSlots = brand.colors;
+  if (!(slot in colorSlots)) {
     throw new Error(`setBrand: unknown brand slot "${slot}". Valid slots: ${Object.keys(colorSlots).join(", ")}`);
   }
 
   const [r, g, b] = hexToRgb(newHex);
-  const slotObj = colorSlots[slot];
+  const slotObj = colorSlots[slot as keyof BrandDoc["colors"]];
 
   // New base value: opaque rgb(...) in the literal shape the engine emits.
   slotObj.value = `rgb(${r}, ${g}, ${b})`;
@@ -220,10 +220,9 @@ function extraLinesFromRoot(block: string, brand: BrandDoc): string[] {
   const owned = new Set<string>(["--font-display", "--font-body"]);
   for (const k of Object.keys(brand.space ?? {})) owned.add(`--space-${k}`);
   for (const k of Object.keys(brand.radius ?? {})) owned.add(`--radius-${k}`);
-  const colorSlots = brand.colors as Record<string, { variants: Record<string, string> }>;
-  for (const slot of Object.keys(colorSlots)) {
+  for (const [slot, slotObj] of Object.entries(brand.colors) as Array<[keyof BrandDoc["colors"], BrandColorSlot]>) {
     owned.add(`--color-${slot}`);
-    for (const vName of Object.keys(colorSlots[slot].variants)) owned.add(vName);
+    for (const vName of Object.keys(slotObj.variants)) owned.add(vName);
   }
 
   const extra: string[] = [];
@@ -429,7 +428,7 @@ function brandTokenFor(
   if (COLOR_PROPS.has(prop)) {
     const valueCanon = canon(value);
     // Check base brand color slots.
-    for (const [slot, slotObj] of Object.entries(brand.colors) as Array<[string, { value: string; variants: Record<string, string> }]>) {
+    for (const [slot, slotObj] of Object.entries(brand.colors) as Array<[keyof BrandDoc["colors"], BrandColorSlot]>) {
       if (canon(slotObj.value) === valueCanon) return `var(--color-${slot})`;
       // Check variants.
       for (const [varName, varValue] of Object.entries(slotObj.variants)) {
@@ -515,10 +514,13 @@ export function styleTweak(
   prop: string,
   value: string,
 ): OpResult {
-  // Guard: prop must be in the bounded set.
+  // Guard: prop must be in the bounded set. After this check `prop` is provably a StyleProp;
+  // narrow it so the returned op literal matches EditOp's `prop: StyleProp` (parameter stays
+  // `string` so callers can pass an out-of-set value and get the throw above).
   if (!(STYLE_PROPS as readonly string[]).includes(prop)) {
     throw new Error(`styleTweak: prop '${prop}' not in the bounded set`);
   }
+  const styleProp = prop as StyleProp;
 
   // Resolve the target to a .pN handle.
   const { id, component } = resolveTargetId(site, target);
@@ -554,7 +556,7 @@ export function styleTweak(
     fs.writeFileSync(cssPath, css + block);
   }
 
-  const op: EditOp = { op: "styleTweak", target, prop, value };
+  const op: EditOp = { op: "styleTweak", target, prop: styleProp, value };
   return { op, changedFiles: [cssPath], targetSections: [component] };
 }
 
@@ -1088,8 +1090,14 @@ export function addPage(
   cloneOfPage?: string,
   pageType?: PageType,
 ): OpResult {
-  // Sanitize route: strip leading/trailing slashes, collapse to alphanumeric-hyphen.
-  const cleanRoute = route.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+  // Sanitize route: strip leading/trailing slashes, collapse to alphanumeric-hyphen, trim stray
+  // hyphens off the ends. A route that has NO alphanumeric character (empty, or only hyphens like
+  // "---") is not a usable page slug — reject it rather than emit an all-hyphen component prefix.
+  const cleanRoute = route
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/[^a-z0-9-]/gi, "-")
+    .toLowerCase()
+    .replace(/^-+|-+$/g, "");
   if (!cleanRoute) throw new Error(`addPage: invalid route "${route}"`);
 
   const manifest = loadSite(site);

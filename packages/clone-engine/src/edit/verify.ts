@@ -32,34 +32,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Browser } from "playwright";
-import type { SiteRef, EditOp, VerifierReport, SectionDiff } from "./types.ts";
-import type { BrandDoc } from "../types.ts";
+import type { SiteRef, VerifierReport, SectionDiff, EditIntent } from "./types.ts";
+import type { BrandDoc, BrandColorSlot } from "../types.ts";
 import { renderSnapshot, sectionListOf, type RenderSnapshot } from "./snapshot.ts";
 import { pixelDiff } from "../pixel.ts";
 
-/** The edit's declared intent: which sections it meant to touch, and the op that did it. */
-export interface EditIntent {
-  /** data-component names (or section roles) the edit was allowed to change. */
-  editedSections: string[];
-  op: EditOp;
-  /** setBrand only: the before/after hex of the recolored slot (drives the delta-vector scope). */
-  brandRecolor?: { oldHex: string; newHex: string };
-  /**
-   * Element-targeted ops (editCopy/styleTweak/swapAsset): a CSS selector for the edited ELEMENT
-   * (e.g. the manifest element selector, or `[data-copy="Key"]`). When present, the verifier
-   * sub-scopes the edited section to this element's box — changed pixels INSIDE the section but
-   * OUTSIDE the element box are flagged as intra-section collateral. Omit for a whole-section trust.
-   */
-  elementSelector?: string;
-  /**
-   * REFLOW ops (removeSection/reorderSection): the caller declares the intended post-edit section
-   * order by name. When provided, the structural check uses this as the expected order instead of
-   * deriving it heuristically — the op declares what it intended and the verifier confirms both the
-   * rendered DOM and site.json match. This makes the check non-circular: the op is the authority,
-   * the verifier is the confirmation. Omit to keep the current default behavior (backward-compat).
-   */
-  expectedSectionOrder?: string[];
-}
+// EditIntent now lives in ./types.ts (shared by apply.ts + generate.ts). Re-exported below.
+export type { EditIntent } from "./types.ts";
 
 const OVERLAP_TOLERANCE_PX = 2; // sections may share a 1-2px seam (border collapse / sub-pixel).
 
@@ -443,10 +422,10 @@ function sameOrder(a: string[], b: string[]): boolean {
 /** Read the current brand slot hex from a projected site (helper for callers building intent). */
 export function currentBrandHex(site: SiteRef, slot: string): string {
   const brand = JSON.parse(fs.readFileSync(path.join(site.dir, "astro", "brand.json"), "utf8")) as BrandDoc;
-  const colors = brand.colors as unknown as Record<string, { hex: string }>;
-  const s = colors[slot];
-  if (!s) throw new Error(`currentBrandHex: unknown slot ${slot}`);
-  return s.hex;
+  const entry = (Object.entries(brand.colors) as Array<[keyof BrandDoc["colors"], BrandColorSlot]>)
+    .find(([name]) => name === slot);
+  if (!entry) throw new Error(`currentBrandHex: unknown slot ${slot}`);
+  return entry[1].hex;
 }
 
 /** Re-export for callers/tests. */

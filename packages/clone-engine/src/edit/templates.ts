@@ -23,7 +23,7 @@
  * data-copy + data-component all agree with the site.json entries it writes.
  */
 import { z } from "zod";
-import type { SECTION_ROLES } from "../types.ts";
+import type { SECTION_ROLES, PageGoal } from "../types.ts";
 
 /** A section role from the A+B vocabulary this template emits (must be in SECTION_ROLES). */
 export type TemplateSectionRole = (typeof SECTION_ROLES)[number];
@@ -59,8 +59,9 @@ export interface RenderedTemplate {
 export interface SectionTemplate<S extends z.ZodTypeAny = z.ZodTypeAny> {
   /** The A+B section role this template produces. */
   role: TemplateSectionRole;
-  /** The page goal this template best fits (advisory — informs picking). */
-  fitsGoal: "convert" | "inform" | "orient" | "engage";
+  /** The page goal this template best fits (advisory — informs picking). Utility pages have no
+   *  engagement goal, so `"none"` is excluded — a template always fits a measurable goal. */
+  fitsGoal: Exclude<PageGoal, "none">;
   /** Human-readable one-liner for prompts / logs. */
   description: string;
   /** Zod schema for the ONLY thing the LLM fills: structured copy. */

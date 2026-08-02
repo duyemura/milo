@@ -276,6 +276,45 @@ describe.skipIf(!ASTRO_MODULES)("addSection — verifier-gated (C-T5)", () => {
     expect(srcFileAfter, "source file must contain the source edit").toContain("SOURCE_UNIQUE_TEXT_ABC");
     expect(cloneFileAfter, "clone file must NOT be mutated when editing source").not.toContain("SOURCE_UNIQUE_TEXT_ABC");
   }, 60_000);
+
+  // 3. T4 — addSection TWICE on the same source yields TWO distinct clones (Copy vs Copy2), both on
+  //    disk + in site.json, with the original clone intact after the second add. Proves the unique-
+  //    naming path (no collision, no overwrite). No astro build needed — pure file surgery.
+  it("addSection twice: two distinct clones (Copy, Copy2), both present, original intact", async () => {
+    const { out, site } = await projectFixture();
+    cleanup.add(out);
+
+    const CLONE_OF = "StoriesOfGlorySection";
+
+    const first = addSection(site, CLONE_OF);
+    const firstName = first.targetSections[0];
+    expect(firstName).toBe(`${CLONE_OF}Copy`);
+
+    const second = addSection(site, CLONE_OF);
+    const secondName = second.targetSections[0];
+    expect(secondName).toBe(`${CLONE_OF}Copy2`);
+    expect(secondName).not.toBe(firstName);
+
+    // Both clone .astro files exist on disk (the first was NOT overwritten by the second).
+    const firstFile = path.join(out, `astro/src/components/${firstName}.astro`);
+    const secondFile = path.join(out, `astro/src/components/${secondName}.astro`);
+    expect(fs.existsSync(firstFile), "first clone file must still exist").toBe(true);
+    expect(fs.existsSync(secondFile), "second clone file must exist").toBe(true);
+
+    // Each carries its OWN data-component (independent identity, not aliased to the source).
+    expect(fs.readFileSync(firstFile, "utf8")).toContain(`data-component="${firstName}"`);
+    expect(fs.readFileSync(secondFile, "utf8")).toContain(`data-component="${secondName}"`);
+
+    // Both clones + the original source are present in site.json sections[].
+    const manifest = JSON.parse(fs.readFileSync(path.join(out, "site.json"), "utf8")) as SiteManifest;
+    const names = manifest.pages[0].sections.map((s) => s.name);
+    expect(names).toContain(CLONE_OF);
+    expect(names).toContain(firstName);
+    expect(names).toContain(secondName);
+    // The source component file is untouched (still its own component).
+    const srcFile = path.join(out, `astro/src/components/${CLONE_OF}.astro`);
+    expect(fs.readFileSync(srcFile, "utf8")).toContain(`data-component="${CLONE_OF}"`);
+  }, 60_000);
 });
 
 // -------------------------------------------------------------------------------

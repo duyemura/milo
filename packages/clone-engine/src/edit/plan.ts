@@ -106,6 +106,17 @@ export async function plan(
     };
   }
 
+  // SOME (not all) ops were dropped → the LLM's summary still describes ALL requested changes,
+  // which would let the caller report full success for a partial edit. Surface the drops in the
+  // result AND append a caller-visible note to the summary so the UI can't over-report.
+  if (dropped.length > 0) {
+    const note =
+      ` (Note: I couldn't apply ${dropped.length} of the requested change(s) because ` +
+      `${dropped.map((d) => (d.op as { op?: string }).op ?? "an op").join(", ")} referenced ` +
+      `elements not on this site — only the remaining ${validated.length} will change.)`;
+    return { needsInfo: false, ops: validated, summary: raw.summary + note, dropped };
+  }
+
   return { needsInfo: false, ops: validated, summary: raw.summary };
 }
 

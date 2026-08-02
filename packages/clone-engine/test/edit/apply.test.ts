@@ -295,4 +295,60 @@ describe.skipIf(!ASTRO_MODULES)("apply — self-correcting edit loop", () => {
     // HEADLINE: despite the throw after files were mutated, the site is byte-identical to before.
     expect(editableHash(out), "throw-path revert must leave the site BYTE-IDENTICAL").toBe(beforeHash);
   }, 300_000);
+
+  // 6. T3 — MULTI-OP BATCH across DIFFERENT sections. A batch of two editCopy ops on TWO different
+  //    sections must pass on attempt 0 with the edited-section UNION covering BOTH sections (the
+  //    batch buildIntent path must not wrongly fail/skip a section). We use copy edits (proven to
+  //    produce a visible in-scope change) with short replacements so neither section reflows the
+  //    page — keeping the absolutely-positioned footer common in these gym-site clones stable. We
+  //    assert both target sections changed and every OTHER section stayed 0-px.
+  it("multi-op batch across different sections passes; the edited union covers both", async () => {
+    const { out, site, manifest } = await projectFixture();
+    cleanup.add(out);
+
+    const COPY_SECTION_A = "S3StepsToSection";
+    // Pick a second copy key in a DIFFERENT, non-footer section (footers are absolutely positioned
+    // and reflow-sensitive). Prefer a single-line role (headline/subheadline/eyebrow) so a short
+    // replacement swaps text WITHOUT changing the line count → no height reflow, footer stays put.
+    // A distinct copy slot in a non-footer section whose text is a SINGLE LINE (no newline)
+    // of moderate length — a short replacement then changes pixels WITHOUT changing the line
+    // count → no vertical reflow → the absolutely-positioned footer stays put. Role labels are
+    // heuristic/fixture-dependent, so select by the text shape directly (robust across labelers).
+    const second = manifest.pages[0].copy.find(
+      (c) =>
+        c.component !== COPY_SECTION_A &&
+        c.component !== "Footer" &&
+        typeof c.text === "string" &&
+        !c.text.includes("\n") &&
+        c.text.trim().length >= 8 &&
+        c.text.trim().length <= 60,
+    )!;
+    expect(second, "a distinct single-line second copy slot must exist").toBeDefined();
+    const COPY_SECTION_B = second.component;
+
+    const ops: EditOp[] = [
+      { op: "editCopy", copyKey: "S3StepsToSection.6", text: "Edited step" },
+      { op: "editCopy", copyKey: second.key, text: "New copy" },
+    ];
+    const chat = fakeChat(["{}"]); // must never be called — a clean batch passes on attempt 0
+
+    const result = await apply(site, ops, { browser, chat, model: MODEL, width: WIDTH });
+
+    expect(result.ok, `batch must pass, failures: ${result.verifierReport.failures.join(" | ")}`).toBe(true);
+    expect(result.reverted).toBeUndefined();
+    expect(result.opsApplied).toEqual(ops);
+    expect(chat.calls, "a clean batch must not call the revise LLM").toBe(0);
+
+    // Both target sections changed (the union edited set covered BOTH, not just ops[0]).
+    const diffA = result.verifierReport.sections.find((s) => s.section === COPY_SECTION_A)!;
+    const diffB = result.verifierReport.sections.find((s) => s.section === COPY_SECTION_B)!;
+    expect(diffA.changed, "the first editCopy section must show a change").toBe(true);
+    expect(diffB.changed, "the second editCopy section must show a change").toBe(true);
+
+    // Every section OUTSIDE the edited union stayed byte-clean (0-px out of scope).
+    for (const s of result.verifierReport.sections) {
+      if (s.section === COPY_SECTION_A || s.section === COPY_SECTION_B) continue;
+      expect(s.outScopePx, `untouched section ${s.section} leaked ${s.outScopePx}px`).toBe(0);
+    }
+  }, 300_000);
 });

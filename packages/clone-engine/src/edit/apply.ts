@@ -22,7 +22,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Browser } from "playwright";
 import { z } from "zod";
-import type { SiteRef, EditOp, EditResult, OpResult, VerifierReport } from "./types.ts";
+import type { SiteRef, EditOp, EditResult, OpResult, VerifierReport, EditIntent } from "./types.ts";
 import { EditOpSchema } from "./types.ts";
 import {
   editCopy,
@@ -34,7 +34,7 @@ import {
   addSection,
   addPage,
 } from "./ops.ts";
-import { verify, type EditIntent } from "./verify.ts";
+import { verify } from "./verify.ts";
 import { renderSnapshot, sectionListOf, type RenderSnapshot } from "./snapshot.ts";
 import { snapshot, restore } from "./history.ts";
 import { resolveElement, resolveSection } from "./target.ts";
@@ -179,7 +179,7 @@ async function applyOpsDeterministically(site: SiteRef, ops: EditOp[]): Promise<
         results.push(addSection(site, op.cloneOf, op.afterSection));
         break;
       case "addPage":
-        results.push(addPage(site, op.route, op.cloneOfPage));
+        results.push(addPage(site, op.route, op.cloneOfPage, op.pageType));
         break;
     }
   }

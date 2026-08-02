@@ -22,6 +22,7 @@ import type { Browser } from "playwright";
 import type { SiteRef, VerifierReport } from "./types.ts";
 import type { ManifestSection, ManifestCopyEntry, ManifestElement, SiteManifest, PageGoal } from "../types.ts";
 import { loadSite } from "./target.ts";
+import { snapshot, restore } from "./history.ts";
 import { verify, renderSnapshot, type EditIntent, type RenderSnapshot } from "./verify.ts";
 import {
   TEMPLATE_LIBRARY,
@@ -247,6 +248,12 @@ export async function generateSection(
   const render = template.render as (f: unknown, comp: string) => RenderedTemplate;
   const rt = render(filled, componentName);
 
+  // Pre-insert rollback point. insertGeneratedSection mutates 4 files (new .astro, APPENDS to the
+  // shared global.css, edits index.astro, rewrites site.json). If verification fails we must NOT
+  // leave the half-inserted section + global.css cruft on disk — same "never ships broken"
+  // invariant apply() upholds. Snapshot the editable subtree, restore it on any non-pass.
+  const token = snapshot(site);
+
   // Insert via the shared insertion path (mirrors addSection).
   const { beforeOrder } = insertGeneratedSection(site, componentName, rt);
 
@@ -263,7 +270,13 @@ export async function generateSection(
     assetsFallback: opts.assetsFallback,
   });
 
-  return { ok: verifierReport.pass, sectionName: componentName, verifierReport };
+  // On failure, roll back to the pre-insert state so a broken/off-scope generation never ships.
+  if (!verifierReport.pass) {
+    restore(site, token);
+    return { ok: false, sectionName: componentName, verifierReport };
+  }
+
+  return { ok: true, sectionName: componentName, verifierReport };
 }
 
 /** Re-export the library + role guard so callers can enumerate the bounded vocabulary. */
