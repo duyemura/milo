@@ -52,23 +52,33 @@ export function createWorkosAuth(config: AdminConfig): WorkosAuth {
 
     async authenticateCookie(sealed, reply) {
       try {
-        const result = await workos.userManagement.authenticateWithSessionCookie({
-          sessionData: sealed,
-          cookiePassword,
-        });
-        if (!result.authenticated) {
-          // Session rejection is exactly the reload-starts-at-login symptom;
-          // the reason code is the diagnosis (expired, rotated, mismatched key…).
-          console.warn(`[admin] workos session rejected: reason=${"reason" in result ? result.reason : "unknown"}`);
+        const session = workos.userManagement.loadSealedSession({ sessionData: sealed, cookiePassword });
+        const auth = await session.authenticate();
+        if (auth.authenticated) {
+          return domainOk(auth.user.email) ? auth.user.email : null;
+        }
+        // A live session whose ACCESS token has simply expired (the ~5-minute default)
+        // reports `invalid_jwt`. The refresh token sealed in the cookie is still valid, so
+        // mint a fresh access token and roll the cookie forward. Without this refresh step
+        // every access-token expiry bounced the user back to login every few minutes.
+        // no_session_cookie_provided / invalid_session_cookie are unrecoverable → re-login.
+        if (auth.reason !== "invalid_jwt") {
+          console.warn(`[admin] workos session rejected: reason=${auth.reason}`);
           return null;
         }
-        const email = result.user?.email ?? "";
-        if (!domainOk(email)) return null;
-        // Refresh token rotation: roll the sealed cookie forward when the SDK hands us a new one.
-        if ("sealedSession" in result && typeof result.sealedSession === "string" && result.sealedSession !== sealed) {
-          reply.setCookie(SESSION_COOKIE, result.sealedSession, cookieFlags(config));
+        const refreshed = await session.refresh({ cookiePassword });
+        if (!refreshed.authenticated) {
+          // Terminal (session over) or retryable (transient 5xx/429/timeout) — either way we
+          // can't authorize this request; the plugin sends the user to login. The reason is
+          // logged so a genuinely-over session is distinguishable from a transient blip.
+          console.warn(`[admin] workos refresh failed: reason=${refreshed.reason} retryable=${"retryable" in refreshed ? refreshed.retryable : "?"}`);
+          return null;
         }
-        return email;
+        if (refreshed.sealedSession) {
+          reply.setCookie(SESSION_COOKIE, refreshed.sealedSession, cookieFlags(config));
+        }
+        const email = refreshed.user?.email ?? "";
+        return domainOk(email) ? email : null;
       } catch {
         return null;
       }
@@ -76,10 +86,8 @@ export function createWorkosAuth(config: AdminConfig): WorkosAuth {
 
     async logoutUrl(sealed) {
       try {
-        return await workos.userManagement.getLogoutUrlFromSessionCookie({
-          sessionData: sealed,
-          cookiePassword,
-        });
+        const session = workos.userManagement.loadSealedSession({ sessionData: sealed, cookiePassword });
+        return await session.getLogoutUrl();
       } catch {
         return null;
       }
