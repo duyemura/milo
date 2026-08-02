@@ -226,12 +226,24 @@ export async function generateSection(
     assetsFallback: opts.assetsFallback,
   });
 
+  // Read site context from labels.json if present (site name + purpose for copy quality).
+  let siteContext = "";
+  const labelsPath = path.join(site.dir, "labels.json");
+  if (fs.existsSync(labelsPath)) {
+    try {
+      const labels = JSON.parse(fs.readFileSync(labelsPath, "utf8")) as { site?: { name?: string; purpose?: string } };
+      if (labels.site?.name) siteContext += `Business name: ${labels.site.name}\n`;
+      if (labels.site?.purpose) siteContext += `Business type: ${labels.site.purpose}\n`;
+    } catch { /* labels.json malformed — skip context, don't fail generation */ }
+  }
+
   // LLM fills ONLY the copy slots (schema-constrained). It never writes HTML/CSS.
   const messages: ChatMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
     {
       role: "user",
       content:
+        (siteContext ? `${siteContext}\n` : "") +
         `Section template: ${template.description}\n` +
         `Brief: ${args.brief}\n\n` +
         `Fill ONLY the copy fields defined by the schema.`,

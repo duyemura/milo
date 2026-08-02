@@ -344,3 +344,29 @@ describe.skipIf(!ASTRO_MODULES)("subsystem E — bounded on-brand section genera
     ).rejects.toThrow(/not in the template library/);
   }, 60_000);
 });
+
+describe.skipIf(!ASTRO_MODULES)("generateSection — brand/voice context", () => {
+  it("includes site name in the LLM user message when labels.json has site.name", async () => {
+    const { out, site } = await projectFixture("gen-ctx-");
+    cleanup.add(out);
+
+    // Inject a labels.json with a known site name so we can assert it appears in the prompt.
+    const labelsPath = path.join(out, "labels.json");
+    fs.writeFileSync(labelsPath, JSON.stringify({
+      site: { name: "Iron & Grace Studio", purpose: "boutique fitness studio" },
+      brand: { colors: [], fonts: [] }, sections: [], elements: [], assets: [],
+    }));
+
+    let capturedUserMessage = "";
+    const capturingChat: ChatFn = async (opts) => {
+      const msgs = (opts as { messages?: Array<{ role: string; content: string }> }).messages ?? [];
+      capturedUserMessage = msgs.find((m) => m.role === "user")?.content ?? "";
+      return { content: JSON.stringify({ eyebrow: "Ready?", headline: "Join Us", subcopy: "Start today.", buttonLabel: "Get started" }) };
+    };
+
+    await generateSection(site, { role: "cta-band", brief: "A closing CTA." }, capturingChat, MODEL, browser, { width: WIDTH });
+
+    expect(capturedUserMessage).toContain("Iron & Grace Studio");
+    expect(capturedUserMessage).toContain("boutique fitness studio");
+  }, 120_000);
+});
