@@ -21,6 +21,7 @@ import { buildSite, buildSiteAuto } from "./orchestrate.ts";
 import { crawlSite } from "./crawl.ts";
 import { deploy } from "./deploy.ts";
 import { mjsCapture, mjsProject, mjsBuild } from "./run-mjs.ts";
+import { eventToJsonLine, type EngineEventSink } from "./events.ts";
 import path from "node:path";
 
 // ---------------------------------------------------------------------------
@@ -76,7 +77,7 @@ const SPEAKEASY_PAGES = [
 // so treating `--x y` as a pair is robust. The first remaining bare token is
 // the subcommand — so `--engine ts project …` and `project … --engine ts` both work.
 // Boolean flags take NO value, so we must not consume the token after them.
-const BOOLEAN_FLAGS = new Set(["no-llm"]);
+const BOOLEAN_FLAGS = new Set(["no-llm", "emit-events"]);
 
 function findSubcommand(): string | undefined {
   const argv = process.argv.slice(2);
@@ -184,19 +185,24 @@ switch (subcommand) {
   }
 
   case "build-auto": {
-    // node src/cli.ts build-auto --site <origin> [--mode core|full] [--out <report.html>] [--cwd <dir>] [--ugc-limit <n>]
+    // node src/cli.ts build-auto --site <origin> [--mode core|full] [--out <report.html>] [--cwd <dir>] [--ugc-limit <n>] [--emit-events]
     const site = requireArg("site");
     const mode = (arg("mode", "core") as "core" | "full");
     const reportOut = arg("out");
     const buildCwd = arg("cwd", process.cwd());
     const ugcLimitStr = arg("ugc-limit");
     const ugcLimit = ugcLimitStr ? parseInt(ugcLimitStr, 10) : undefined;
+    const emitEvents = hasFlag("emit-events");
+    const onEvent: EngineEventSink | undefined = emitEvents
+      ? (e) => process.stdout.write(eventToJsonLine(e) + "\n")
+      : undefined;
 
     await buildSiteAuto(site, {
       cwd: buildCwd,
       mode,
       reportOut,
       ugcLimit,
+      onEvent,
     });
     break;
   }
