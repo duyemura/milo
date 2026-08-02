@@ -2,7 +2,7 @@
 body { margin: 0; font-family: -apple-system, system-ui, sans-serif; color: #1a1a1a; background: #f7f7f8; }
 .app { min-height: 100vh; }
 .topbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5e5e7; }
-.brand { font-weight: 600; }
+.brand { font-weight: 600; color: inherit; text-decoration: none; cursor: pointer; }
 .signout { color: #666; text-decoration: none; font-size: 14px; }
 .muted { color: #888; }
 .error { color: #c0392b; }
