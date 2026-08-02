@@ -6,6 +6,9 @@ import type { AdminConfig } from "../config.ts";
 import type { JobRow, SiteRow } from "../db/types.ts";
 import { appendLog } from "./dispatch.ts";
 import { runDeploy } from "./deploy.ts";
+import { sitePaths } from "./paths.ts";
+import { makeEventBridge, spawnLines } from "./event-bridge.ts";
+import type { RunHub } from "./run-state.ts";
 
 export interface SpawnFn {
   (cmd: string, args: string[], opts: { cwd: string; env: NodeJS.ProcessEnv }): Promise<{
@@ -53,6 +56,7 @@ export async function runJob(opts: {
   config: AdminConfig;
   job: JobRow;
   site: SiteRow;
+  hub: RunHub;
   spawn?: SpawnFn;
 }): Promise<string | void> {
   const { db, config, job, site } = opts;
@@ -77,7 +81,7 @@ export async function runJob(opts: {
       if (site.seedType === "clone") {
         const url = payload["sourceUrl"] ?? site.sourceUrl;
         if (!url) throw new Error("Clone seed requires sourceUrl.");
-        await runCloneSeed({ db, config, job, site, url, seedDir, distDir, sp });
+        await runCloneSeed({ db, config, job, site, url, hub: opts.hub });
         return;
       }
       const url = payload["sourceUrl"] ?? site.sourceUrl;
@@ -132,9 +136,11 @@ export async function runJob(opts: {
 }
 
 /**
- * Clone seed: capture → project → astro build, via the typed @milo/clone-engine CLI.
- * Deploy of clone builds goes through the same CLI (see jobs/deploy.ts); a live
- * staging deploy is a human-authorized action (per the engine's own doc note).
+ * Clone seed: buildSiteAuto (auto-discover → staged core build → assemble full-site/),
+ * spawned via the typed @milo/clone-engine CLI with --emit-events. The runner parses the
+ * event stream (event-bridge) into job_logs + the live RunHub. The engine resolves its own
+ * astro toolchain, so nothing is symlinked here. `full-site/` is copied to `dist/` for the
+ * preview route (and the human-authorized deploy path) to serve.
  */
 async function runCloneSeed(opts: {
   db: AdminDb;
@@ -142,44 +148,41 @@ async function runCloneSeed(opts: {
   job: JobRow;
   site: SiteRow;
   url: string;
-  seedDir: string;
-  distDir: string;
-  sp: SpawnFn;
+  hub: RunHub;
 }): Promise<void> {
-  const { db, config, job, site, url, seedDir, distDir } = opts;
-  const log = async (line: string) => appendLog(db, job.id, line);
+  const { db, config, job, site, url, hub } = opts;
+  const p = sitePaths(config, site.id);
+  fs.mkdirSync(p.seedDir, { recursive: true });
   const cloneCli = path.join(config.repoRoot, "packages/clone-engine/src/cli.ts");
-  const captureOut = path.join(seedDir, "capture");
-  const projOut = path.join(seedDir, "project");
-  const cwd = config.repoRoot;
 
-  await log(`$ node packages/clone-engine/src/cli.ts capture --url ${url} --out capture/`);
-  const cap = await opts.sp("node", [cloneCli, "capture", "--url", url, "--out", captureOut], { cwd, env: {} });
-  if (cap.code !== 0) throw new Error(`clone capture exited ${cap.code}`);
-  if (!fs.existsSync(path.join(captureOut, "capture.json"))) {
-    throw new Error("clone capture produced no capture.json — engine contract violated");
+  await appendLog(
+    db,
+    job.id,
+    `$ node packages/clone-engine/src/cli.ts build-auto --site ${url} --mode core --emit-events`,
+  );
+  const bridge = makeEventBridge({ db, jobId: job.id, siteId: site.id, hub });
+  const code = await spawnLines({
+    cmd: "node",
+    args: [
+      cloneCli,
+      "build-auto",
+      "--site", url,
+      "--mode", "core",
+      "--cwd", p.seedDir,
+      "--out", p.reportHtml,
+      "--emit-events",
+    ],
+    cwd: config.repoRoot,
+    onLine: bridge.onLine,
+  });
+  await bridge.drain();
+  if (code !== 0) throw new Error(`clone build-auto exited ${code}`);
+  if (!fs.existsSync(path.join(p.fullSiteDir, "index.html"))) {
+    throw new Error("clone build produced no full-site/index.html — engine contract violated");
   }
 
-  await log(`$ node packages/clone-engine/src/cli.ts project --dir capture/ --out project/`);
-  const proj = await opts.sp("node", [cloneCli, "project", "--dir", captureOut, "--out", projOut, "--base", ""], {
-    cwd,
-    env: {},
-  });
-  if (proj.code !== 0) throw new Error(`clone project exited ${proj.code}`);
-  await db.updateTable("sites").set({ status: "seeded", stage: "building" }).where("id", "=", site.id).execute();
-
-  // Astro build: project() emits <out>/astro; link the shared toolchain and build.
-  const astroDir = path.join(projOut, "astro");
-  const toolchain = path.join(config.repoRoot, "page-clone-spike/out-project-page/astro/node_modules");
-  const linkPath = path.join(astroDir, "node_modules");
-  fs.rmSync(linkPath, { recursive: true, force: true });
-  fs.symlinkSync(toolchain, linkPath, "dir");
-  await log(`$ astro build (project/astro)`);
-  const astroBin = path.join(toolchain, ".bin", "astro");
-  const ast = await opts.sp(astroBin, ["build"], { cwd: astroDir, env: {} });
-  if (ast.code !== 0) throw new Error(`astro build exited ${ast.code}`);
-
-  fs.rmSync(distDir, { recursive: true, force: true });
-  fs.cpSync(path.join(astroDir, "dist"), distDir, { recursive: true });
+  // Serve the built site from dist/ (a copy of the engine's full-site/ output).
+  fs.rmSync(p.distDir, { recursive: true, force: true });
+  fs.cpSync(p.fullSiteDir, p.distDir, { recursive: true });
   await db.updateTable("sites").set({ status: "built", stage: "building" }).where("id", "=", site.id).execute();
 }

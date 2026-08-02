@@ -23,8 +23,8 @@ async function main(): Promise<void> {
   const queue =
     config.queueDriver === "bullmq"
       ? // api-only mode only enqueues; monolith and worker both run processors.
-        await bullmqQueue({ db, config, mode: service === "api" ? "producer" : "worker" })
-      : localQueue({ db, config });
+        await bullmqQueue({ db, config, mode: service === "api" ? "producer" : "worker", hub })
+      : localQueue({ db, config, hub });
 
   if (service !== "worker") {
     const app = await buildApp({ config, db, queue, hub });
