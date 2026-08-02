@@ -482,7 +482,11 @@ export async function buildSiteAuto(
     console.log(`[build-auto] No UGC pages found — skipping UGC pass`);
   }
 
-  emit({ type: "run.completed", ok: coreResult.ok.length, failed: coreResult.failed.length });
+  emit({
+    type: "run.completed",
+    ok: coreResult.ok.length + (ugcResult?.ok.length ?? 0),
+    failed: coreResult.failed.length + (ugcResult?.failed.length ?? 0),
+  });
 
   return { core: coreResult, ugc: ugcResult };
 }
