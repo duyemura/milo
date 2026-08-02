@@ -116,9 +116,14 @@ export async function apply(
 }
 
 /**
- * Apply the ops deterministically, then verify. Returns the verifier report.
- * A build/render failure inside verify() surfaces as renderSane=false (not a throw),
- * so a broken revision is caught, not propagated.
+ * Apply the ops deterministically, then build the intent and verify. Returns the verifier
+ * report. ANY throw across the whole phase — op apply, intent build, or verify (including the
+ * unwrapped diff phase where `browser.newPage()` could throw AFTER files were already mutated) —
+ * is converted into a non-passing report. This is load-bearing for the "never ships broken"
+ * invariant: a throw here must route through the caller's `restore`, not escape `apply()` and
+ * leave a half-edited site on disk (there is no surrounding restore on attempt 0 or the final
+ * retry). verify's own build/render failures already surface as renderSane=false, not throws;
+ * this catch covers everything else.
  */
 async function applyAndVerify(
   site: SiteRef,
@@ -127,26 +132,24 @@ async function applyAndVerify(
   brandBefore: Record<string, string>,
   opts: ApplyOptions,
 ): Promise<VerifierReport> {
-  let results: OpResult[];
   try {
-    results = await applyOpsDeterministically(site, ops);
+    const results = await applyOpsDeterministically(site, ops);
+    const intent = buildIntent(site, ops, results, brandBefore);
+    return await verify(opts.browser, before, site, intent, {
+      width: opts.width ?? before.width,
+      assetsFallback: opts.assetsFallback,
+    });
   } catch (err) {
-    // An op threw (e.g. a resolver rejected a value the LLM revised into an invalid state).
-    // Surface as a non-passing report so the loop rolls back and retries/reverts.
+    // An op threw (a resolver rejected a revised value), or intent-build/verify threw after the
+    // ops already mutated files. Surface as a non-passing report so the loop rolls back.
     return {
       pass: false,
       sections: [],
       structural: { expected: before.order, actual: [], ok: false },
       renderSane: false,
-      failures: [`apply: op failed to apply: ${(err as Error).message}`],
+      failures: [`apply: edit phase threw: ${(err as Error).message}`],
     };
   }
-
-  const intent = buildIntent(site, ops, results, brandBefore);
-  return verify(opts.browser, before, site, intent, {
-    width: opts.width ?? before.width,
-    assetsFallback: opts.assetsFallback,
-  });
 }
 
 /** Dispatch each op to its deterministic implementation, in order. */

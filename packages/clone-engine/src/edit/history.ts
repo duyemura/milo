@@ -107,32 +107,17 @@ function editableEntries(siteDir: string): Array<{ src: string; rel: string }> {
 
 /**
  * Copy the editable state to a new snapshot directory.
- * Returns the canonical relative paths included in the snapshot (used by restore
- * to know which subtrees to mirror).
+ *
+ * restore() does not consult the exact file list captured here — it mirrors the fixed
+ * `snapshotCoveredSubtrees` set (so files added after the snapshot are removed on restore).
+ * So this just copies each editable file into the snapshot dir; no manifest is returned.
  */
-function writeSnapshot(siteDir: string, snapDir: string): Set<string> {
-  const entries = editableEntries(siteDir);
-  const included = new Set<string>();
-
-  for (const { src, rel } of entries) {
+function writeSnapshot(siteDir: string, snapDir: string): void {
+  for (const { src, rel } of editableEntries(siteDir)) {
     const dest = path.join(snapDir, rel);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.copyFileSync(src, dest);
-
-    // Record the root subtree prefix so restore knows the covered scope.
-    // For "site.json" → top-level file; for "astro/src/..." → "astro/src"; etc.
-    const parts = rel.split(path.sep);
-    if (parts.length === 1) {
-      included.add(rel); // top-level file like "site.json"
-    } else {
-      // Root subtree: first 3 path segments (e.g. astro/src, astro/public/assets, assets)
-      // We store the actual sub-path rather than collapsing to a subtree — restore will
-      // do a symmetric diff at the subtree level.
-      included.add(rel);
-    }
   }
-
-  return included;
 }
 
 /**

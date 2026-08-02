@@ -238,4 +238,61 @@ describe.skipIf(!ASTRO_MODULES)("apply — self-correcting edit loop", () => {
     expect(fs.readFileSync(compFile, "utf8")).not.toContain("SMUGGLED EDIT");
     expect(editableHash(out), "site byte-identical after a rejected-revision revert").toBe(beforeHash);
   }, 300_000);
+
+  // 5. NEVER-SHIPS-BROKEN under a THROW — a browser.newPage() that throws DURING verify's diff
+  //    phase (AFTER the ops already mutated files on disk and verify's own render completed) must
+  //    NOT escape apply(). It must be caught, route through restore, and leave the site
+  //    byte-identical. Before the fix apply() threw here and the half-edited site was left behind.
+  it("reverts byte-identically when verify throws AFTER ops mutate the site (throw path)", async () => {
+    const { out, site } = await projectFixture();
+    cleanup.add(out);
+
+    const beforeHash = editableHash(out);
+
+    // A browser Proxy that counts newPage() calls and starts throwing once we're past the BEFORE
+    // render + ops apply + verify's AFTER render — i.e. squarely in the unwrapped diff phase. On
+    // this 8-section fixture: BEFORE render = 11 newPage calls (1-11), ops apply = 0, verify's
+    // AFTER render = 11 (12-22), then the diff phase = calls 23-32. Throwing at call ≥ 25 lands
+    // firmly in the diff phase — ops already on disk, AFTER render done: exactly the reviewer's
+    // hole (the diff phase is OUTSIDE verify's own render try/catch, so the throw escapes).
+    const THROW_AFTER = 25;
+    let calls = 0;
+    const throwingBrowser = new Proxy(browser, {
+      get(target, prop, receiver) {
+        if (prop === "newPage") {
+          return (...args: unknown[]) => {
+            calls++;
+            if (calls >= THROW_AFTER) {
+              throw new Error(`injected newPage failure at call ${calls} (diff phase)`);
+            }
+            return (target.newPage as (...a: unknown[]) => unknown)(...args);
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    }) as Browser;
+
+    // A real, clean edit. maxRetries:0 → exactly one attempt, isolating the attempt-0 no-restore
+    // path where a throw would otherwise escape apply() with no surrounding rollback.
+    const ops: EditOp[] = [{ op: "editCopy", copyKey: "S3StepsToSection.6", text: "Edited step" }];
+    const chat = fakeChat(["{}"]);
+
+    let threw = false;
+    let result: Awaited<ReturnType<typeof apply>> | undefined;
+    try {
+      result = await apply(site, ops, { browser: throwingBrowser, chat, model: MODEL, width: WIDTH, maxRetries: 0 });
+    } catch {
+      threw = true;
+    }
+
+    // The throw must be swallowed into a reverted result, never propagated out of apply().
+    expect(threw, "apply() must NOT throw — a verify-phase throw becomes a reverted result").toBe(false);
+    expect(result!.ok).toBe(false);
+    expect(result!.reverted, "a verify-phase throw must revert").toBe(true);
+    // Prove the injection actually fired in the diff phase (else the test proves nothing).
+    expect(calls, "the injected failure must have fired").toBeGreaterThanOrEqual(THROW_AFTER);
+
+    // HEADLINE: despite the throw after files were mutated, the site is byte-identical to before.
+    expect(editableHash(out), "throw-path revert must leave the site BYTE-IDENTICAL").toBe(beforeHash);
+  }, 300_000);
 });
