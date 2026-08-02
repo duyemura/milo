@@ -1,0 +1,31 @@
+{
+  "note": "Each URL confirmed live + independently-built before scanning. Substitute a same-vertical/same-tier peer if a URL 404s or moved to a page-builder template. Load-bearing: vertical/geography balance + every SECTION_ROLE in >=2 sources.",
+  "sites": [
+    { "slug": "marcelogarciajj",   "vertical": "gym",        "url": "https://marcelogarciajj.com" },
+    { "slug": "crossfitroots",     "vertical": "gym",        "url": "https://crossfitroots.com" },
+    { "slug": "yogasix",            "vertical": "gym",        "url": "https://www.yogasix.com" },
+    { "slug": "clubpilates",       "vertical": "gym",        "url": "https://clubpilates.com" },
+    { "slug": "crossfitsouthbrooklyn", "vertical": "gym",    "url": "https://crossfitsouthbrooklyn.com" },
+    { "slug": "vervecoffee",       "vertical": "cafe",       "url": "https://vervecoffee.com" },
+    { "slug": "rubycoffeeroasters","vertical": "cafe",       "url": "https://rubycoffeeroasters.com" },
+    { "slug": "gaslightcoffee",    "vertical": "cafe",       "url": "https://gaslightcoffeeroasters.com" },
+    { "slug": "fellowbarber",      "vertical": "barber",     "url": "https://fellowbarber.com" },
+    { "slug": "blindbarber",       "vertical": "barber",     "url": "https://blindbarber.com" },
+    { "slug": "rudysbarbershop",   "vertical": "barber",     "url": "https://rudysbarbershop.com" },
+    { "slug": "thegentsplace",     "vertical": "barber",     "url": "https://thegentsplace.com" },
+    { "slug": "hellotend",         "vertical": "dental",     "url": "https://hellotend.com" },
+    { "slug": "heydayskincare",    "vertical": "medspa",     "url": "https://heydayskincare.com" },
+    { "slug": "everbody",          "vertical": "medspa",     "url": "https://everbody.com" },
+    { "slug": "skinlaundry",       "vertical": "medspa",     "url": "https://skinlaundry.com" },
+    { "slug": "rotorooter",        "vertical": "plumbing",   "url": "https://www.rotorooter.com" },
+    { "slug": "mistersparky",      "vertical": "electric",   "url": "https://www.mistersparky.com" },
+    { "slug": "bellbrothers",      "vertical": "hvac",       "url": "https://www.bellbrothers.com" },
+    { "slug": "foxfamilyhvac",     "vertical": "hvac",       "url": "https://www.foxfamilyhvac.com" },
+    { "slug": "sweetgreen",        "vertical": "restaurant", "url": "https://sweetgreen.com" },
+    { "slug": "zahavrestaurant",   "vertical": "restaurant", "url": "https://zahavrestaurant.com" },
+    { "slug": "cbac",              "vertical": "auto",       "url": "https://www.cbac.com" },
+    { "slug": "precisionauto",     "vertical": "auto",       "url": "https://www.precisionauto.com" },
+    { "slug": "thedogstop",        "vertical": "pet",        "url": "https://thedogstop.com" },
+    { "slug": "formla",            "vertical": "landscape",  "url": "https://formla.net" }
+  ]
+}

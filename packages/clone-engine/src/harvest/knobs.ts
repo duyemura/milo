@@ -2,6 +2,7 @@ import type { HarvestedSection, KnobSet, Archetype } from "./types.ts";
 
 /** The mode (most frequent) value of a list, ties broken by first-seen order. */
 function mode<T extends string | number>(values: T[]): T {
+  if (values.length === 0) throw new Error("mode: called with empty list");
   const counts = new Map<T, number>();
   for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
   let best = values[0];
@@ -24,6 +25,7 @@ function distinct<T extends string>(members: HarvestedSection[], pick: (m: Harve
  * scope for v2's bounded set). itemCount is the observed min..max.
  */
 export function enumerateKnobs(members: HarvestedSection[]): KnobSet {
+  if (members.length === 0) throw new Error("enumerateKnobs: called with empty members list");
   const counts = members.map((m) => m.observed.itemCount);
   return {
     mediaType: distinct(members, (m) => m.observed.mediaType),
