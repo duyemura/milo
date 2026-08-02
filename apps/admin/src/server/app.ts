@@ -6,6 +6,7 @@ import fastifyStatic from "@fastify/static";
 import type { AdminConfig } from "../config.ts";
 import type { AdminDb } from "../db/index.ts";
 import type { EngineQueue } from "../jobs/dispatch.ts";
+import type { RunHub } from "../jobs/run-state.ts";
 import { registerAuth } from "../auth/plugin.ts";
 import { registerHealth } from "./routes/health.ts";
 import { registerWorkspaceRoutes } from "./routes/workspaces.ts";
@@ -18,10 +19,11 @@ export interface AppDeps {
   config: AdminConfig;
   db: AdminDb;
   queue: EngineQueue;
+  hub: RunHub;
 }
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
-  const { config, db, queue } = deps;
+  const { config, db, queue, hub } = deps;
   const app = Fastify({ logger: config.authMode !== "dev" });
 
   await app.register(cookie);
@@ -30,7 +32,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerHealth(app);
   registerWorkspaceRoutes(app, db);
   registerCompanyRoutes(app, db);
-  registerSiteRoutes(app, db, queue);
+  registerSiteRoutes(app, db, queue, hub);
   registerJobLogRoutes(app, db);
   registerGlobalRoutes(app, db);
 

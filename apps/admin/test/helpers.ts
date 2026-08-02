@@ -4,6 +4,7 @@ import { loadConfig, type AdminConfig } from "../src/config.ts";
 import { createDb, migrateToLatest, type AdminDb } from "../src/db/index.ts";
 import { buildApp } from "../src/server/app.ts";
 import type { EngineQueue } from "../src/jobs/dispatch.ts";
+import { RunHub } from "../src/jobs/run-state.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,8 +40,9 @@ export function fakeQueue(added: string[] = []): EngineQueue & { added: string[]
 export async function testApp(queue: EngineQueue = fakeQueue()) {
   const config = testConfig();
   const db = await testDb();
-  const app = await buildApp({ config, db, queue });
-  return { app, db, config };
+  const hub = new RunHub();
+  const app = await buildApp({ config, db, queue, hub });
+  return { app, db, config, hub };
 }
 
 export async function seedRegistry(db: AdminDb) {

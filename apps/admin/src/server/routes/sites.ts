@@ -2,10 +2,11 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import type { AdminDb } from "../../db/index.ts";
 import type { EngineQueue } from "../../jobs/dispatch.ts";
+import type { RunHub } from "../../jobs/run-state.ts";
 import { enqueueJob, queuePosition } from "../../jobs/dispatch.ts";
 import { createJobBody, createSiteBody, parse, parseId, setStageBody } from "./schemas.ts";
 
-export function registerSiteRoutes(app: FastifyInstance, db: AdminDb, queue: EngineQueue): void {
+export function registerSiteRoutes(app: FastifyInstance, db: AdminDb, queue: EngineQueue, hub: RunHub): void {
   app.get("/api/v1/sites", async (req) => {
     const { companyId } = (req.query ?? {}) as { companyId?: string };
     let q = db.selectFrom("sites").selectAll().orderBy("createdAt", "desc");

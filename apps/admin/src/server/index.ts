@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { loadConfig } from "../config.ts";
 import { createDb, migrateToLatest } from "../db/index.ts";
 import { localQueue, bullmqQueue } from "../jobs/queue.ts";
+import { RunHub } from "../jobs/run-state.ts";
 import { buildApp } from "./app.ts";
 
 async function main(): Promise<void> {
@@ -11,6 +12,7 @@ async function main(): Promise<void> {
   await mkdir(config.dataDir, { recursive: true });
   const db = createDb({ dbUrl: config.dbUrl, dbPath: config.dbPath });
   await migrateToLatest(db);
+  const hub = new RunHub();
 
   if (service === "worker" && config.queueDriver !== "bullmq") {
     // Local driver runs jobs in-process inside the api/monolith process; a dedicated
@@ -25,7 +27,7 @@ async function main(): Promise<void> {
       : localQueue({ db, config });
 
   if (service !== "worker") {
-    const app = await buildApp({ config, db, queue });
+    const app = await buildApp({ config, db, queue, hub });
     await app.listen({ port: config.port, host: config.host });
     console.log(`[admin] ${service} listening on http://${config.host}:${config.port} (auth=${config.authMode}, queue=${config.queueDriver})`);
   } else {
