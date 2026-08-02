@@ -22,6 +22,7 @@ import { crawlSite } from "./crawl.ts";
 import { deploy } from "./deploy.ts";
 import { mjsCapture, mjsProject, mjsBuild } from "./run-mjs.ts";
 import { eventToJsonLine, type EngineEventSink } from "./events.ts";
+import { TEMPLATE_LIBRARY, isGenerateRole } from "./edit/templates.ts";
 import path from "node:path";
 
 // ---------------------------------------------------------------------------
@@ -96,7 +97,7 @@ const subcommand = findSubcommand();
 const engine = arg("engine", "ts");
 
 if (!subcommand) {
-  console.error("Usage: node src/cli.ts <capture|label|project|build|build-site|build-auto|deploy> [--engine <ts|mjs>] [flags]");
+  console.error("Usage: node src/cli.ts <capture|label|project|build|build-site|build-auto|add-section|list-templates|deploy> [--engine <ts|mjs>] [flags]");
   process.exit(1);
 }
 
@@ -205,6 +206,65 @@ switch (subcommand) {
       onEvent,
     });
     break;
+  }
+
+  case "list-templates": {
+    // node src/cli.ts list-templates
+    // Prints every available section role + description. The admin UI can call this to
+    // populate a "Add section" picker.
+    const entries = Object.entries(TEMPLATE_LIBRARY) as Array<[string, { description: string; fitsGoal: string }]>;
+    console.log(`Available section templates (${entries.length}):\n`);
+    for (const [role, t] of entries) {
+      console.log(`  ${role.padEnd(20)} ${t.description}`);
+    }
+    break;
+  }
+
+  case "add-section": {
+    // node src/cli.ts add-section --site <dir> --role <role> --brief "<brief>" [--model <model>] [--width <px>]
+    // Generates a new section from the template library, fills its copy with the LLM,
+    // inserts it into the site, and oracle-verifies. Prints a JSON result line.
+    const siteDir = path.resolve(requireArg("site"));
+    const role = requireArg("role");
+    const brief = requireArg("brief");
+    const model = arg("model") ?? process.env.DEFAULT_LLM_MODEL ?? "google/gemini-2.5-flash";
+    const width = parseInt(arg("width") ?? "1440", 10);
+
+    if (!isGenerateRole(role)) {
+      const available = Object.keys(TEMPLATE_LIBRARY).join(", ");
+      console.error(`Unknown role "${role}". Available: ${available}`);
+      process.exit(1);
+    }
+
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
+    if (!openrouterKey) { console.error("OPENROUTER_API_KEY is required"); process.exit(1); }
+
+    const { chromium } = await import("playwright");
+    const { generateSection } = await import("./edit/generate.ts");
+    const { chatCompletion } = await import("@milo/llm");
+
+    const llmConfig = {
+      provider: "openrouter" as const,
+      openrouterBaseUrl: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+      openrouterApiKey: openrouterKey,
+    };
+    const chat = (o: Parameters<typeof chatCompletion>[0]) => chatCompletion(o, llmConfig);
+
+    const browser = await chromium.launch();
+    try {
+      const result = await generateSection(
+        { dir: siteDir },
+        { role, brief },
+        chat,
+        model,
+        browser,
+        { width },
+      );
+      console.log(JSON.stringify({ ok: result.ok, section: result.sectionName, failures: result.verifierReport.failures }));
+      process.exit(result.ok ? 0 : 1);
+    } finally {
+      await browser.close();
+    }
   }
 
   case "deploy": {

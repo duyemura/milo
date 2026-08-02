@@ -182,9 +182,9 @@ export interface GenerateSectionResult {
   verifierReport: VerifierReport;
 }
 
-const SYSTEM_PROMPT = `You are filling the copy for ONE section of a gym website.
+const SYSTEM_PROMPT = `You are filling the copy for ONE section of a local business website.
 You are given a section template's copy fields and a brief. Fill ONLY the requested fields
-with on-brand, concise, benefit-led marketing copy in the gym's voice.
+with on-brand, concise, benefit-led marketing copy that matches the business's voice and category.
 Do NOT add HTML, markdown, styles, or any fields not in the schema — return ONLY the copy strings.
 Output valid JSON matching the schema.`;
 
