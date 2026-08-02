@@ -35,7 +35,7 @@ async function safeCheck(
   }
 }
 
-export async function inspectSite(opts: InspectOpts): Promise<SiteReport> {
+export async function buildReport(opts: InspectOpts): Promise<SiteReport> {
   const { siteDir, browser, width = 1440, source } = opts;
   const manifest = JSON.parse(fs.readFileSync(path.join(siteDir, "site.json"), "utf8")) as SiteManifest;
 

@@ -186,7 +186,7 @@ switch (subcommand) {
   }
 
   case "build-auto": {
-    // node src/cli.ts build-auto --site <origin> [--mode core|full] [--out <report.html>] [--cwd <dir>] [--ugc-limit <n>] [--emit-events]
+    // node src/cli.ts build-auto --site <origin> [--mode core|full] [--out <report.html>] [--cwd <dir>] [--ugc-limit <n>] [--emit-events] [--source <captureDir>]
     const site = requireArg("site");
     const mode = (arg("mode", "core") as "core" | "full");
     const reportOut = arg("out");
@@ -194,17 +194,26 @@ switch (subcommand) {
     const ugcLimitStr = arg("ugc-limit");
     const ugcLimit = ugcLimitStr ? parseInt(ugcLimitStr, 10) : undefined;
     const emitEvents = hasFlag("emit-events");
+    const sourceCaptureDir = arg("source"); // optional: capture dir for clone-fidelity checks
     const onEvent: EngineEventSink | undefined = emitEvents
       ? (e) => process.stdout.write(eventToJsonLine(e) + "\n")
       : undefined;
 
-    await buildSiteAuto(site, {
-      cwd: buildCwd,
-      mode,
-      reportOut,
-      ugcLimit,
-      onEvent,
-    });
+    const { chromium } = await import("playwright");
+    const browser = await chromium.launch();
+    try {
+      await buildSiteAuto(site, {
+        cwd: buildCwd,
+        mode,
+        reportOut,
+        ugcLimit,
+        onEvent,
+        browser,
+        sourceCaptureDir,
+      });
+    } finally {
+      await browser.close();
+    }
     break;
   }
 

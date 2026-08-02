@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { inspectSite } from "../../src/buildreport/inspector.ts";
+import { buildReport } from "../../src/buildreport/inspector.ts";
 import { project } from "../../src/project.ts";
 import { makeSiteDir, makeCaptureDir } from "./fixtures.ts";
 
@@ -28,12 +28,12 @@ afterAll(async () => { await browser?.close(); });
 const cleanup = new Set<string>();
 afterAll(() => { for (const d of cleanup) fs.rmSync(d, { recursive: true, force: true }); });
 
-describe.skipIf(!ASTRO_MODULES)("inspectSite", () => {
+describe.skipIf(!ASTRO_MODULES)("buildReport", () => {
   it("SHIP verdict on a clean projected site", async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), "br-inspect-"));
     cleanup.add(out);
     await project({ dir: path.join(PKG, "test/golden/speakeasy"), out, trim: true, noDiff: true });
-    const report = await inspectSite({ siteDir: out, browser });
+    const report = await buildReport({ siteDir: out, browser });
     expect(report.verdict).toBe("SHIP");
     expect(report.blockerCount).toBe(0);
     expect(typeof report.generatedAt).toBe("string");
@@ -47,7 +47,7 @@ describe.skipIf(!ASTRO_MODULES)("inspectSite", () => {
     const idxPath = path.join(out, "astro", "src", "pages", "index.astro");
     const idx = fs.readFileSync(idxPath, "utf8");
     fs.writeFileSync(idxPath, idx.replace(/(<\/body>|<Fragment)/, '<img src="/broken-missing.png">$1'));
-    const report = await inspectSite({ siteDir: out, browser });
+    const report = await buildReport({ siteDir: out, browser });
     expect(report.verdict).toBe("NEEDS_FIXES");
     expect(report.issues.some((i) => i.kind === "broken-asset")).toBe(true);
   }, 240_000);

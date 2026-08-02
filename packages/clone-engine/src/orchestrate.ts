@@ -13,7 +13,9 @@
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import type { Browser } from "playwright";
 import { injectTrackerIntoSite } from "./pagegoal.ts";
+import { buildReport, renderSiteReport } from "./buildreport/index.ts";
 import { capture } from "./capture.ts";
 import { project } from "./project.ts";
 import { label, heuristicLabels } from "./labels.ts";
@@ -103,6 +105,18 @@ export interface BuildSiteOpts {
    * swallowed, so a throwing consumer can never break the build.
    */
   onEvent?: EngineEventSink;
+  /**
+   * Playwright browser instance. When provided, buildSite runs the site build report
+   * (ship/no-ship gate) after assembly and writes `build-report.html` + `build-report.json`
+   * to `full-site/`. Safe: a failing report never breaks the build — issues surface in the report.
+   */
+  browser?: Browser;
+  /**
+   * Source capture directory (has capture.json + source-desktop.png). When provided alongside
+   * `browser`, enables clone-fidelity checks in the build report (SEO regression, iframe
+   * preservation, pixel diff vs source screenshot).
+   */
+  sourceCaptureDir?: string;
 }
 
 export interface BuildSiteResult {
@@ -373,9 +387,26 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
 
   // Inject the engagement tracker into every assembled HTML page (Subsystem F).
   injectTrackerIntoSite(fullSite);
-  // Site build report seam: call inspectSite({ siteDir: fullSite, browser }) here to produce
-  // a ship/no-ship verdict. Caller manages the browser instance; threading it through
-  // BuildSiteOpts is a follow-up (see src/buildreport/inspector.ts + src/index.ts exports).
+
+  // Site build report — ship/no-ship gate. Runs when a browser is provided.
+  if (opts.browser) {
+    try {
+      const siteReport = await buildReport({
+        siteDir: fullSite,
+        browser: opts.browser,
+        source: opts.sourceCaptureDir ? { captureDir: opts.sourceCaptureDir } : undefined,
+      });
+      const siteReportHtml = renderSiteReport(siteReport);
+      const reportHtmlPath = path.join(fullSite, "build-report.html");
+      const reportJsonPath = path.join(fullSite, "build-report.json");
+      fs.writeFileSync(reportHtmlPath, siteReportHtml);
+      fs.writeFileSync(reportJsonPath, JSON.stringify(siteReport, null, 2) + "\n");
+      console.log(`\nBuild report: ${siteReport.verdict} (${siteReport.blockerCount} blockers) → ${reportHtmlPath}`);
+      emit({ type: "report.done" as never, reportHtmlPath, reportJsonPath });
+    } catch (err) {
+      console.warn(`[build-report] warning: report generation failed: ${(err as Error).message}`);
+    }
+  }
 
   const totalWallMs = Date.now() - wallStart;
   console.log(
