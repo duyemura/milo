@@ -85,4 +85,8 @@ describe("event line serializer", () => {
   it("returns null when the marker is present but the JSON is malformed", () => {
     expect(parseEventLine(EVENT_MARKER + "{not json")).toBeNull();
   });
+
+  it("returns null for a marker line whose JSON is valid but not an event (no string type)", () => {
+    expect(parseEventLine(EVENT_MARKER + '{"foo":1}')).toBeNull();
+  });
 });

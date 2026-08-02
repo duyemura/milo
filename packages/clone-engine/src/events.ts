@@ -41,6 +41,7 @@ export interface RunState {
   status: "discovering" | "building" | "built" | "failed";
   totalPages: number;
   pagesCompleted: number;
+  /** Last active (or currently processing) page + phase; null after run.completed. */
   current: { route: string; phase: EnginePhase } | null;
   discovered: string[];
   failures: { route: string; error: string }[];
@@ -94,10 +95,11 @@ export function projectRunState(events: EngineEvent[]): RunState {
 // --- Line serialization for the CLI --emit-events bridge ---
 
 /**
- * A control-char marker (U+0001) that will never appear in normal stdout text,
- * so the parent process can pick event lines out of interleaved console output.
+ * A U+0001 (SOH) control sentinel + human-readable prefix. U+0001 never appears in
+ * normal stdout text, so a parent process can reliably pick event lines out of
+ * interleaved console output.
  */
-export const EVENT_MARKER = "MILO_EVENT:";
+export const EVENT_MARKER = "\u0001MILO_EVENT:";
 
 export function eventToJsonLine(e: EngineEvent): string {
   return EVENT_MARKER + JSON.stringify(e);
@@ -109,7 +111,11 @@ export function parseEventLine(line: string): EngineEvent | null {
   if (i === -1) return null;
   const json = line.slice(i + EVENT_MARKER.length);
   try {
-    return JSON.parse(json) as EngineEvent;
+    const parsed = JSON.parse(json) as unknown;
+    if (parsed && typeof parsed === "object" && typeof (parsed as { type?: unknown }).type === "string") {
+      return parsed as EngineEvent;
+    }
+    return null;
   } catch {
     return null;
   }
