@@ -135,6 +135,33 @@ async function applyAndVerify(
 ): Promise<VerifierReport> {
   try {
     const results = await applyOpsDeterministically(site, ops, opts);
+
+    // addPage adds sections to a NEW page, not the root. The render verifier targets the root
+    // page only, so it can't see the new page's sections in the DOM — a false structural mismatch
+    // by design. For addPage-only batches, skip the pixel render and do a lightweight file check:
+    // the new page .astro exists and site.json has been updated.
+    if (ops.every((o) => o.op === "addPage")) {
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(site.dir, "site.json"), "utf8"),
+      ) as { pages: Array<{ route: string; sections: unknown[] }> };
+      const failures: string[] = [];
+      for (const op of ops) {
+        if (op.op !== "addPage") continue;
+        const cleanRoute = op.route.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+        const pageFile = path.join(site.dir, "astro", "src", "pages", `${cleanRoute}.astro`);
+        if (!fs.existsSync(pageFile)) failures.push(`addPage: page file missing: ${pageFile}`);
+        const inManifest = manifest.pages.some((p) => p.route === `/${cleanRoute}/`);
+        if (!inManifest) failures.push(`addPage: route /${cleanRoute}/ missing from site.json`);
+      }
+      return {
+        pass: failures.length === 0,
+        sections: [],
+        structural: { expected: before.order, actual: before.order, ok: failures.length === 0 },
+        renderSane: true,
+        failures,
+      };
+    }
+
     const intent = buildIntent(site, ops, results, brandBefore);
     return await verify(opts.browser, before, site, intent, {
       width: opts.width ?? before.width,

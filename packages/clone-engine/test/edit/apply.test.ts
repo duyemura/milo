@@ -351,4 +351,28 @@ describe.skipIf(!ASTRO_MODULES)("apply — self-correcting edit loop", () => {
       expect(s.outScopePx, `untouched section ${s.section} leaked ${s.outScopePx}px`).toBe(0);
     }
   }, 300_000);
+
+  // 7. addPage via apply() — must succeed with a lightweight structural verify (not full pixel).
+  // Previously addPage reverted because the verifier rendered the root page and found the new
+  // page's sections in editedSections but not in the rendered DOM — a cross-page mismatch.
+  it("addPage via apply() succeeds: new page file exists and site.json updated", async () => {
+    const { out, site } = await projectFixture();
+    cleanup.add(out);
+
+    const chat = fakeChat([]); // addPage does not call the revise LLM
+    const ops: EditOp[] = [{ op: "addPage", route: "about" }];
+
+    const result = await apply(site, ops, { browser, chat, model: MODEL, width: WIDTH });
+
+    expect(result.ok, `addPage via apply must pass; failures: ${result.verifierReport.failures.join(" | ")}`).toBe(true);
+
+    // New page .astro file exists.
+    expect(fs.existsSync(path.join(out, "astro", "src", "pages", "about.astro"))).toBe(true);
+
+    // New page is in site.json.
+    const manifest = JSON.parse(fs.readFileSync(path.join(out, "site.json"), "utf8")) as SiteManifest;
+    const newPage = manifest.pages.find((p) => p.route === "/about/");
+    expect(newPage, "site.json must have /about/ page").toBeTruthy();
+    expect(newPage!.sections.length).toBeGreaterThan(0);
+  }, 300_000);
 });
