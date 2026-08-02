@@ -58,6 +58,21 @@ export function HomePage() {
 
 type BadgeVariant = "default" | "error" | "destructive" | "outline" | "secondary" | "dark" | "success" | "warning" | "neutral" | "info";
 
+// Sentence-case display labels for the raw status enum (PushPress content guidelines);
+// unknown values fall back to a capitalized first letter rather than the bare lowercase enum.
+const STATUS_LABEL: Record<string, string> = {
+  seeding: "Seeding",
+  seeded: "Seeded",
+  built: "Built",
+  deployed: "Deployed",
+  error: "Error",
+  failed: "Failed",
+};
+
+function statusLabel(status: string): string {
+  return STATUS_LABEL[status] ?? status.charAt(0).toUpperCase() + status.slice(1);
+}
+
 function GalleryCard(props: { site: Site; onOpen: () => void }) {
   const { site, onOpen } = props;
   const variant: BadgeVariant =
@@ -69,7 +84,7 @@ function GalleryCard(props: { site: Site; onOpen: () => void }) {
   return (
     <button className="card" onClick={onOpen}>
       <div className="card-title">{site.sourceUrl ?? site.slug ?? site.id.slice(0, 8)}</div>
-      <Badge variant={variant}>{site.status}</Badge>
+      <Badge variant={variant}>{statusLabel(site.status)}</Badge>
     </button>
   );
 }

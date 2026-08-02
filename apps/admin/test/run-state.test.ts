@@ -66,6 +66,31 @@ describe("snapshotFromLogs", () => {
     expect(state.status).toBe("discovering");
     expect(state.totalPages).toBe(0);
   });
+
+  it("projects to failed when a wholesale crash appends a synthetic run.completed{ok:0}", async () => {
+    // A wholesale engine crash never emits run.completed, so the clone would stay stuck at
+    // "building". queue.ts's failure path persists this synthetic terminal event; verify the
+    // projection (job_logs = source of truth) then reads as failed for a restarted server.
+    const db = await testDb();
+    const now = new Date().toISOString();
+    await db.insertInto("workspaces").values({ id: "w", name: "W", contact: null, status: "active", createdAt: now }).execute();
+    await db.insertInto("companies").values({ id: "c", workspaceId: "w", companyId: "pp", name: "C", status: "active", createdAt: now }).execute();
+    await db.insertInto("sites").values({ id: "s", workspaceId: "w", companyId: "c", seedType: "clone", sourceUrl: "https://x.com", slug: null, status: "seeding", stage: "onboarding", active: 1, createdAt: now }).execute();
+    await db.insertInto("jobs").values({ id: "j", workspaceId: "w", companyId: "c", siteId: "s", type: "seed", status: "running", payload: "{}", error: null, result: null, createdAt: now, startedAt: now, finishedAt: null }).execute();
+    const partial: EngineEvent[] = [
+      { type: "run.started", origin: "https://x.com" },
+      { type: "discover.progress", coreFound: 3, ugcFound: 0, routes: ["/", "/a/", "/b/"] },
+      { type: "page.build.started", route: "/" },
+      { type: "run.completed", ok: 0, failed: 0 }, // synthetic terminal from queue.ts catch
+    ];
+    let seq = 1;
+    for (const e of partial) {
+      await db.insertInto("job_logs").values({ jobId: "j", seq: seq++, line: encodeLoggedEvent(e), createdAt: now }).execute();
+    }
+    const state = await snapshotFromLogs(db, "s");
+    expect(state.status).toBe("failed");
+    expect(state.current).toBeNull();
+  });
 });
 
 describe("RunHub", () => {

@@ -3,7 +3,7 @@ import type { AdminConfig } from "../config.ts";
 import type { EngineQueue } from "./dispatch.ts";
 import { finishJob, markRunning, appendLog } from "./dispatch.ts";
 import { runJob } from "./runner.ts";
-import type { RunHub } from "./run-state.ts";
+import { encodeLoggedEvent, type RunHub } from "./run-state.ts";
 
 /**
  * Queue seam: dev runs jobs in-process (zero infra); production swaps BullMQ.
@@ -46,6 +46,17 @@ async function execute(
   } catch (err) {
     await appendLog(db, jobId, `ERROR: ${err instanceof Error ? err.message : String(err)}`);
     await db.updateTable("sites").set({ status: "error" }).where("id", "=", job.siteId).execute();
+    // A wholesale engine crash (discovery throwing, or a whole build pass throwing — as
+    // opposed to per-page page.failed) never emits run.completed, so the clone's RunState
+    // would stay stuck at "building" forever: for live SSE clients AND any snapshotFromLogs
+    // rebuild, since job_logs is the source of truth. Persist + apply a synthetic terminal
+    // event so the projection reflects failure. Only the clone seed emits RunState events,
+    // so scope this to it; reduceRunState maps run.completed{ok:0} → status "failed".
+    if (job.type === "seed" && site.seedType === "clone") {
+      const terminal = { type: "run.completed", ok: 0, failed: 0 } as const;
+      await appendLog(db, jobId, encodeLoggedEvent(terminal));
+      hub.apply(job.siteId, terminal);
+    }
     await finishJob(db, queue, jobId, {
       status: "failed",
       error: err instanceof Error ? err.message : String(err),
