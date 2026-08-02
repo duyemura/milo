@@ -20,9 +20,9 @@ import fs from "node:fs";
 import path from "node:path";
 import type { SiteRef, EditOp, OpResult } from "./types.ts";
 import { STYLE_PROPS } from "./types.ts";
-import { resolveCopy, resolveAsset, resolveSection, loadSite } from "./target.ts";
+import { resolveCopy, resolveAsset, resolveSection, loadSite, TargetError } from "./target.ts";
 import { flattenRoot, canon } from "../brand.ts";
-import type { BrandDoc, SiteManifest } from "../types.ts";
+import type { BrandDoc, SiteManifest, ManifestSection, ManifestCopyEntry, ManifestPage, ManifestElement } from "../types.ts";
 
 // ---------------------------------------------------------------------------
 // editCopy
@@ -599,6 +599,74 @@ function stripImport(src: string, name: string): string {
     .join("\n");
 }
 
+/**
+ * Generate a unique component name by suffixing "Copy", "Copy2", "Copy3", ... until
+ * no collision with any existing file under `componentsDir` AND no collision with any
+ * section name in `site.json`. This guarantees the new component file can be written
+ * without clobbering anything.
+ */
+function uniqueComponentName(baseName: string, site: SiteRef): string {
+  const componentsDir = path.join(site.dir, "astro", "src", "components");
+  const manifest = loadSite(site);
+  const existingNames = new Set<string>();
+  // Collect all existing component file stems.
+  if (fs.existsSync(componentsDir)) {
+    for (const f of fs.readdirSync(componentsDir)) {
+      if (f.endsWith(".astro")) existingNames.add(f.slice(0, -".astro".length));
+    }
+  }
+  // Also collect all section names from site.json (a component may have been added
+  // without a file yet, or a file may exist without a section entry).
+  for (const page of manifest.pages) {
+    for (const s of page.sections) existingNames.add(s.name);
+  }
+
+  // Generate: <baseName>Copy, <baseName>Copy2, <baseName>Copy3, ...
+  let candidate = baseName + "Copy";
+  let i = 2;
+  while (existingNames.has(candidate)) {
+    candidate = baseName + "Copy" + i++;
+  }
+  return candidate;
+}
+
+/**
+ * Rewrite the copy-key namespace inside a cloned component's `html` template literal
+ * so the clone's editable slots are addressable under the NEW component name instead of
+ * the original. Two substitutions:
+ *
+ *   data-component="OldName"  →  data-component="NewName"
+ *   data-copy="OldName.N"     →  data-copy="NewName.N"   (space-separated lists too)
+ *
+ * The copy[] in site.json will then be built from the NEW keys so `editCopy("NewName.N")`
+ * resolves to the clone's file and NOT the original's.
+ *
+ * Note: the cloned component's `.pN` CSS classes are SHARED with the original section —
+ * they both reference the same class names in global.css, so `styleTweak` on a `.pN`
+ * target would affect both sections. This is an accepted v1 limit. A caller can make
+ * the clone visually distinct via `editCopy` to change its text content.
+ */
+function rewriteComponentRefs(src: string, oldName: string, newName: string): string {
+  const escName = oldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Rewrite data-component="OldName" → data-component="NewName"
+  let out = src.replace(
+    new RegExp(`data-component="${escName}"`, "g"),
+    `data-component="${newName}"`,
+  );
+  // Rewrite data-copy="OldName.N" and "OldName.N OldName.M" (space-separated multi-key lists).
+  // Match the entire data-copy="..." attribute value and replace each OldName. prefix.
+  out = out.replace(
+    new RegExp(`data-copy="(${escName}\\.[^"]*)"`, "g"),
+    (_: string, keys: string) => {
+      const newKeys = keys
+        .replace(new RegExp(`^${escName}\\.`, "g"), `${newName}.`)
+        .replace(new RegExp(` ${escName}\\.`, "g"), ` ${newName}.`);
+      return `data-copy="${newKeys}"`;
+    },
+  );
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // removeSection
 // ---------------------------------------------------------------------------
@@ -769,4 +837,372 @@ export function reorderSection(site: SiteRef, sectionName: string, toIndex: numb
 
   const op: EditOp = { op: "reorderSection", section: sectionName, toIndex };
   return { op, changedFiles, targetSections: affectedNames };
+}
+
+// ---------------------------------------------------------------------------
+// addSection
+// ---------------------------------------------------------------------------
+
+/**
+ * Clone an existing section as a new, independently-editable section inserted AFTER
+ * `afterSection` (or at the end of the page if omitted).
+ *
+ * Steps:
+ *   1. Resolve `cloneOf` via resolveSection (throws TargetError if absent).
+ *   2. Generate a unique new component name (e.g. StoriesOfGlorySectionCopy).
+ *   3. Copy the source .astro → new file, rewriting data-component + data-copy refs
+ *      to use the NEW name so the clone's copy is independently addressable.
+ *   4. Insert `import NewName from "..."` + `<NewName />` AFTER `afterSection`'s
+ *      include (or at end if omitted) in index.astro.
+ *   5. Add sections[]/copy[]/elements[] entries to site.json under the new name.
+ *   6. Return OpResult { changedFiles, targetSections: [newName] }.
+ *
+ * SHARED .pN CLASSES (v1 limit): the cloned component reuses the source's .pN CSS
+ * class names. A styleTweak targeting a .pN handle would affect BOTH the original
+ * and the clone. Use editCopy to make the clone textually distinct.
+ *
+ * VERIFIER NOTE: for the addSection op the caller MUST provide intent.expectedSectionOrder
+ * (verify() throws without it). The added section is proven present structurally (DOM +
+ * site.json order check) and the Astro build confirms it renders. Pixel-level proof of
+ * the ADDED section's internal content is not provided by the verifier (position-independent
+ * 0-px applies only to UNTOUCHED sections; the new section has no "before" crop to diff
+ * against). This is the correct behavior: structural + render-sanity is the guarantee.
+ */
+export function addSection(
+  site: SiteRef,
+  cloneOf: string,
+  afterSection?: string,
+): OpResult {
+  // 1. Resolve the source section — throws TargetError if not found.
+  const { file: srcFile, name: srcName } = resolveSection(site, cloneOf);
+
+  // 2. Generate a unique new component name.
+  const newName = uniqueComponentName(srcName, site);
+  const newFileName = `${newName}.astro`;
+  const componentsDir = path.join(site.dir, "astro", "src", "components");
+  const newFile = path.join(componentsDir, newFileName);
+
+  // 3. Copy the source .astro → new file with rewritten refs.
+  const srcContent = fs.readFileSync(srcFile, "utf8");
+  const newContent = rewriteComponentRefs(srcContent, srcName, newName);
+  fs.mkdirSync(componentsDir, { recursive: true });
+  fs.writeFileSync(newFile, newContent);
+
+  const changedFiles: string[] = [newFile];
+
+  // 4. Insert import + include in index.astro.
+  const idxPath = path.join(site.dir, "astro", "src", "pages", "index.astro");
+  if (fs.existsSync(idxPath)) {
+    let idx = fs.readFileSync(idxPath, "utf8");
+
+    // Resolve the afterSection component name (may be null → append at end).
+    let afterName: string | null = null;
+    if (afterSection) {
+      try {
+        afterName = resolveSection(site, afterSection).name;
+      } catch {
+        // afterSection not found → fall back to appending at end (no throw: addSection
+        // should still succeed; the position is advisory).
+        afterName = null;
+      }
+    }
+
+    // Insert the import statement: place it right after the last existing import.
+    const importLine = `import ${newName} from "../components/${newFileName}";`;
+    const lastImportMatch = [...idx.matchAll(/^import\s+\S+\s+from\s+"[^"]+";/gm)];
+    if (lastImportMatch.length > 0) {
+      const last = lastImportMatch[lastImportMatch.length - 1];
+      const insertAt = last.index! + last[0].length;
+      idx = idx.slice(0, insertAt) + "\n" + importLine + idx.slice(insertAt);
+    } else {
+      // No existing imports — add before the closing ---
+      const frontmatterClose = idx.indexOf("\n---\n");
+      if (frontmatterClose !== -1) {
+        idx = idx.slice(0, frontmatterClose) + "\n" + importLine + idx.slice(frontmatterClose);
+      }
+    }
+
+    // Insert the <NewName /> include AFTER the afterSection include (or at end of body).
+    const newTag = `<${newName} />`;
+    const tokens = parseIncludes(idx);
+    if (afterName) {
+      const afterTok = tokens.find((t) => t.compName === afterName);
+      if (afterTok) {
+        // Insert the new tag immediately after afterSection's closing `/>`.
+        idx = idx.slice(0, afterTok.end) + " " + newTag + idx.slice(afterTok.end);
+      } else {
+        // afterSection include not found (shouldn't happen but be safe) — append before </body>.
+        idx = idx.replace("</body>", ` ${newTag} </body>`);
+      }
+    } else {
+      // No afterSection: append at the end of the existing includes.
+      // Re-parse after the import insert so token offsets are current.
+      const refreshed = parseIncludes(idx);
+      if (refreshed.length > 0) {
+        const last = refreshed[refreshed.length - 1];
+        idx = idx.slice(0, last.end) + " " + newTag + idx.slice(last.end);
+      } else {
+        idx = idx.replace("</body>", ` ${newTag} </body>`);
+      }
+    }
+
+    fs.writeFileSync(idxPath, idx);
+    changedFiles.push(idxPath);
+  }
+
+  // 5. Update site.json: add section entry, copy entries, element entries.
+  const manifestPath = path.join(site.dir, "site.json");
+  const manifest = loadSite(site);
+
+  for (const page of manifest.pages) {
+    const srcSection = page.sections.find((s) => s.name === srcName);
+    if (!srcSection) continue;
+
+    // New sections[] entry — same role as the source; file = new path; copyKeys renamed.
+    const newCopyKeys = srcSection.copyKeys.map((k) =>
+      k.replace(new RegExp(`^${srcName}\\.`), `${newName}.`),
+    );
+    const newSection: ManifestSection = {
+      name: newName,
+      role: srcSection.role,
+      file: `astro/src/components/${newFileName}`,
+      copyKeys: newCopyKeys,
+      elementRoles: srcSection.elementRoles.map((er) => ({ ...er })),
+    };
+
+    // Insert AFTER the afterSection (if provided and found), else after the source section.
+    let insertAfterIdx = page.sections.findIndex((s) => s.name === srcName);
+    if (afterSection) {
+      const afterIdx = page.sections.findIndex(
+        (s) => s.role === afterSection || s.name === afterSection,
+      );
+      if (afterIdx !== -1) insertAfterIdx = afterIdx;
+    }
+    page.sections.splice(insertAfterIdx + 1, 0, newSection);
+
+    // New copy[] entries: clone source entries with renamed keys + component.
+    const srcCopyEntries = page.copy.filter((c) => c.component === srcName);
+    const newCopyEntries = srcCopyEntries.map((c) => ({
+      ...c,
+      key: c.key.replace(new RegExp(`^${srcName}\\.`), `${newName}.`),
+      component: newName,
+    }));
+    page.copy.push(...newCopyEntries);
+
+    // New elements[] entries: clone source element entries with renamed component.
+    const srcElements = page.elements.filter((e) => e.component === srcName);
+    const newElements = srcElements.map((e) => ({
+      ...e,
+      component: newName,
+      selector: `[data-component="${newName}"] [data-role="${e.role}"]`,
+    }));
+    page.elements.push(...newElements);
+  }
+
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  changedFiles.push(manifestPath);
+
+  const op: EditOp = { op: "addSection", cloneOf, ...(afterSection ? { afterSection } : {}) };
+  return { op, changedFiles, targetSections: [newName] };
+}
+
+// ---------------------------------------------------------------------------
+// pickTemplatePage
+// ---------------------------------------------------------------------------
+
+/**
+ * Auto-pick the best template page from `site.json` for cloning as a new page at `route`.
+ *
+ * Strategy (route-pattern heuristic):
+ *   1. If the route contains a keyword matching a known section role (e.g. "pricing" →
+ *      "pricing" role, "about" → "content-block"), prefer a page that has that role.
+ *   2. Otherwise, fall back to the page with the most sections (richest template).
+ *   3. Ultimately fall back to pages[0] (the home page).
+ *
+ * This is a PURE function — no file I/O. Unit-testable without a browser.
+ */
+export function pickTemplatePage(manifest: SiteManifest, route: string): ManifestPage {
+  const pages = manifest.pages;
+  if (pages.length === 0) throw new Error("pickTemplatePage: site.json has no pages");
+
+  // Route-keyword → section role affinity table.
+  const ROUTE_ROLE_MAP: Record<string, string> = {
+    pricing: "pricing",
+    about: "content-block",
+    team: "coach-grid",
+    coaches: "coach-grid",
+    schedule: "schedule",
+    faq: "faq",
+    contact: "contact-form",
+    testimonials: "testimonials",
+    programs: "program-cards",
+  };
+
+  const routeLower = route.toLowerCase();
+  for (const [keyword, role] of Object.entries(ROUTE_ROLE_MAP)) {
+    if (routeLower.includes(keyword)) {
+      const match = pages.find((p) => p.sections.some((s) => s.role === role));
+      if (match) return match;
+    }
+  }
+
+  // Fall back: richest page (most sections).
+  return pages.reduce((best, p) => (p.sections.length > best.sections.length ? p : best), pages[0]);
+}
+
+// ---------------------------------------------------------------------------
+// addPage
+// ---------------------------------------------------------------------------
+
+/**
+ * Add a new page to the projected site at `route` (e.g. "about" → /about/).
+ *
+ * SCOPE: The projected substrate CAN hold multiple pages — Astro builds any file under
+ * src/pages/ as a route. This implementation:
+ *   1. Auto-picks a template page via pickTemplatePage (or uses cloneOfPage if given).
+ *   2. Copies the template page's components to a page-namespaced set (e.g. AboutNavbar,
+ *      AboutHeroSection for the /about page) with rewritten data-component + data-copy refs.
+ *   3. Emits `astro/src/pages/<route>.astro` importing the namespaced components.
+ *   4. Adds a `site.json.pages[]` entry for the new page.
+ *   5. Returns OpResult { changedFiles, targetSections: [names of added components] }.
+ *
+ * VERIFIER LIMITATION: the verifier's renderSnapshot targets the ROOT page (/) only. The
+ * added page cannot be pixel-verified. The correctness guarantee is: build succeeds +
+ * dist/<route>/index.html is produced + the root page is structurally unchanged (0-px
+ * on all untouched sections). These are checked by the test (not verify()).
+ *
+ * MULTI-PAGE SUBSTRATE WORK DEFERRED: a full multi-page substrate extension would need:
+ *   - verifier support for snapshots at non-root URLs
+ *   - per-page copy-key namespace tracking in resolveCopy / resolveSection
+ *   - multi-page awareness in all edit ops (they currently assume pages[0])
+ * These are T6+ concerns; addPage as shipped is an isolated additive op that keeps pages[0]
+ * fully intact.
+ */
+export function addPage(
+  site: SiteRef,
+  route: string,
+  cloneOfPage?: string,
+): OpResult {
+  // Sanitize route: strip leading/trailing slashes, collapse to alphanumeric-hyphen.
+  const cleanRoute = route.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+  if (!cleanRoute) throw new Error(`addPage: invalid route "${route}"`);
+
+  const manifest = loadSite(site);
+
+  // Pick the template page.
+  let templatePage: ManifestPage;
+  if (cloneOfPage) {
+    const found = manifest.pages.find(
+      (p) => p.route === cloneOfPage || p.component === cloneOfPage,
+    );
+    if (!found) throw new TargetError(`addPage: cloneOfPage not found in site.json: ${cloneOfPage}`);
+    templatePage = found;
+  } else {
+    templatePage = pickTemplatePage(manifest, route);
+  }
+
+  // Namespace prefix for new components: capitalize the route segment (e.g. "about" → "About").
+  const prefix = cleanRoute.charAt(0).toUpperCase() + cleanRoute.slice(1);
+
+  const changedFiles: string[] = [];
+  const addedSectionNames: string[] = [];
+  const componentsDir = path.join(site.dir, "astro", "src", "components");
+  fs.mkdirSync(componentsDir, { recursive: true });
+
+  // Build a mapping from old component name → new component name for this page.
+  const compMap = new Map<string, string>();
+  for (const section of templatePage.sections) {
+    compMap.set(section.name, `${prefix}${section.name}`);
+  }
+
+  // Copy each component with rewritten refs.
+  const newSections: ManifestSection[] = [];
+  const newCopyEntries: ManifestCopyEntry[] = [];
+  const newElements: ManifestElement[] = [];
+
+  for (const section of templatePage.sections) {
+    const srcFile = path.join(site.dir, section.file);
+    const newName = compMap.get(section.name)!;
+    const newFileName = `${newName}.astro`;
+    const newFile = path.join(componentsDir, newFileName);
+
+    if (fs.existsSync(srcFile)) {
+      const srcContent = fs.readFileSync(srcFile, "utf8");
+      const newContent = rewriteComponentRefs(srcContent, section.name, newName);
+      fs.writeFileSync(newFile, newContent);
+      changedFiles.push(newFile);
+    }
+
+    addedSectionNames.push(newName);
+
+    // New sections[] entry.
+    const newCopyKeys = section.copyKeys.map((k) =>
+      k.replace(new RegExp(`^${section.name}\\.`), `${newName}.`),
+    );
+    newSections.push({
+      name: newName,
+      role: section.role,
+      file: `astro/src/components/${newFileName}`,
+      copyKeys: newCopyKeys,
+      elementRoles: section.elementRoles.map((er) => ({ ...er })),
+    });
+
+    // New copy[] entries.
+    const srcCopyEntries = templatePage.copy.filter((c) => c.component === section.name);
+    for (const c of srcCopyEntries) {
+      newCopyEntries.push({
+        ...c,
+        key: c.key.replace(new RegExp(`^${section.name}\\.`), `${newName}.`),
+        component: newName,
+      });
+    }
+
+    // New elements[] entries.
+    const srcElements = templatePage.elements.filter((e) => e.component === section.name);
+    for (const e of srcElements) {
+      newElements.push({
+        ...e,
+        component: newName,
+        selector: `[data-component="${newName}"] [data-role="${e.role}"]`,
+      });
+    }
+  }
+
+  // Emit the new page's astro/src/pages/<route>.astro.
+  const imports = newSections
+    .map((s) => `import ${s.name} from "../components/${s.name}.astro";`)
+    .join("\n");
+  const includes = newSections.map((s) => `<${s.name} />`).join(" ");
+
+  // Emit a minimal page wrapper — we can't byte-copy index.astro because it references
+  // the original component names. Head meta from the template page would be stale
+  // (references the source route), so we emit a neutral wrapper with a placeholder title.
+  const pageAstroContent =
+    `---\nimport "../styles/global.css";\n${imports}\n---\n` +
+    `<html lang="en">\n<head>\n<meta charset="utf-8" />\n` +
+    `<meta name="viewport" content="width=device-width,initial-scale=1" />\n` +
+    `<title>${prefix} | Clone</title>\n</head>\n<body>\n${includes}\n</body>\n</html>\n`;
+
+  const pagesDir = path.join(site.dir, "astro", "src", "pages");
+  fs.mkdirSync(pagesDir, { recursive: true });
+  const pageFile = path.join(pagesDir, `${cleanRoute}.astro`);
+  fs.writeFileSync(pageFile, pageAstroContent);
+  changedFiles.push(pageFile);
+
+  // Update site.json: add a new ManifestPage entry.
+  const newManifestPage: ManifestPage = {
+    route: `/${cleanRoute}/`,
+    component: `${prefix}Page`,
+    sections: newSections,
+    elements: newElements,
+    assets: templatePage.assets, // share the same asset pool (same physical files)
+    copy: newCopyEntries,
+  };
+  manifest.pages.push(newManifestPage);
+  const manifestPath = path.join(site.dir, "site.json");
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  changedFiles.push(manifestPath);
+
+  const op: EditOp = { op: "addPage", route, ...(cloneOfPage ? { cloneOfPage } : {}) };
+  return { op, changedFiles, targetSections: addedSectionNames };
 }
