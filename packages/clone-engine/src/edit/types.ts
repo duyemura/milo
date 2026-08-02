@@ -15,7 +15,9 @@ export type EditOp =
   | { op: "addPage"; route: string; cloneOfPage?: string; pageType?: PageType }   // cloneOfPage optional → auto-pick nearest-type; pageType optional → classify from route
   | { op: "generateSection"; role: string; brief: string; afterSection?: string; targetRoute?: string | string[] | "all" } // role must be in TEMPLATE_LIBRARY; targetRoute: "/" | "/about/" | ["/","/about/"] | "all"
   | { op: "addNavLink"; text: string; href: string } // add a link to the site nav
-  | { op: "generateAsset"; alias: string; brief: string; category?: SafeImageCategory; aspectRatio?: "16:9" | "1:1" | "4:3" }; // safe AI image generation
+  | { op: "generateAsset"; alias: string; brief: string; category?: SafeImageCategory; aspectRatio?: "16:9" | "1:1" | "4:3" } // safe AI image generation
+  | { op: "placeAsset"; alias: string; assetId: string }                 // place a library asset into a slot
+  | { op: "uploadAsset"; file: string; alias: string; altText?: string }; // owner photo → library → slot
 
 export interface OpResult { op: EditOp; changedFiles: string[]; targetSections: string[]; }
 
@@ -175,6 +177,8 @@ export const EditOpSchema = z.discriminatedUnion("op", [
     category: z.enum(["equipment", "food", "texture", "architecture", "nature", "product"]).optional(),
     aspectRatio: z.enum(["16:9", "1:1", "4:3"]).optional(),
   }),
+  z.object({ op: z.literal("placeAsset"), alias: z.string().min(1), assetId: z.string().min(1) }),
+  z.object({ op: z.literal("uploadAsset"), file: z.string().min(1), alias: z.string().min(1), altText: z.string().optional() }),
 ]);
 
 /**

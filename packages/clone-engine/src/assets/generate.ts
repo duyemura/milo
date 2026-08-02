@@ -13,6 +13,9 @@ export interface GenerateAssetArgs {
   brief: string;
   category?: SafeImageCategory;
   aspectRatio?: "16:9" | "1:1" | "4:3";
+  /** Threaded to ingestAsset for async CV tagging (optional; tests omit it). */
+  chat?: import("@milo/llm").ChatFn;
+  model?: string;
 }
 
 export interface GenerateAssetResult {

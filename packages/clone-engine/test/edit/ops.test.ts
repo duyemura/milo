@@ -409,7 +409,7 @@ describe("addPage route sanitize/throw", () => {
     const m = JSON.parse(fs.readFileSync(path.join(outDir, "site.json"), "utf8")) as SiteManifest;
     const page = m.pages.find((p) => p.route === "/about-me/");
     expect(page, "the /about-me/ page must be added to site.json").toBeDefined();
-    expect(result.targetSections.every((n) => n.startsWith("About-me"))).toBe(true);
+    expect(result.targetSections.every((n) => n.startsWith("AboutMe"))).toBe(true);
   });
 
   it("throws 'invalid route' for a route with no alphanumeric content ('---')", () => {

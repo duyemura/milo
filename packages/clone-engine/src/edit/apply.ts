@@ -37,6 +37,7 @@ import {
 } from "./ops.ts";
 import { generateSection } from "./generate.ts";
 import { generateAsset } from "../assets/generate.ts";
+import { placeAsset, uploadAsset } from "./place.ts";
 import { verify } from "./verify.ts";
 import { renderSnapshot, sectionListOf, type RenderSnapshot } from "./snapshot.ts";
 import { snapshot, restore } from "./history.ts";
@@ -216,11 +217,17 @@ async function applyOpsDeterministically(site: SiteRef, ops: EditOp[], opts: App
         results.push(addNavLink(site, op.text, op.href));
         break;
       case "generateAsset": {
-        const genResult = await generateAsset(site, { alias: op.alias, brief: op.brief, category: op.category, aspectRatio: op.aspectRatio });
+        const genResult = await generateAsset(site, { alias: op.alias, brief: op.brief, category: op.category, aspectRatio: op.aspectRatio, chat: opts.chat, model: opts.model });
         if (!genResult.ok) throw new Error(`generateAsset failed: ${genResult.failures.join("; ")}`);
         results.push({ op, changedFiles: [], targetSections: [] });
         break;
       }
+      case "placeAsset":
+        results.push(await placeAsset(site, op.alias, op.assetId));
+        break;
+      case "uploadAsset":
+        results.push(await uploadAsset(site, op.file, op.alias, { altText: op.altText, chat: opts.chat, model: opts.model }));
+        break;
       case "generateSection": {
         // generateSection runs its own internal verify. If it fails, throw so apply() can retry.
         const genResult = await generateSection(
@@ -429,6 +436,10 @@ function targetIdentity(op: EditOp): string {
       return `addNavLink:${op.href}`;
     case "generateAsset":
       return `generateAsset:${op.alias}`;
+    case "placeAsset":
+      return `placeAsset:${op.alias}`;
+    case "uploadAsset":
+      return `uploadAsset:${op.alias}`;
   }
 }
 

@@ -13,6 +13,7 @@
 import type { SiteRef, EditOp, PlanResult, ConversationTurn } from "./types.ts";
 import { PlanSchema, EditOpSchema } from "./types.ts";
 import { isGenerateRole } from "./templates.ts";
+import { loadLibrary, getAsset } from "../assets/library.ts";
 import { digest } from "./digest.ts";
 import {
   resolveCopy,
@@ -55,6 +56,12 @@ For ADDING A NEW PAGE use addPage:
 
 For ADDING A LINK TO THE NAV use addNavLink (call after addPage when the page should be in nav):
   { op: "addNavLink", text: "<link label>", href: "<route e.g. /about/>" }
+
+For PLACING AN EXISTING LIBRARY IMAGE into a slot use placeAsset (preferred over generateAsset when a suitable image already exists):
+  { op: "placeAsset", alias: "<existing asset alias>", assetId: "<ast_… id from the library>" }
+
+For UPLOADING AN OWNER PHOTO into a slot use uploadAsset:
+  { op: "uploadAsset", file: "<absolute path to the photo>", alias: "<existing asset alias>", altText?: "<description>" }
 
 For REPLACING AN IMAGE with a freshly generated one use generateAsset (targets an existing asset alias):
   { op: "generateAsset", alias: "<existing asset alias>", brief: "<what the image should show>" }
@@ -233,6 +240,19 @@ async function validateOpTarget(site: SiteRef, op: unknown): Promise<void> {
       break; // no additional target validation needed beyond Zod (text + href are free strings)
 
     case "generateAsset":
+      resolveAsset(site, parsed.alias);
+      break;
+
+    case "placeAsset": {
+      resolveAsset(site, parsed.alias);
+      const lib = loadLibrary(site.dir, "biz_unknown");
+      const a = getAsset(lib, parsed.assetId);
+      if (!a) throw new TargetError(`placeAsset: asset id not in library: ${parsed.assetId}`);
+      if (a.status === "archived") throw new TargetError(`placeAsset: asset is archived: ${parsed.assetId}`);
+      break;
+    }
+
+    case "uploadAsset":
       resolveAsset(site, parsed.alias);
       break;
   }
