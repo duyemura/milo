@@ -227,15 +227,20 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
   }
 
   const t0 = Date.now();
+  // Per-step lap timer: each dt() returns the elapsed since the previous logged step, so
+  // the capture log self-reports where a slow page spends its time (surfaced the
+  // networkidle/hover stalls). Call exactly once per step, in execution order.
+  let lapMark = t0;
+  const dt = () => { const d = Date.now() - lapMark; lapMark = Date.now(); return `+${(d / 1000).toFixed(1)}s`; };
   const browser: Browser = await chromium.launch();
   try {
     const page = await browser.newPage({ viewport: { width: WIDTHS[0], height: 900 } });
-    console.log(`→ ${SRC_URL}`);
+    console.log(`→ ${SRC_URL} (launch ${dt()})`);
     await page.goto(SRC_URL, { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.waitForLoadState("networkidle", { timeout: NETIDLE_MS }).catch(() => {});
     const { tree, count } = await page.evaluate(neutralizeAndTag, KEEP_ATTRS) as { tree: TreeEl; count: number };
     const head = await page.evaluate(grabHead) as Head;
-    console.log(`  tagged ${count} elements`);
+    console.log(`  tagged ${count} elements (${dt()})`);
     await page.screenshot({ path: path.join(OUT, "source-desktop.png"), fullPage: true });
 
     const styles: StylesByWidth = {};
@@ -245,7 +250,7 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
       await page.evaluate(forceOpacity);
       styles[w] = await page.evaluate(grabStyles);
       if (w === 390) await page.screenshot({ path: path.join(OUT, "source-mobile.png"), fullPage: true });
-      console.log(`  captured @ ${w}w`);
+      console.log(`  captured @ ${w}w (${dt()})`);
     }
 
     // ---- capture INTERACTIONS: click-toggles (hamburger + desktop dropdowns) + hover states ----
@@ -294,7 +299,7 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
         const d = diffMap(before, await page.evaluate(grabSub, pid!));
         if (Object.keys(d).length) hovers.push({ parentId: pid, delta: d });
       }
-      if (hovers.length) console.log(`  captured ${hovers.length} hover state(s)`);
+      if (hovers.length) console.log(`  captured ${hovers.length} hover state(s) (interactions ${dt()})`);
     } catch {}
     if (!toggles.length && !hovers.length) console.log(`  note: no interactive nav elements detected — nav will render static (non-standard builder?)`);
     const interactions = (toggles.length || hovers.length) ? { toggles, hovers } : null;
@@ -305,7 +310,7 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
     for (const m of head.metas) if (/image/.test(m.key) && /^https?:|^\//.test(m.content)) { const a = absolutize(m.content); if (a) assetSet.add(a); }
     const urls = [...assetSet];
     const sourceOrigins = new Set(urls.map((u) => { try { return new URL(u).host; } catch { return ""; } }));
-    console.log(`  rehosting ${urls.length} assets from ${sourceOrigins.size} origins…`);
+    console.log(`  rehosting ${urls.length} assets from ${sourceOrigins.size} origins… (${dt()})`);
     const map = new Map<string, string>();
     let n = 0, failed = 0;
     await Promise.all(urls.map(async (u) => {
@@ -315,7 +320,7 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
       fs.writeFileSync(path.join(ASSETS, name), a.buf);
       map.set(u, `assets/${name}`);
     }));
-    console.log(`  rehosted ${map.size}/${urls.length}${failed ? ` (${failed} failed)` : ""}`);
+    console.log(`  rehosted ${map.size}/${urls.length}${failed ? ` (${failed} failed)` : ""} (${dt()})`);
     rewriteTree(tree, map);
     for (const w of WIDTHS) for (const id in styles[w]) for (const k in styles[w][id]) styles[w][id][k] = rewriteStyleVal(styles[w][id][k], map);
     const subUrl = (u: string) => map.get(absolutize(u)!) || u;
