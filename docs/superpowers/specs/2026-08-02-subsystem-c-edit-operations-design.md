@@ -26,12 +26,14 @@ Edit-op set (all deterministic mutations over the Plan-2 contract; the LLM only 
 | `editCopy` | change a text string | rewrite `content[i]` in the component (proven) |
 | `setBrand` | recolor a brand token slot | edit `brand.json` tokens + regen `:root` (proven) |
 | `swapAsset` | replace an image/logo | swap the `assets/` file by `data-asset` alias |
-| `styleTweak` | bounded style change (font-size, spacing) on a role/section | edit the section's scoped CSS |
+| `styleTweak` | **local** style not covered by the brand (this element/section specifically) | edit the section's scoped CSS — see scope + guardrails below |
 | `removeSection` | delete a section | remove component + its `index.astro` include; update `site.json` |
 | `reorderSection` | move a section | reorder `index.astro` includes; update `site.json` |
 | `addSection` | add a section by **cloning an existing one** | duplicate a component, then `editCopy` its content |
 | `addPage` | add a page by **cloning a template page** | duplicate a page's route+components, then `editCopy` for the new topic |
 | `revert` | undo the last apply (or to a version) | restore the pre-edit snapshot / apply inverse ops |
+
+**`setBrand` vs `styleTweak` — the styling split.** `setBrand` owns **global brand** styling (tokens: colors/fonts/spacing/radius → cascades everywhere, consistent). `styleTweak` owns the **local long tail** that isn't brand-level and `setBrand` can't reach: per-element overrides ("make *this* CTA bigger", "this button red"), section layout (columns, alignment, full-width), emphasis (bold/italic), per-section treatment (a dark-background section). Two guardrails keep local styling from fragmenting the design: (1) **bounded property set** — a known list (element size/emphasis/color/spacing/background/alignment; section width/columns), not arbitrary CSS; (2) **prefer brand tokens** — when setting a color/spacing, reference a brand token (`var(--color-accent)`, `var(--space-lg)`) where one fits; drop to a raw literal only for an intentionally off-brand value. So `styleTweak` stays on-brand by default while still allowing genuine local flexibility.
 
 **Out (deferred):** from-scratch generation of new sections/pages (subsystem **E**); full brand-*kit* authoring — voice/imagery/positioning as first-class (a **B**-expansion; see Brand model); page types + goals (**D**); measurement (**F**); the chat UI (admin side).
 
