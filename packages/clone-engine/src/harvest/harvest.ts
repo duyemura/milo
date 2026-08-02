@@ -39,7 +39,12 @@ function asTemplateRole(role: string): TemplateSectionRole {
 
 /** Read one capture into per-section HarvestedSection[] with brand canons for tokenization. */
 function harvestOne(site: string, capturePath: string): { sections: HarvestedSection[]; brandCanons: Set<string> } {
-  const cap: CaptureJson = JSON.parse(fs.readFileSync(capturePath, "utf8"));
+  let cap: CaptureJson;
+  try {
+    cap = JSON.parse(fs.readFileSync(capturePath, "utf8")) as CaptureJson;
+  } catch (err) {
+    throw new Error(`harvestOne: failed to read capture for '${site}' at ${capturePath}: ${(err as Error).message}`);
+  }
   const labels = heuristicLabels(cap);
   const brandCanons = new Set(brandSlotOfCanon(labels).keys());
   const S1 = cap.styles["1440"] ?? {};
@@ -66,27 +71,23 @@ function harvestOne(site: string, capturePath: string): { sections: HarvestedSec
  * The end-to-end harvest: scan captures → extract → tokenize/residual → classify → dedup into the
  * library (site-level popularity) → apply the popularity floor → emit novel ADAPTIVE archetypes.
  *
- * The swap-brand oracle for a given candidate uses the OTHER input sites' brand canons as the
- * deliberately-diverse swap targets; a candidate whose emitted CSS references only var(--*) tokens
- * and renders present under those palettes is swapBrandClean. (Full pixel swap-render is exercised
- * in emit-integration; here the off-brand-literal scan + presence check is the gate, matching the
- * classifier's swap-brand contract.)
+ * Current swap-brand check: an emitted CSS block is scanned for off-brand literals (offBrandLiterals).
+ * Because emit.ts always produces brand-token-only CSS this is always clean — the residual score is
+ * the actual admission gate. The full pixel-render swap oracle (re-rendering under other sites' brand
+ * palettes, via swapBrandOracle in classify.ts) is not yet wired here; the `browser` param is
+ * reserved for that upgrade. `swapBrandClean` in the report reflects the CSS-literal check only.
  */
 export async function harvestSites(
-  _browser: Browser,
+  _browser: Browser, // reserved — full pixel swap oracle not yet wired
   inputs: HarvestInput[],
   opts: HarvestOptions,
 ): Promise<HarvestResult> {
+  // Parse each capture once; keep both sections and brandCanons from the same parse.
   const all: HarvestedSection[] = [];
-  for (const input of inputs) {
-    const { sections } = harvestOne(input.site, input.captureJson);
-    all.push(...sections);
-  }
-
-  // Per-site brand canons (for residual tokenization + swap targets).
   const canonsBySite = new Map<string, Set<string>>();
   for (const input of inputs) {
-    const { brandCanons } = harvestOne(input.site, input.captureJson);
+    const { sections, brandCanons } = harvestOne(input.site, input.captureJson);
+    all.push(...sections);
     canonsBySite.set(input.site, brandCanons);
   }
 

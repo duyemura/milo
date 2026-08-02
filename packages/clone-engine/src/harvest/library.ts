@@ -44,5 +44,14 @@ export function saveLibrary(file: string, lib: LibraryStore): void {
 /** Load a library from disk, or return an empty one if the file does not exist. */
 export function loadLibrary(file: string): LibraryStore {
   if (!fs.existsSync(file)) return emptyLibrary();
-  return JSON.parse(fs.readFileSync(file, "utf8")) as LibraryStore;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch (err) {
+    throw new Error(`loadLibrary: failed to parse ${file}: ${(err as Error).message}`);
+  }
+  if (typeof parsed !== "object" || parsed === null || (parsed as { version?: unknown }).version !== 1) {
+    throw new Error(`loadLibrary: ${file} is not a valid LibraryStore (expected version:1)`);
+  }
+  return parsed as LibraryStore;
 }
