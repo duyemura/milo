@@ -31,14 +31,20 @@ export function makeSiteDir(opts: {
   fs.writeFileSync(path.join(dir, "site.json"), JSON.stringify(siteJson, null, 2));
 
   const fonts = opts.brandFonts ?? [{ slot: "display", family: "TestFont" }];
+  const fontMap = Object.fromEntries(fonts.map((f) => [f.slot, f.family]));
+  // BrandDoc format (matches the real projected brand.json shape)
   const brandJson = {
-    colors: [{ slot: "primary", value: "#ff0000" }],
-    fonts: fonts.map((f) => ({ slot: f.slot, family: f.family })),
+    colors: { primary: { value: "#ff0000", hex: "#ff0000", variants: {} } },
+    fonts: { display: fontMap["display"] ?? "TestFont", body: fontMap["body"] ?? "TestBodyFont" },
+    space: { sm: "8px", md: "16px", lg: "32px" },
+    radius: { button: "4px", card: "8px" },
   };
   fs.writeFileSync(path.join(dir, "astro", "brand.json"), JSON.stringify(brandJson));
+  // Write @font-face for every brand font (display + body derived from brandJson)
+  const allFamilies = [brandJson.fonts.display, brandJson.fonts.body].filter(Boolean);
   fs.writeFileSync(
     path.join(stylesDir, "global.css"),
-    fonts.map((f) => `@font-face { font-family: '${f.family}'; src: url('/${f.family}.woff2'); }`).join("\n"),
+    allFamilies.map((f) => `@font-face { font-family: '${f}'; src: url('/${f}.woff2'); }`).join("\n"),
   );
 
   // When distHtml is provided it replaces the entire body; default includes an <h1> for SEO tests.
