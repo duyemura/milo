@@ -37,6 +37,23 @@ export type EngineEvent =
 
 export type EngineEventSink = (e: EngineEvent) => void;
 
+/**
+ * Wrap an optional event sink into an always-safe emitter. Returns a no-op when
+ * no sink is provided, and — crucially — SWALLOWS any exception the sink throws,
+ * so a failing consumer (e.g. a broken SSE/stdout write) can never divert control
+ * flow inside the engine and corrupt a build's ok/failed accounting.
+ */
+export function makeEmit(onEvent?: EngineEventSink): EngineEventSink {
+  if (!onEvent) return () => {};
+  return (e) => {
+    try {
+      onEvent(e);
+    } catch {
+      /* sink errors must never break a build */
+    }
+  };
+}
+
 export interface RunState {
   status: "discovering" | "building" | "built" | "failed";
   totalPages: number;

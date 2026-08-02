@@ -5,6 +5,7 @@ import {
   projectRunState,
   eventToJsonLine,
   parseEventLine,
+  makeEmit,
   EVENT_MARKER,
   type EngineEvent,
 } from "../src/events.ts";
@@ -88,5 +89,21 @@ describe("event line serializer", () => {
 
   it("returns null for a marker line whose JSON is valid but not an event (no string type)", () => {
     expect(parseEventLine(EVENT_MARKER + '{"foo":1}')).toBeNull();
+  });
+});
+
+describe("makeEmit", () => {
+  it("forwards events to the provided sink", () => {
+    const seen: EngineEvent[] = [];
+    const emit = makeEmit((e) => seen.push(e));
+    emit({ type: "page.build.done", route: "/" });
+    expect(seen).toEqual([{ type: "page.build.done", route: "/" }]);
+  });
+  it("is a no-op when no sink is provided", () => {
+    expect(() => makeEmit()({ type: "run.completed", ok: 1, failed: 0 })).not.toThrow();
+  });
+  it("swallows exceptions thrown by the sink (a bad sink cannot break the engine)", () => {
+    const emit = makeEmit(() => { throw new Error("sink boom"); });
+    expect(() => emit({ type: "page.build.done", route: "/" })).not.toThrow();
   });
 });

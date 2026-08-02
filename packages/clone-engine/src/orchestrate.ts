@@ -23,7 +23,7 @@ import { originSlug, pageDir, discoverPages } from "./discover.ts";
 import type { DiscoverOpts } from "./discover.ts";
 import type { BuildReport, PageReport, PageIssues, PageLlmUsage } from "./report.ts";
 import { generateHtmlReport } from "./report.ts";
-import type { EngineEventSink } from "./events.ts";
+import { makeEmit, type EngineEventSink } from "./events.ts";
 
 // ---------------------------------------------------------------------------
 // Cost helpers
@@ -98,7 +98,8 @@ export interface BuildSiteOpts {
   /**
    * Optional progress sink. When provided, buildSite emits typed EngineEvents at
    * each phase boundary (in addition to the existing console.log). No-op when omitted,
-   * so existing callers and the 0-px oracle are unaffected.
+   * so existing callers and the 0-px oracle are unaffected. Sink exceptions are
+   * swallowed, so a throwing consumer can never break the build.
    */
   onEvent?: EngineEventSink;
 }
@@ -114,7 +115,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
   const { origin, pages } = opts;
   const cwd = opts.cwd ?? process.cwd();
   const wallStart = Date.now();
-  const emit: EngineEventSink = opts.onEvent ?? (() => {});
+  const emit = makeEmit(opts.onEvent);
 
   // Augment pages with derived url + out fields (mirrors build-site.mjs PAGES.forEach).
   // out-dir is namespaced by origin slug (2-char prefix) so two different origins built
@@ -397,6 +398,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       pages: pageReports,
     };
     generateHtmlReport(report, opts.reportOut);
+    // reportJsonPath mirrors generateHtmlReport's convention (foo.html → foo.json).
     emit({
       type: "report.done",
       reportHtmlPath: opts.reportOut,
