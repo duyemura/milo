@@ -69,7 +69,7 @@ describe("report: LLM cost shown when pages have llm data", () => {
     {
       route: "/",
       status: "ok",
-      timing: { route: "/", captureMs: 0, labelMs: 5_000, projectMs: 1_000, buildMs: 2_000 },
+      timing: { route: "/", captureMs: 0, labelMs: 5_000, projectMs: 1_000, buildMs: 2_000, captureCached: false },
       llm: {
         model: "google/gemini-2.5-flash",
         promptTokens: 3_000,
@@ -81,7 +81,7 @@ describe("report: LLM cost shown when pages have llm data", () => {
     {
       route: "/about/",
       status: "ok",
-      timing: { route: "/about/", captureMs: 0, labelMs: 4_800, projectMs: 900, buildMs: 1_800 },
+      timing: { route: "/about/", captureMs: 0, labelMs: 4_800, projectMs: 900, buildMs: 1_800, captureCached: false },
       llm: {
         model: "google/gemini-2.5-flash",
         promptTokens: 2_800,
@@ -137,7 +137,7 @@ describe("report: heuristic-disabled path (llm:false) — benign, no LLM cost sh
     {
       route: "/",
       status: "ok",
-      timing: { route: "/", captureMs: 0, labelMs: 1_000, projectMs: 900, buildMs: 1_500 },
+      timing: { route: "/", captureMs: 0, labelMs: 1_000, projectMs: 900, buildMs: 1_500, captureCached: false },
       // llm is undefined → heuristic-disabled (intentional)
       llm: undefined,
       issues: { assetsFailed: 0, leftoverSourceRefs: 0, labelSource: "heuristic-disabled" as const, unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
@@ -190,7 +190,7 @@ describe("report: heuristic-error — LLM was attempted but failed (RED, actiona
     {
       route: "/",
       status: "ok",
-      timing: { route: "/", captureMs: 0, labelMs: 500, projectMs: 900, buildMs: 1_500 },
+      timing: { route: "/", captureMs: 0, labelMs: 500, projectMs: 900, buildMs: 1_500, captureCached: false },
       llm: undefined, // no LLM cost because it failed
       issues: {
         assetsFailed: 0,
@@ -247,7 +247,7 @@ describe("report: mixed — one LLM-fresh page + one heuristic-error page", () =
     {
       route: "/",
       status: "ok",
-      timing: { route: "/", captureMs: 0, labelMs: 5_000, projectMs: 1_000, buildMs: 2_000 },
+      timing: { route: "/", captureMs: 0, labelMs: 5_000, projectMs: 1_000, buildMs: 2_000, captureCached: false },
       llm: {
         model: "google/gemini-2.5-flash",
         promptTokens: 3_000,
@@ -259,7 +259,7 @@ describe("report: mixed — one LLM-fresh page + one heuristic-error page", () =
     {
       route: "/schedule/",
       status: "ok",
-      timing: { route: "/schedule/", captureMs: 0, labelMs: 800, projectMs: 900, buildMs: 1_500 },
+      timing: { route: "/schedule/", captureMs: 0, labelMs: 800, projectMs: 900, buildMs: 1_500, captureCached: false },
       // This page fell back to heuristic (LLM error).
       llm: undefined,
       issues: {
@@ -318,7 +318,7 @@ describe("report: llm-cached — labels.json reused, no re-cost (benign)", () =>
     {
       route: "/",
       status: "ok",
-      timing: { route: "/", captureMs: 0, labelMs: 50, projectMs: 900, buildMs: 1_500 },
+      timing: { route: "/", captureMs: 0, labelMs: 50, projectMs: 900, buildMs: 1_500, captureCached: false },
       llm: undefined, // no new LLM cost — reused prior labels.json
       issues: {
         assetsFailed: 0,
@@ -340,9 +340,10 @@ describe("report: llm-cached — labels.json reused, no re-cost (benign)", () =>
   };
 
   let html: string;
+  let reportPath: string;
 
   beforeAll(() => {
-    const reportPath = path.join(tmpDir, "report-cached.html");
+    reportPath = path.join(tmpDir, "report-cached.html");
     generateHtmlReport(report, reportPath);
     html = fs.readFileSync(reportPath, "utf8");
   });
@@ -358,5 +359,25 @@ describe("report: llm-cached — labels.json reused, no re-cost (benign)", () =>
   it("does NOT show LLM error copy", () => {
     expect(html).not.toContain("check OPENROUTER_API_KEY");
     expect(html).not.toContain("LLM labeling failed");
+  });
+
+  it("LLM cost cell shows 'cached (paid on first build)' not just '$0'", () => {
+    // llm-cached must NOT read as free — it shows that cost was already paid
+    expect(html).toContain("paid on first build");
+    // Must not silently show $0 as the only representation
+    expect(html).not.toMatch(/>\$0\.0000</);
+  });
+
+  it("shows 'reused' copy confirming labels were not re-generated", () => {
+    // The issues section says labels were reused
+    expect(html).toMatch(/reused/i);
+  });
+
+  it("build-report.json is written alongside the HTML", () => {
+    const jsonPath = reportPath.replace(/\.html$/, ".json");
+    expect(fs.existsSync(jsonPath)).toBe(true);
+    const parsed = JSON.parse(fs.readFileSync(jsonPath, "utf8")) as BuildReport;
+    expect(parsed.site).toBe("Cached Gym");
+    expect(parsed.pages[0]?.issues.labelSource).toBe("llm-cached");
   });
 });

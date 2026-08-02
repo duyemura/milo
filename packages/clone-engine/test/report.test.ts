@@ -19,17 +19,19 @@ const mockPages: PageReport[] = [
   {
     route: "/",
     status: "ok",
-    timing: { route: "/", captureMs: 90_000, labelMs: 12_000, projectMs: 5_000, buildMs: 8_000 },
+    timing: { route: "/", captureMs: 90_000, labelMs: 12_000, projectMs: 5_000, buildMs: 8_000, captureCached: false },
     llm: { model: "google/gemini-2.5-flash", promptTokens: 45_000, completionTokens: 2_000, costUsd: 0.005300 },
     issues: { assetsFailed: 0, leftoverSourceRefs: 3, labelSource: "llm-fresh", unknownSections: 1, captureRetries: 0, selfContainmentWarnings: 0 },
     thumbPath: undefined,
     oraclePx: 0,
+    assetCount: 42,
+    pageWeightKb: 128,
   },
   {
     route: "/about/",
     status: "failed",
     error: "TimeoutError: page load timed out after 30000ms",
-    timing: { route: "/about/", captureMs: 30_000, labelMs: 0, projectMs: 0, buildMs: 0 },
+    timing: { route: "/about/", captureMs: 30_000, labelMs: 0, projectMs: 0, buildMs: 0, captureCached: false },
     issues: { assetsFailed: 0, leftoverSourceRefs: 0, labelSource: "heuristic-disabled", unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
   },
 ];
@@ -69,6 +71,27 @@ describe("generateHtmlReport", () => {
   it("writes a file", () => {
     expect(fs.existsSync(reportPath)).toBe(true);
     expect(fs.statSync(reportPath).size).toBeGreaterThan(0);
+  });
+
+  it("writes build-report.json alongside the HTML", () => {
+    const jsonPath = reportPath.replace(/\.html$/, ".json");
+    expect(fs.existsSync(jsonPath)).toBe(true);
+    const parsed = JSON.parse(fs.readFileSync(jsonPath, "utf8")) as BuildReport;
+    expect(parsed.site).toBe("Test Gym");
+    expect(parsed.origin).toBe("https://testgym.com");
+    expect(Array.isArray(parsed.pages)).toBe(true);
+  });
+
+  it("build-report.json contains assetCount and pageWeightKb fields on the ok page", () => {
+    const jsonPath = reportPath.replace(/\.html$/, ".json");
+    const parsed = JSON.parse(fs.readFileSync(jsonPath, "utf8")) as BuildReport;
+    const home = parsed.pages.find((p) => p.route === "/");
+    expect(home).toBeDefined();
+    // Fields exist (may be undefined or a number — they are in the type)
+    expect("assetCount" in home!).toBe(true);
+    expect("pageWeightKb" in home!).toBe(true);
+    expect(home!.assetCount).toBe(42);
+    expect(home!.pageWeightKb).toBe(128);
   });
 
   it("is valid HTML (contains DOCTYPE or <html)", () => {
@@ -131,5 +154,111 @@ describe("generateHtmlReport", () => {
 
   it("contains the generated-at timestamp", () => {
     expect(reportHtml).toContain("2026-08-01");
+  });
+});
+
+describe("generateHtmlReport: cached capture", () => {
+  const cachedCapturePage: PageReport = {
+    route: "/",
+    status: "ok",
+    timing: {
+      route: "/",
+      captureMs: 0,
+      labelMs: 5_000,
+      projectMs: 2_000,
+      buildMs: 3_000,
+      captureCached: true,
+      freshCaptureMs: 185_000,
+    },
+    llm: { model: "google/gemini-2.5-flash", promptTokens: 10_000, completionTokens: 500, costUsd: 0.002 },
+    issues: { assetsFailed: 0, leftoverSourceRefs: 0, labelSource: "llm-fresh", unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
+    oraclePx: 0,
+  };
+
+  const cachedReport: BuildReport = {
+    site: "Cached Capture Gym",
+    origin: "https://cachedcapture.com",
+    generatedAt: "2026-08-01T00:00:00.000Z",
+    totalWallMs: 10_000,
+    pages: [cachedCapturePage],
+  };
+
+  let html: string;
+  let jsonPath: string;
+
+  beforeAll(() => {
+    const outPath = path.join(os.tmpdir(), `milo-cached-capture-test-${Date.now()}.html`);
+    generateHtmlReport(cachedReport, outPath);
+    html = fs.readFileSync(outPath, "utf8");
+    jsonPath = outPath.replace(/\.html$/, ".json");
+    // cleanup after
+    afterAll(() => { try { fs.unlinkSync(outPath); fs.unlinkSync(jsonPath); } catch { /* ok */ } });
+  });
+
+  it("capture cell shows 'cached' (not '0ms' or 'free')", () => {
+    expect(html).toContain("cached");
+  });
+
+  it("capture cell shows the fresh-capture time (185s = 3.1m)", () => {
+    // freshCaptureMs=185_000 → formatMs gives 3.1m (185000/60000 = 3.08...)
+    expect(html).toContain("3.1m");
+  });
+
+  it("cold-build summary section appears when capture was cached", () => {
+    expect(html).toContain("Cold-build cost vs this run");
+  });
+
+  it("cold-build summary calls out capture as the dominant cost", () => {
+    expect(html).toContain("dominant cost");
+  });
+
+  it("build-report.json records captureCached=true and freshCaptureMs", () => {
+    const parsed = JSON.parse(fs.readFileSync(jsonPath, "utf8")) as BuildReport;
+    const home = parsed.pages[0];
+    expect(home?.timing.captureCached).toBe(true);
+    expect(home?.timing.freshCaptureMs).toBe(185_000);
+  });
+});
+
+describe("generateHtmlReport: cached capture with estimated fresh time", () => {
+  const estimatedPage: PageReport = {
+    route: "/",
+    status: "ok",
+    timing: {
+      route: "/",
+      captureMs: 0,
+      labelMs: 3_000,
+      projectMs: 2_000,
+      buildMs: 4_000,
+      captureCached: true,
+      // freshCaptureMs absent → will use EST_FRESH_CAPTURE_MS_PER_PAGE
+    },
+    llm: undefined,
+    issues: { assetsFailed: 0, leftoverSourceRefs: 0, labelSource: "heuristic-disabled", unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
+  };
+
+  const estimatedReport: BuildReport = {
+    site: "Estimated Gym",
+    origin: "https://estimatedgym.com",
+    generatedAt: "2026-08-01T00:00:00.000Z",
+    totalWallMs: 9_000,
+    pages: [estimatedPage],
+  };
+
+  let html: string;
+
+  beforeAll(() => {
+    const outPath = path.join(os.tmpdir(), `milo-est-capture-test-${Date.now()}.html`);
+    generateHtmlReport(estimatedReport, outPath);
+    html = fs.readFileSync(outPath, "utf8");
+    afterAll(() => { try { fs.unlinkSync(outPath); fs.unlinkSync(outPath.replace(/\.html$/, ".json")); } catch { /* ok */ } });
+  });
+
+  it("shows 'estimated' when freshCaptureMs is absent", () => {
+    expect(html).toContain("estimated");
+  });
+
+  it("shows 'cached' in the capture cell", () => {
+    expect(html).toContain("cached");
   });
 });

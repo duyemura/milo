@@ -4,6 +4,10 @@
  * Collects per-page timing, LLM cost, and issue data from a buildSite() run
  * and produces a self-contained HTML report with summary, page table, cost
  * breakdown, issues, and fidelity spotlight.
+ *
+ * Admin dashboard consumer: build-report.json is the data contract for the
+ * admin UI. It contains structured per-page timing, cost, fidelity, and asset
+ * data. The JSON is written alongside the HTML whenever reportOut is set.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -12,12 +16,24 @@ import path from "node:path";
 // Types
 // ---------------------------------------------------------------------------
 
+/** Estimated fresh-capture time per page when no recorded freshCaptureMs exists.
+ *  Fresh capture = browser render + all asset rehosting over the network. ~193s observed. */
+export const EST_FRESH_CAPTURE_MS_PER_PAGE = 193_000;
+
 export interface PageTiming {
   route: string;
   captureMs: number;
   labelMs: number;
   projectMs: number;
   buildMs: number;
+  /** Whether capture was served from cache (capture.json already existed). */
+  captureCached: boolean;
+  /**
+   * Recorded fresh-capture time from a prior run (ms), if available.
+   * When captureCached=true and this is set, it's the real cost of the first capture.
+   * When captureCached=true and this is absent, use EST_FRESH_CAPTURE_MS_PER_PAGE.
+   */
+  freshCaptureMs?: number;
 }
 
 export interface PageLlmUsage {
@@ -61,13 +77,23 @@ export interface PageReport {
   issues: PageIssues;
   /** Relative path to the source-desktop screenshot (e.g. "cap-home/source-desktop.png"). */
   thumbPath?: string;
+  /**
+   * Relative path to the clone screenshot for before/after comparison.
+   * Set when a post-build screenshot of the clone is available.
+   */
+  cloneThumbPath?: string;
   /** Pixel diff from the 0-px oracle (if available). */
   oraclePx?: number;
+  /** Number of assets rehosted during capture (for cost-driver context). */
+  assetCount?: number;
+  /** Size of the built page output in KB (for cost-driver context). */
+  pageWeightKb?: number;
 }
 
 export interface BuildReport {
   site: string;
   origin: string;
+  /** ISO timestamp when the report was generated (from opts.builtAt or new Date().toISOString()). */
   generatedAt: string;
   totalWallMs: number;
   pages: PageReport[];
@@ -121,6 +147,17 @@ function imageDataUri(imgPath: string, baseDir: string): string | null {
   return `data:${mime};base64,${buf.toString("base64")}`;
 }
 
+/**
+ * Compute the "cold-build" capture time for a page.
+ * If the capture was cached, use freshCaptureMs if recorded, else the estimate.
+ * Returns { ms, estimated: boolean }.
+ */
+function coldCaptureMs(t: PageTiming): { ms: number; estimated: boolean } {
+  if (!t.captureCached) return { ms: t.captureMs, estimated: false };
+  if (t.freshCaptureMs != null) return { ms: t.freshCaptureMs, estimated: false };
+  return { ms: EST_FRESH_CAPTURE_MS_PER_PAGE, estimated: true };
+}
+
 export function generateHtmlReport(report: BuildReport, outPath: string): void {
   const outDir = path.dirname(outPath);
 
@@ -128,7 +165,7 @@ export function generateHtmlReport(report: BuildReport, outPath: string): void {
   const failedPages = report.pages.filter((p) => p.status === "failed");
 
   // Aggregate LLM cost
-  const totalCostUsd = report.pages.reduce((sum, p) => sum + (p.llm?.costUsd ?? 0), 0);
+  const totalLlmCostUsd = report.pages.reduce((sum, p) => sum + (p.llm?.costUsd ?? 0), 0);
   const modelSet = new Set(report.pages.filter((p) => p.llm).map((p) => p.llm!.model));
   const modelsStr = modelSet.size === 0 ? "heuristic only" : [...modelSet].join(", ");
 
@@ -144,6 +181,23 @@ export function generateHtmlReport(report: BuildReport, outPath: string): void {
     costByModel.set(p.llm.model, existing);
   }
 
+  // Cold-build cost analysis
+  let coldCaptureTotal = 0;
+  let coldCaptureHasEstimate = false;
+  let thisRunWallMs = 0;
+  for (const p of report.pages) {
+    if (p.status !== "ok") continue;
+    const cc = coldCaptureMs(p.timing);
+    coldCaptureTotal += cc.ms;
+    if (cc.estimated) coldCaptureHasEstimate = true;
+    thisRunWallMs += p.timing.captureMs + p.timing.labelMs + p.timing.projectMs + p.timing.buildMs;
+  }
+  const coldLabelTotal = okPages.reduce((s, p) => s + p.timing.labelMs, 0);
+  const coldProjectTotal = okPages.reduce((s, p) => s + p.timing.projectMs, 0);
+  const coldBuildTotal = okPages.reduce((s, p) => s + p.timing.buildMs, 0);
+  const coldTotalMs = coldCaptureTotal + coldLabelTotal + coldProjectTotal + coldBuildTotal;
+  const captureIssuedAnyCached = okPages.some((p) => p.timing.captureCached);
+
   // Fidelity spotlight: find the homepage page report
   const homePage = report.pages.find((p) => p.route === "/") ?? okPages[0];
 
@@ -155,21 +209,64 @@ export function generateHtmlReport(report: BuildReport, outPath: string): void {
     return `<img src="${uri}" style="max-width:200px;max-height:150px;object-fit:cover;border:1px solid #ddd;border-radius:4px;" alt="${escHtml(p.route)} screenshot">`;
   }
 
-  // Fidelity spotlight images
+  // Fidelity spotlight: before/after comparison with slider
   let fidelitySpotlight = "";
-  if (homePage?.thumbPath) {
-    const srcUri = imageDataUri(homePage.thumbPath, outDir);
-    if (srcUri) {
+  if (homePage) {
+    const srcUri = homePage.thumbPath ? imageDataUri(homePage.thumbPath, outDir) : null;
+    const cloneUri = homePage.cloneThumbPath ? imageDataUri(homePage.cloneThumbPath, outDir) : null;
+    const oracleLine = homePage.oraclePx != null
+      ? `<p style="margin-top:8px;font-weight:600;color:${homePage.oraclePx === 0 ? "#22863a" : "#e36209"}">Oracle diff: ${homePage.oraclePx} px${homePage.oraclePx === 0 ? " — perfect fidelity" : ""}</p>`
+      : `<p style="margin-top:8px;color:#999">Oracle diff: not measured</p>`;
+
+    if (srcUri && cloneUri) {
+      // Before/after slider — pure inline CSS+JS, no external deps
+      fidelitySpotlight = `
+        <p style="margin-bottom:12px;color:#555;font-size:0.9em">Drag the slider to compare source vs clone. ${homePage.oraclePx != null ? `Pixel diff: <strong>${homePage.oraclePx === 0 ? "0 px — perfect fidelity ✓" : `${homePage.oraclePx} px`}</strong>` : "Oracle diff not measured."}</p>
+        <div id="ba-slider" style="position:relative;display:inline-block;max-width:100%;overflow:hidden;border-radius:6px;border:2px solid #d0d0d0;cursor:col-resize;user-select:none">
+          <img id="ba-src" src="${srcUri}" style="display:block;max-width:600px;width:100%" alt="Source">
+          <div id="ba-clone-wrap" style="position:absolute;top:0;left:0;width:50%;overflow:hidden">
+            <img src="${cloneUri}" style="display:block;max-width:600px;width:100%;max-width:600px" alt="Clone">
+          </div>
+          <div id="ba-divider" style="position:absolute;top:0;left:50%;width:2px;background:#fff;height:100%;transform:translateX(-50%);box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>
+          <div id="ba-handle" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.35);font-size:14px">⇔</div>
+          <div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;padding:2px 6px;border-radius:3px;pointer-events:none">Source</div>
+          <div id="ba-clone-label" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;padding:2px 6px;border-radius:3px;pointer-events:none">Clone</div>
+        </div>
+        <script>
+        (function(){
+          var slider = document.getElementById('ba-slider');
+          var wrap = document.getElementById('ba-clone-wrap');
+          var divider = document.getElementById('ba-divider');
+          var handle = document.getElementById('ba-handle');
+          var dragging = false;
+          function setPos(x) {
+            var rect = slider.getBoundingClientRect();
+            var pct = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
+            var pcStr = (pct * 100).toFixed(2) + '%';
+            wrap.style.width = pcStr;
+            divider.style.left = pcStr;
+            handle.style.left = pcStr;
+          }
+          slider.addEventListener('mousedown', function(e){ dragging = true; setPos(e.clientX); e.preventDefault(); });
+          slider.addEventListener('touchstart', function(e){ dragging = true; setPos(e.touches[0].clientX); }, {passive:true});
+          document.addEventListener('mousemove', function(e){ if(dragging) setPos(e.clientX); });
+          document.addEventListener('touchmove', function(e){ if(dragging) setPos(e.touches[0].clientX); }, {passive:true});
+          document.addEventListener('mouseup', function(){ dragging = false; });
+          document.addEventListener('touchend', function(){ dragging = false; });
+        })();
+        </script>
+        ${oracleLine}`;
+    } else if (srcUri) {
+      // Only source available — show it with a note asking for clone screenshot
       fidelitySpotlight = `
         <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
           <div>
             <p style="margin:0 0 6px;font-weight:600;color:#555;">Source (captured)</p>
             <img src="${srcUri}" style="max-width:500px;border:2px solid #d0d0d0;border-radius:6px;" alt="Source screenshot">
+            <p style="margin-top:6px;color:#888;font-size:0.85em;">Clone screenshot not available — add cloneThumbPath to PageReport for before/after comparison.</p>
           </div>
         </div>
-        <p style="margin-top:12px;color:#666;font-size:0.9em;">
-          Oracle diff (px): ${homePage.oraclePx != null ? homePage.oraclePx : "not measured"}
-        </p>`;
+        ${oracleLine}`;
     }
   }
 
@@ -179,18 +276,40 @@ export function generateHtmlReport(report: BuildReport, outPath: string): void {
       ? `<span style="color:#22863a;font-weight:600;">ok</span>`
       : `<span style="color:#cb2431;font-weight:600;">failed</span>`;
 
+    // Capture cell: annotate cached entries honestly
+    let captureCell = "";
+    if (p.status === "ok") {
+      if (p.timing.captureCached) {
+        const cc = coldCaptureMs(p.timing);
+        const est = cc.estimated ? " (estimated)" : "";
+        captureCell = `<td style="white-space:nowrap;color:#888" title="Served from cache. Fresh capture cost: ${formatMs(cc.ms)}${est}">cached (fresh≈${formatMs(cc.ms)}${est})</td>`;
+      } else {
+        captureCell = `<td style="white-space:nowrap">${formatMs(p.timing.captureMs)}</td>`;
+      }
+    } else {
+      captureCell = `<td style="color:#999">—</td>`;
+    }
+
     const timing = p.status === "ok" ? `
-      <td style="white-space:nowrap">${formatMs(p.timing.captureMs)}</td>
+      ${captureCell}
       <td style="white-space:nowrap">${formatMs(p.timing.labelMs)}</td>
       <td style="white-space:nowrap">${formatMs(p.timing.projectMs)}</td>
       <td style="white-space:nowrap">${formatMs(p.timing.buildMs)}</td>
-    ` : `<td colspan="4" style="color:#999">—</td>`;
+    ` : `${captureCell}<td colspan="3" style="color:#999">—</td>`;
 
-    const llm = p.llm ? `
-      <td>${formatTokens(p.llm.promptTokens)}</td>
-      <td>${formatTokens(p.llm.completionTokens)}</td>
-      <td>${formatCost(p.llm.costUsd)}</td>
-    ` : `<td colspan="3" style="color:#999">heuristic</td>`;
+    // LLM cell: honest messaging per label source
+    let llm = "";
+    if (p.llm) {
+      llm = `
+        <td>${formatTokens(p.llm.promptTokens)}</td>
+        <td>${formatTokens(p.llm.completionTokens)}</td>
+        <td>${formatCost(p.llm.costUsd)}</td>
+      `;
+    } else if (p.issues.labelSource === "llm-cached") {
+      llm = `<td colspan="3" style="color:#888" title="Labels reused from prior run — cost was paid on first build, not this run">cached (paid on first build)</td>`;
+    } else {
+      llm = `<td colspan="3" style="color:#999">heuristic</td>`;
+    }
 
     const oracle = p.oraclePx != null ? `${p.oraclePx}px` : "—";
 
@@ -267,6 +386,43 @@ export function generateHtmlReport(report: BuildReport, outPath: string): void {
     </tr>`;
   }).filter(Boolean).join("\n") || `<tr><td colspan="2" style="color:#22863a">No issues found.</td></tr>`;
 
+  // Cold-build summary callout
+  const captureEstNote = coldCaptureHasEstimate ? ` <em style="color:#888">(capture estimated at ${formatMs(EST_FRESH_CAPTURE_MS_PER_PAGE)}/page — no recorded fresh time)</em>` : "";
+  const coldSummaryHtml = captureIssuedAnyCached ? `
+    <div style="margin-top:16px;padding:14px 16px;background:#fff8e1;border:1px solid #ffe082;border-radius:6px;">
+      <p style="font-weight:600;margin-bottom:8px">Cold-build cost vs this run</p>
+      <p style="color:#555;margin-bottom:8px">
+        Capture (browser render + asset rehost) is the dominant cost — it ran in a prior session for some pages.
+        This-run wall time reflects only what was <em>not</em> cached.
+      </p>
+      <table style="width:auto;font-size:0.9em">
+        <tr>
+          <td style="padding:4px 16px 4px 0;font-weight:600">Cold-build total${captureEstNote}</td>
+          <td style="padding:4px 0"><strong>${formatMs(coldTotalMs)}</strong></td>
+        </tr>
+        <tr>
+          <td style="padding:4px 16px 4px 0;color:#555">↳ capture (dominant cost)</td>
+          <td style="padding:4px 0">${formatMs(coldCaptureTotal)}${coldCaptureHasEstimate ? " (est.)" : ""}</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 16px 4px 0;color:#555">↳ label + project + build</td>
+          <td style="padding:4px 0">${formatMs(coldLabelTotal + coldProjectTotal + coldBuildTotal)}</td>
+        </tr>
+        <tr style="border-top:1px solid #ffe082">
+          <td style="padding:8px 16px 4px 0;font-weight:600">This-run wall time</td>
+          <td style="padding:8px 0"><strong>${formatMs(report.totalWallMs)}</strong> (cache hits skipped capture)</td>
+        </tr>
+      </table>
+    </div>` : "";
+
+  // LLM cached cost callout in summary
+  const cachedLlmPages = okPages.filter((p) => p.issues.labelSource === "llm-cached");
+  const cachedLlmCallout = cachedLlmPages.length > 0 ? `
+    <p style="margin-top:8px;color:#555">
+      LLM labels: <strong>${cachedLlmPages.length} page(s) reused cached labels.json</strong> — no LLM cost this run.
+      Those pages paid their label cost on the first build; the labels are stable until the page is recaptured.
+    </p>` : "";
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -315,12 +471,16 @@ export function generateHtmlReport(report: BuildReport, outPath: string): void {
       <div class="stat-value fail">${failedPages.length}</div>
     </div>
     <div class="stat">
-      <div class="stat-label">Total wall time</div>
+      <div class="stat-label">This-run wall</div>
       <div class="stat-value">${formatMs(report.totalWallMs)}</div>
     </div>
+    ${captureIssuedAnyCached ? `<div class="stat">
+      <div class="stat-label">Cold-build total</div>
+      <div class="stat-value" style="font-size:1rem;color:#e36209">${formatMs(coldTotalMs)}${coldCaptureHasEstimate ? " (est.)" : ""}</div>
+    </div>` : ""}
     <div class="stat">
-      <div class="stat-label">Total LLM cost</div>
-      <div class="stat-value">${totalCostUsd > 0 ? formatCost(totalCostUsd) : "$0"}</div>
+      <div class="stat-label">LLM cost this run</div>
+      <div class="stat-value">${totalLlmCostUsd > 0 ? formatCost(totalLlmCostUsd) : "$0"}</div>
     </div>
     <div class="stat">
       <div class="stat-label">Model(s)</div>
@@ -331,9 +491,11 @@ export function generateHtmlReport(report: BuildReport, outPath: string): void {
 
 <h2>1. Summary</h2>
 <div class="card">
-  <p><strong>${okPages.length} of ${report.pages.length}</strong> pages built successfully in <strong>${formatMs(report.totalWallMs)}</strong>.</p>
-  <p style="margin-top:8px">Total LLM cost: <strong>${totalCostUsd > 0 ? formatCost(totalCostUsd) : "$0.00"}</strong> using <strong>${escHtml(modelsStr)}</strong>.</p>
+  <p><strong>${okPages.length} of ${report.pages.length}</strong> pages built successfully. This-run wall time: <strong>${formatMs(report.totalWallMs)}</strong>.</p>
+  <p style="margin-top:8px">LLM cost this run: <strong>${totalLlmCostUsd > 0 ? formatCost(totalLlmCostUsd) : "$0.00"}</strong> using <strong>${escHtml(modelsStr)}</strong>.</p>
+  ${cachedLlmCallout}
   ${failedPages.length > 0 ? `<p style="margin-top:8px;color:#cb2431"><strong>${failedPages.length} failed:</strong> ${failedPages.map((p) => escHtml(p.route)).join(", ")}</p>` : ""}
+  ${coldSummaryHtml}
 </div>
 
 <h2>2. Pages</h2>
@@ -380,7 +542,7 @@ export function generateHtmlReport(report: BuildReport, outPath: string): void {
         <td>${report.pages.filter((p) => p.llm).length}</td>
         <td>${formatTokens(report.pages.reduce((s, p) => s + (p.llm?.promptTokens ?? 0), 0))}</td>
         <td>${formatTokens(report.pages.reduce((s, p) => s + (p.llm?.completionTokens ?? 0), 0))}</td>
-        <td>${formatCost(totalCostUsd)}</td>
+        <td>${formatCost(totalLlmCostUsd)}</td>
       </tr>` : ""}
     </tbody>
   </table>
@@ -426,4 +588,15 @@ export function generateHtmlReport(report: BuildReport, outPath: string): void {
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(outPath, html, "utf8");
   console.log(`[report] wrote ${outPath}`);
+
+  // Write structured JSON alongside the HTML — same basename, .json extension.
+  // Admin dashboard consumer: build-report.json is the data contract for the
+  // admin UI. It contains structured per-page timing, cost, fidelity, and asset
+  // data. Do not change the shape without coordinating with the admin team.
+  const jsonPath = outPath.replace(/\.html$/, ".json");
+  fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2), "utf8");
+  console.log(`[report] wrote ${jsonPath}`);
 }
+
+// Re-export computeCostUsd so callers don't duplicate the rate constants.
+export { computeCostUsd };

@@ -77,8 +77,9 @@ export interface BuildSiteOpts {
   /** Working directory for the build. Defaults to process.cwd(). */
   cwd?: string;
   /**
-   * If set, write a build-report.html to this path when the build completes.
-   * The report includes per-page timings, LLM cost, issues, and fidelity data.
+   * If set, write a build-report.html (and build-report.json) to this path when
+   * the build completes. The report includes per-page timings, LLM cost, issues,
+   * and fidelity data.
    */
   reportOut?: string;
   /**
@@ -88,6 +89,11 @@ export interface BuildSiteOpts {
    * Set to false to force the deterministic heuristic-only path (no LLM cost incurred).
    */
   llm?: boolean;
+  /**
+   * ISO timestamp for the report's generatedAt field. If omitted, new Date().toISOString()
+   * is used. Useful for reproducible report output in tests or CI.
+   */
+  builtAt?: string;
 }
 
 export interface BuildSiteResult {
@@ -139,15 +145,18 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       const captureDir = path.join(cwd, p.dir);
       const captureJsonPath = path.join(captureDir, "capture.json");
       const captureCached = fs.existsSync(captureJsonPath);
+      let freshCaptureMs: number | undefined;
 
       if (!captureCached) {
         console.log(`\n=== CAPTURE ${p.route} ===`);
         const t = Date.now();
         await capture({ url: p.url, out: captureDir, verify: false });
         captureMs = Date.now() - t;
+        freshCaptureMs = captureMs; // record for future warm-run reports
       } else {
         console.log(`\n=== capture cached ${p.route} ===`);
         // Cached: attribute 0ms to capture timing (it ran in a previous session).
+        // freshCaptureMs is left undefined — report will use EST_FRESH_CAPTURE_MS_PER_PAGE.
         captureMs = 0;
       }
 
@@ -270,13 +279,31 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
           ? path.relative(path.dirname(opts.reportOut!), thumbAbs)
           : undefined;
 
+        // Asset count: number of rehosted assets recorded in capture.json.
+        let assetCount: number | undefined;
+        try {
+          const cap = JSON.parse(fs.readFileSync(captureJsonPath, "utf8")) as { assets?: unknown[] };
+          if (Array.isArray(cap.assets)) assetCount = cap.assets.length;
+        } catch { /* ignore */ }
+
+        // Page weight: size of the built index.html in KB (dominant output file).
+        let pageWeightKb: number | undefined;
+        try {
+          const builtIndex = path.join(cwd, p.out, "astro/dist/index.html");
+          if (fs.existsSync(builtIndex)) {
+            pageWeightKb = Math.round(fs.statSync(builtIndex).size / 1024);
+          }
+        } catch { /* ignore */ }
+
         pageReports.push({
           route: p.route,
           status: "ok",
-          timing: { route: p.route, captureMs, labelMs, projectMs, buildMs },
+          timing: { route: p.route, captureMs, labelMs, projectMs, buildMs, captureCached, freshCaptureMs },
           llm: pageLlmUsage,
           issues,
           thumbPath,
+          assetCount,
+          pageWeightKb,
         });
       }
     } catch (e) {
@@ -289,7 +316,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
           route: p.route,
           status: "failed",
           error: msg,
-          timing: { route: p.route, captureMs, labelMs, projectMs, buildMs },
+          timing: { route: p.route, captureMs, labelMs, projectMs, buildMs, captureCached: false },
           issues: { assetsFailed: 0, leftoverSourceRefs: 0, labelSource: "heuristic-disabled", unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
         });
       }
@@ -349,7 +376,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
     const report: BuildReport = {
       site: siteName,
       origin,
-      generatedAt: new Date().toISOString(),
+      generatedAt: opts.builtAt ?? new Date().toISOString(),
       totalWallMs,
       pages: pageReports,
     };

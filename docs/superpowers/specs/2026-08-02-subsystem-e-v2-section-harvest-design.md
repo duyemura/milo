@@ -18,6 +18,18 @@ E-v2 **grows the library by harvesting sections from real gym websites** and can
 
 **One-line framing:** harvest sections → tokenize → keep only the ones the tokenizer can make brand-agnostic → dedup by structural fingerprint → each surviving archetype becomes an E-v1-compatible template.
 
+### Core principle: structure is industry-agnostic
+
+**We harvest the conversion-section *skeleton*, not the *industry*.** The structural archetypes of conversion websites — hero, pricing table, feature grid, testimonials, FAQ, CTA band, team/coach grid, schedule/booking grid — are the **same across industries**: gym, SaaS, dentist, restaurant, D2C. A pricing table is a pricing table whether it sells memberships or software seats; a team grid is a team grid whether the faces are coaches or dentists. Because harvesting **tokenizes away colors/fonts and keeps only the brand-stripped slot skeleton**, the *source industry is irrelevant by construction* — nothing gym-specific survives into the template. **Domain-specificity enters only at GENERATION time** (filling copy + brand slots for a particular gym), never at harvest time.
+
+This principle has three consequences, all favorable:
+
+1. **It resolves the ToS/competitor concern.** We can scan any well-built conversion site, because we keep brand-stripped *structure* (a generic layout skeleton), not copy or assets — there is no reproduction of any source site to worry about (see the Legal/ToS row in [Risks](#risks)).
+2. **It improves the library.** A broader, higher-quality, more varied source pool yields better archetypes than 30 gym sites alone would. In practice E-v2 draws that pool from **local B2C service businesses** (dentists, barbershops, cafés, auto shops, …) — the closest structural analog to a gym site (local, conversion-driven, book/call/visit), so the archetypes map ~1:1 with a much deeper example pool and no competitor optics (see the [corpus](#the-30-site-calibration-scan-local-b2c-service-businesses)).
+3. **It keeps the library small and universal.** This ties to the standing thesis: the web **converges on a few dozen conversion patterns.** Harvesting across industries converges *faster* on that shared set — the target library is **~30-50 archetypes total**, universal across verticals, gym-specialized only at fill-time.
+
+The domain-shaped roles gyms need are not special-cased — they generalize: a **class-schedule** is any calendar/booking grid, a **coach-grid** is any team page, **membership-tiers** are any pricing table. Harvesting those roles from strong non-gym sources is not a compromise; it is a *stronger* sample of the same structure.
+
 ### What E-v2 is NOT
 
 - **Not free-form / LLM-drawn HTML.** The doctrine's wariness of generation is respected exactly as in E-v1: the model never emits markup or CSS. Harvesting produces *hand-verified, tokenized templates*; the LLM's only runtime job stays "fill the copy slots."
@@ -49,7 +61,7 @@ E-v2 does not invent a new "is this section adaptive?" model. It **reuses the ex
 
 1. **Tokenize.** Run the section's captured styles through the same tokenizer the clone engine already uses: literal colors → `var(--color-<slot>)` / `var(--color-<slot>-<NN>)`, literal fonts → `var(--font-<slot>)`, and (where the section uses them) spacing/radius mapped to `--space-*` / `--radius-*`. This is byte-preserving for the source site (the tokenizer's existing invariant) — the same literal resolves to the same bytes.
 
-2. **Measure the residual.** After tokenization, compute the **residual bespoke styling** = the styling that did NOT reduce to a brand token: raw color/gradient literals that don't map to any slot, background images / clip-paths / masks / bespoke box-shadows, non-token magic-number geometry, one-off pseudo-element art, filters, blend modes. (Definition of the residual metric is in [Calibration](#the-30-site-calibration-scan) — it is set empirically, not by a guessed constant.)
+2. **Measure the residual.** After tokenization, compute the **residual bespoke styling** = the styling that did NOT reduce to a brand token: raw color/gradient literals that don't map to any slot, background images / clip-paths / masks / bespoke box-shadows, non-token magic-number geometry, one-off pseudo-element art, filters, blend modes. (Definition of the residual metric is in [Calibration](#the-30-site-calibration-scan-local-b2c-service-businesses) — it is set empirically, not by a guessed constant.)
 
 3. **Classify.**
    - **Adaptive (keep)** — residual is below the calibrated threshold. The tokenizer absorbed most of the identity; the section is a candidate archetype.
@@ -185,63 +197,91 @@ The library must grow *carefully* — a bad archetype pollutes every future gene
 
 ---
 
-## The 30-site calibration scan
+## The ~30-site calibration scan (local B2C service businesses)
 
-This list is the **calibration corpus** — the input that sets the residual threshold, the popularity floor, and validates that the fingerprint collapses near-duplicates. It is a cross-section by **modality** (BJJ, yoga, CrossFit, Pilates, roughly balanced) and **geography** (large-city and small-city mix). Entries marked **(verify)** are plausible real gyms I could not confirm exist/have a live site from memory alone — a plan step must confirm each URL resolves and is a real boutique-gym site before scanning; substitute a same-modality/same-city-tier gym if any 404s or has been rebuilt onto a generic template that would skew the corpus.
+This list is the **calibration corpus** — the input that sets the residual threshold, the popularity floor, and validates that the fingerprint collapses near-duplicates. Per the [structure-is-industry-agnostic principle](#core-principle-structure-is-industry-agnostic), the corpus is **~30 well-built local B2C SERVICE-business websites** — the **closest structural analog to gym sites**. A neighborhood dentist, barbershop, or auto shop is the same *species* as a gym: a local, conversion-driven B2C service whose site runs the identical pattern set — hero + CTA (book / call / visit), services grid, about, testimonials, hours/location, gallery, pricing, contact/booking. Their section archetypes map **~1:1** onto what gym sites need, with **no competitor optics** and a **much deeper pool** of examples than gyms alone.
 
-> **Note on selection bias:** the corpus should skew toward *independent / custom-built* boutique sites, not gyms on a single cookie-cutter website product — a cluster of identical vendor-template sites would falsely inflate one fingerprint's popularity. Where a listed gym has since moved to an obvious platform template, swap it for an independent peer. All URLs to be confirmed at plan time.
+The corpus draws a balanced cross-section of local-service verticals (~3-5 sites each) and keeps a **handful of real gyms** in the mix so the domain-shaped roles (`schedule`/booking, `coach-grid`/staff grid, `pricing`/membership tiers) are sampled from genuine gym sites too. Load-bearing requirements are **build quality** (independently designed, conversion-driven sites — not page-builder clones), **vertical + geography balance** (large-city / small-city mix), and **archetype coverage** (every intended `SECTION_ROLE` appears in ≥2 sources) — **not** the specific names.
 
-### BJJ / martial arts (8)
+Entries marked **(verify)** are plausible real businesses I could not confirm live from memory alone — a plan step must confirm each URL resolves and is an independently-built service-business site before scanning; substitute a same-vertical/same-tier peer if any 404s or has been rebuilt onto an obvious page-builder template that would skew the corpus.
 
-| # | Gym | City (tier) | URL (verify all) |
+> **Note on selection bias:** the corpus should skew toward *independent / custom-built* sites, not sites on a single cookie-cutter website product — a cluster of identical vendor-template sites would falsely inflate one fingerprint's popularity. Popularity counts distinct sites, and the human-gate reviews suspicious clusters. All URLs to be confirmed at plan time.
+
+### Gyms / boutique fitness (5) — retained for domain-role coverage
+
+| # | Source | Vertical · City (tier) | URL (verify all) |
 |---|---|---|---|
-| 1 | Marcelo Garcia Jiu-Jitsu | New York, NY (large) | marcelogarciajj.com *(verify)* |
-| 2 | Alliance Jiu-Jitsu Atlanta | Atlanta, GA (large) | alliancebjjatlanta.com *(verify)* |
-| 3 | Gracie Barra HQ | Irvine, CA (large) | graciebarra.com *(verify)* |
-| 4 | Ronin Athletics | New York, NY (large) | roninathletics.com *(verify)* |
-| 5 | Easton Training Center | Boulder, CO (small) | eastonbjj.com *(verify)* |
-| 6 | Gracie Humaita | Austin, TX (large) | graciehumaitaaustin.com *(verify)* |
-| 7 | Third Coast Jiu-Jitsu | Wilmington, NC (small) | thirdcoastjiujitsu.com *(verify)* |
-| 8 | Apex Jiu-Jitsu | Bend, OR (small) | apexjiujitsu.com *(verify)* |
+| 1 | Marcelo Garcia Jiu-Jitsu | BJJ gym · New York, NY (large) | marcelogarciajj.com *(verify)* |
+| 2 | CrossFit Roots | CrossFit · Boulder, CO (small) | crossfitroots.com *(verify)* |
+| 3 | Sol Yoga | Yoga studio · Missoula, MT (small) | solyogamt.com *(verify)* |
+| 4 | Club Pilates | Pilates studio · Irvine, CA (large) | clubpilates.com *(verify)* |
+| 5 | CrossFit South Brooklyn | CrossFit · Brooklyn, NY (large) | crossfitsouthbrooklyn.com *(verify)* |
 
-### Yoga (7)
+### Coffee shops / cafés (3)
 
-| # | Gym | City (tier) | URL (verify all) |
+| # | Source | City (tier) | URL (verify all) |
 |---|---|---|---|
-| 9 | Yoga to the People | New York, NY (large) | yogatothepeople.com *(verify)* |
-| 10 | CorePower Yoga | Denver, CO (large) | corepoweryoga.com *(verify)* |
-| 11 | Wanderlust Hollywood | Los Angeles, CA (large) | wanderlust.com *(verify)* |
-| 12 | Kula Yoga Project | New York, NY (large) | kulayoga.com *(verify)* |
-| 13 | The Yoga Room | Asheville, NC (small) | yogaroomasheville.com *(verify)* |
-| 14 | Bend & Bloom Yoga | Brooklyn, NY (large) | bendandbloom.net *(verify)* |
-| 15 | Sol Yoga | Missoula, MT (small) | solyogamt.com *(verify)* |
+| 6 | Verve Coffee Roasters | Santa Cruz, CA (small) | vervecoffee.com *(verify)* |
+| 7 | Ruby Coffee Roasters | Nelsonville, WI (small) | rubycoffeeroasters.com *(verify)* |
+| 8 | Gaslight Coffee Roasters | Chicago, IL (large) | gaslightcoffeeroasters.com *(verify)* |
 
-### CrossFit (8)
+### Salons & barbershops (4)
 
-| # | Gym | City (tier) | URL (verify all) |
+| # | Source | City (tier) | URL (verify all) |
 |---|---|---|---|
-| 16 | CrossFit Mayhem | Cookeville, TN (small) | crossfitmayhem.com *(verify)* |
-| 17 | NorCal CrossFit | San Jose, CA (large) | norcalcrossfit.com *(verify)* |
-| 18 | CrossFit Invictus | San Diego, CA (large) | crossfitinvictus.com *(verify)* |
-| 19 | CrossFit South Brooklyn | Brooklyn, NY (large) | crossfitsouthbrooklyn.com *(verify)* |
-| 20 | Fringe CrossFit | Nashville, TN (large) | fringecrossfit.com *(verify)* |
-| 21 | CrossFit Roots | Boulder, CO (small) | crossfitroots.com *(verify)* |
-| 22 | Deka CrossFit | Bozeman, MT (small) | dekacrossfit.com *(verify)* |
-| 23 | CrossFit Ann Arbor | Ann Arbor, MI (small) | crossfitannarbor.com *(verify)* |
+| 9 | Fellow Barber | New York, NY (large) | fellowbarber.com *(verify)* |
+| 10 | Blind Barber | Los Angeles, CA (large) | blindbarber.com *(verify)* |
+| 11 | Rudy's Barbershop | Seattle, WA (large) | rudysbarbershop.com *(verify)* |
+| 12 | The Gents Place | Frisco, TX (small) | thegentsplace.com *(verify)* |
 
-### Pilates (7)
+### Dentists / med spas (5)
 
-| # | Gym | City (tier) | URL (verify all) |
+| # | Source | Vertical · City (tier) | URL (verify all) |
 |---|---|---|---|
-| 24 | Club Pilates | Irvine, CA (large) | clubpilates.com *(verify)* |
-| 25 | The Pilates Class | Los Angeles, CA (large) | thepilatesclass.com *(verify)* |
-| 26 | SLT (Strengthen Lengthen Tone) | New York, NY (large) | sltnyc.com *(verify)* |
-| 27 | Frame Pilates | Chicago, IL (large) | framechicago.com *(verify)* |
-| 28 | Pilates on Fifth | New York, NY (large) | pilatesonfifth.com *(verify)* |
-| 29 | Balanced Body Pilates | Sacramento, CA (small) | pilates.com *(verify)* |
-| 30 | Studio Ānanda Pilates | Burlington, VT (small) | studioanandapilates.com *(verify)* |
+| 13 | Tend | Dental · New York, NY (large) | hellotend.com *(verify)* |
+| 14 | Dandy Dental (practice site) | Dental · Denver, CO (large) | *(verify — pick an independent local practice)* |
+| 15 | Heyday | Facials / med spa · New York, NY (large) | heydayskincare.com *(verify)* |
+| 16 | Ever/Body | Med spa · New York, NY (large) | everbody.com *(verify)* |
+| 17 | Skin Laundry | Med spa · Los Angeles, CA (large) | skinlaundry.com *(verify)* |
 
-**Balance summary:** BJJ 8 · Yoga 7 · CrossFit 8 · Pilates 7 (= 30). Geography: ~19 large-city, ~11 small-city — a deliberate lean toward large-city (more custom/independent design, richer section variety) while keeping a real small-city cohort to expose simpler, more template-y layouts. All 30 URLs are **candidates to verify at plan time**; the calibration only requires ~30 *real, independent, boutique-gym* sites in these four modalities across both city tiers — specific names are substitutable so long as the modality/geography balance holds.
+### Plumbers / HVAC / electricians (4)
+
+| # | Source | Vertical · City (tier) | URL (verify all) |
+|---|---|---|---|
+| 18 | Roto-Rooter (local franchise page) | Plumbing · Columbus, OH (large) | rotorooter.com *(verify)* |
+| 19 | Mister Sparky | Electrician · Tulsa, OK (small) | mistersparky.com *(verify)* |
+| 20 | Bell Brothers | HVAC/plumbing · Sacramento, CA (large) | bellbrothers.com *(verify)* |
+| 21 | Fox Family Heating & Air | HVAC · Rancho Cordova, CA (small) | foxfamilyhvac.com *(verify)* |
+
+### Restaurants (3)
+
+| # | Source | City (tier) | URL (verify all) |
+|---|---|---|---|
+| 22 | Sweetgreen | Los Angeles, CA (large) | sweetgreen.com *(verify)* |
+| 23 | Zahav | Philadelphia, PA (large) | zahavrestaurant.com *(verify)* |
+| 24 | The Bird & The Bear | Bentonville, AR (small) | *(verify — pick an independent local restaurant)* |
+
+### Auto repair / detailing (3)
+
+| # | Source | City (tier) | URL (verify all) |
+|---|---|---|---|
+| 25 | Christian Brothers Automotive | Houston, TX (large) | cbac.com *(verify)* |
+| 26 | Luscious Garage | San Francisco, CA (large) | lusciousgarage.com *(verify)* |
+| 27 | Wrench (mobile mechanic) | Kalispell, MT (small) | *(verify — pick an independent local shop)* |
+
+### Pet grooming / boarding & landscaping (3)
+
+| # | Source | Vertical · City (tier) | URL (verify all) |
+|---|---|---|---|
+| 28 | The Dog Stop | Pet grooming/boarding · Pittsburgh, PA (large) | thedogstop.com *(verify)* |
+| 29 | Splash and Dash | Pet grooming · Bozeman, MT (small) | *(verify — pick an independent local groomer)* |
+| 30 | FormLA Landscaping | Landscaping · Los Angeles, CA (large) | formla.net *(verify)* |
+
+**Balance summary:** Gyms 5 · Coffee 3 · Salons/barbers 4 · Dental/med-spa 5 · Plumbing/HVAC/electric 4 · Restaurants 3 · Auto 3 · Pet/landscaping 3 (= 30), spanning ~8 verticals with a large-city / small-city mix throughout. Every domain-shaped role gyms need is corroborated across verticals: **booking/schedule** appears in salons, dentists, med spas, and the gym cohort; **staff/team grid** in barbershops, dental practices, and coach grids; **service/pricing tiers** in HVAC, med spas, and membership tables. Specific names are substitutable so long as the **archetype-coverage** (each intended `SECTION_ROLE` in ≥2 sources), **vertical/geography balance**, and **quality/independence** requirements hold. All 30 URLs are **candidates to verify at plan time** — several rows deliberately say "pick an independent local X" where a specific real site was not confirmable from memory.
+
+### Sourcing note — packaged component libraries as a bootstrap, not the primary
+
+Existing landing-page / component libraries (open marketing-site kits, component galleries) are effectively **already-canonicalized conversion sections** and could *bootstrap* the archetype set quickly. But **live-harvest of brand-stripped structure stays PRIMARY**: packaged kits carry licenses, whereas brand-stripped structure derived from live sites does not reproduce any licensed artifact. Treat packaged kits as an optional seed/cross-check for the clustering, never as the shipped source of templates.
 
 ---
 
@@ -278,15 +318,15 @@ E-v2 is overwhelmingly a **new consumer** of existing machinery, not new engine 
 | **Fingerprint too coarse** → distinct content models collapse into one template (owner fills in the wrong things). | High | The new-template rule is content-model-first ("does it change what the owner provides?"). The slot tree is part of the fingerprint precisely so a different fill-in contract (button vs form) forks a new template. Validate on the corpus that the known-distinct cases (form-hero vs button-hero) do NOT collapse. |
 | **Fingerprint too fine** → variation explosion, the exact failure mode E-v2 exists to prevent. | High | Cardinality collapsed to 1..N; media-type/align/density/color/font/geometry all excluded as knobs. Success metric: 30 sites → tens of archetypes, not hundreds. If it explodes, the fingerprint is over-specified and must drop more dimensions into knobs. |
 | **Swap-brand oracle false-positive** — a section renders "coherent" under 2 brands but breaks on a 3rd. | Medium | Swap against ≥2 *deliberately diverse* brands (light/dark, serif/sans); add more swap targets if the corpus reveals brittle archetypes. The oracle can only prove what it tests — treat admitted archetypes as provisional until they survive real generation use. |
-| **Corpus selection bias** — a cluster of same-vendor-template sites inflates one fingerprint. | Medium | Skew corpus to independent/custom sites; swap out any gym that has moved to an obvious platform template; popularity counts distinct sites, and the human-gate reviews suspicious clusters. |
-| **Legal / ToS** of scanning + templatizing competitor sites. | Medium | We harvest **structure** (canonicalized, brand-stripped archetypes), not copy or assets — the output is a generic layout skeleton the owner fills with their own content, not a reproduction of any source site. Flag for a product/legal check before scanning at scale; the calibration scan is small and analysis-only. |
+| **Corpus selection bias** — a cluster of same-vendor-template sites inflates one fingerprint. | Medium | Skew corpus to independent/custom sites across verticals; swap out any source that has moved to an obvious page-builder template; popularity counts distinct sites, and the human-gate reviews suspicious clusters. Sourcing across ~8 local-service verticals *reduces* this risk (harder to accidentally over-sample one vendor's template across many verticals than within one). |
+| **Legal / ToS** of scanning source sites. | Low | Resolved by the [structure-is-industry-agnostic principle](#core-principle-structure-is-industry-agnostic): we harvest brand-stripped **structure** (a generic layout skeleton), never copy or assets, so there is no reproduction of any source site. Owner is comfortable scanning any well-built conversion site. One residual note: keep the guarantee that no source copy/asset is ever carried into a template. |
 | **Harvest complexity vs payoff** — the pipeline is more machinery than hand-authoring N templates. | Low-Med | The pipeline is offline authoring tooling, gated by humans early; if it under-delivers, hand-authoring (E-v1) remains the fallback and nothing shipped depends on harvest at runtime. |
 
 ---
 
 ## Self-review
 
-- **Placeholder scan:** every gym name + URL in the 30-site corpus is marked **(verify)** — they are plausible real boutique gyms researched from memory, but I did not fetch them, so each must be confirmed live + independent at plan time, with same-modality/same-tier substitution allowed. The spec explicitly makes the *balance* (modality × geography) load-bearing, not the specific names. No other placeholders remain — the residual metric, threshold, and popularity floor are all deliberately deferred to empirical calibration (that deferral is the design, not a gap).
-- **Internal consistency:** the tokenizer-as-classifier, the swap-brand oracle, and the fingerprint all reduce to *existing* engine invariants (byte-preserving tokenization, the scoped-diff oracle, `SECTION_ROLES`). The output shape is E-v1's `SectionTemplate` verbatim, so the harvest end-state plugs into the proven `generate.ts` insertion + verify path with no new runtime primitive. The knob model and the fingerprint-excludes list are the same list viewed twice (everything the fingerprint excludes is a knob), which is intentional and consistent.
-- **Scope:** themed sets and free-form generation are excluded in three places (Purpose, the classifier's reject branch, Out of Scope) — matching the owner's explicit exclusion. Per-site edit scope is untouched; harvesting is read-only across sites and never a fleet mutation. This is a **design spec only** — no engine code; a `brainstorm→plan→execute` cycle follows, and the spec is written to be buildable from (every new surface is named in [Reuse](#what-this-reuses-unchanged)).
+- **Placeholder scan:** every name + URL in the 30-site corpus is marked **(verify)**, and a few rows deliberately say "pick an independent local X" — they are plausible real local-service businesses researched from memory, not fetched, so each must be confirmed live + independently-built at plan time, with same-vertical/same-tier substitution allowed. The spec explicitly makes the *balance* (vertical × geography) and *archetype coverage* (each role in ≥2 sources) load-bearing, not the specific names. No other placeholders remain — the residual metric, threshold, and popularity floor are all deliberately deferred to empirical calibration (that deferral is the design, not a gap).
+- **Internal consistency:** the tokenizer-as-classifier, the swap-brand oracle, and the fingerprint all reduce to *existing* engine invariants (byte-preserving tokenization, the scoped-diff oracle, `SECTION_ROLES`). The structure-is-industry-agnostic principle is the load-bearing justification for the cross-vertical corpus: because harvesting keeps only the brand-stripped skeleton, the source vertical is provably irrelevant, so local-service-business sources yield gym-usable archetypes. The output shape is E-v1's `SectionTemplate` verbatim, so the harvest end-state plugs into the proven `generate.ts` insertion + verify path with no new runtime primitive. The knob model and the fingerprint-excludes list are the same list viewed twice (everything the fingerprint excludes is a knob), which is intentional and consistent.
+- **Scope:** themed sets and free-form generation are excluded in three places (Purpose, the classifier's reject branch, Out of Scope) — matching the owner's explicit exclusion. The corpus is B2C local-service businesses (the closest structural analog to gyms), not gyms only and not the earlier SaaS/D2C mix — domain-specificity is deferred to generation time per the principle. Per-site edit scope is untouched; harvesting is read-only across sites and never a fleet mutation. This is a **design spec only** — no engine code; a `brainstorm→plan→execute` cycle follows, and the spec is written to be buildable from (every new surface is named in [Reuse](#what-this-reuses-unchanged)).
 - **The one thing to prove** is falsifiable and measured on the calibration corpus (adaptivity survives brand-swap; fingerprint collapses near-duplicates) — if either fails, the approach is disproven and the library stays hand-authored, which is a safe fallback.
