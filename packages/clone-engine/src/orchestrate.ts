@@ -143,7 +143,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
   const pageReports: PageReport[] = [];
   const collectReport = Boolean(opts.reportOut);
 
-  for (const p of augmented) {
+  for (const [pageIdx, p] of augmented.entries()) {
     const t0 = Date.now();
     let captureMs = 0;
     let labelMs = 0;
@@ -158,7 +158,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       let freshCaptureMs: number | undefined;
 
       if (!captureCached) {
-        console.log(`\n=== CAPTURE ${p.route} ===`);
+        console.log(`\n=== Page ${pageIdx + 1}/${augmented.length}: CAPTURE ${p.route} ===`);
         const t = Date.now();
         await capture({ url: p.url, out: captureDir, verify: false });
         captureMs = Date.now() - t;
@@ -231,7 +231,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
 
       const base = p.route === "/" ? "" : p.route.replace(/\/$/, "");
       emit({ type: "page.project.started", route: p.route });
-      console.log(`=== PROJECT ${p.route} (base='${base}') ===`);
+      console.log(`=== Page ${pageIdx + 1}/${augmented.length}: PROJECT ${p.route} (base='${base}') ===`);
       const tProject = Date.now();
       await project({
         dir: captureDir,
