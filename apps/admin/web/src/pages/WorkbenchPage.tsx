@@ -21,7 +21,7 @@ function WorkbenchInner(props: { id: string; detail: SiteDetail }) {
   return (
     <main className="workbench">
       {!done ? (
-        <CloneProgress state={state} sourceUrl={detail.site.sourceUrl ?? ""} />
+        <CloneProgress state={state} sourceUrl={detail.site.sourceUrl ?? ""} jobs={detail.jobs} />
       ) : (
         <PreviewPane id={id} state={state} jobs={detail.jobs} />
       )}
