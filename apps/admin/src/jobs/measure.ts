@@ -7,8 +7,10 @@ import {
   ga4EnsureSharedProperty,
   ga4EnsureStream,
   fetchPlaceMetrics,
+  fetchGa4Rollup,
   loadServiceAccount,
   injectGtag,
+  injectTracker,
   injectMeta,
   type FetchLike,
   type ServiceAccount,
@@ -157,6 +159,9 @@ export async function injectIntoDist(opts: {
           });
           if (r.changed) changed = true;
           html = r.html;
+          const t = injectTracker(html);
+          if (t.changed) changed = true;
+          html = t.html;
         }
         if (metaToken) {
           const r = injectMeta(html, "google-site-verification", metaToken);
@@ -289,6 +294,30 @@ export async function runMeasureJob(opts: {
       });
       await log(`ga4: stream ${stream.streamName} → measurement id ${stream.measurementId} (shared property ${propertyName})`);
       digest.push(`GA4 wired in the shared sites property (${stream.measurementId})`);
+
+      // GA4 Data API rollup (last 28d) for this stream. Zero-touch: streamName is the per-site partition.
+      try {
+        const rollup = await fetchGa4Rollup({ sa, propertyName, streamName: stream.streamName, fetchFn: deps?.fetchFn });
+        if (rollup) {
+          await recordMetric(db, site, "ga4", "active_now", rollup.activeNow, {});
+          await recordMetric(db, site, "ga4", "visitors", rollup.visitors, {});
+          await recordMetric(db, site, "ga4", "pageviews", rollup.pageviews, {});
+          await recordMetric(db, site, "ga4", "engagement_rate", rollup.engagementRate, {});
+          await recordMetric(db, site, "ga4", "funnel", JSON.stringify(rollup.funnel), {});
+          await recordMetric(db, site, "ga4", "top_pages", JSON.stringify(rollup.topPages), {});
+          await recordMetric(db, site, "ga4", "top_sources", JSON.stringify(rollup.topSources), {});
+          await log(
+            `ga4 rollup: ${rollup.visitors} visitors, ${rollup.pageviews} pageviews, ${(rollup.engagementRate * 100).toFixed(1)}% engagement, funnel ${JSON.stringify(rollup.funnel)}`,
+          );
+          if (rollup.visitors > 0) {
+            digest.push(
+              `last 28d: ${rollup.visitors} visitors · ${rollup.pageviews} pageviews · ${(rollup.engagementRate * 100).toFixed(0)}% engagement`,
+            );
+          }
+        }
+      } catch (err) {
+        await log(`ga4 rollup failed: ${err instanceof Error ? err.message.split("\n")[0] : "unknown"}`);
+      }
     } catch (err) {
       await log(`ga4 failed: ${err instanceof Error ? err.message.split("\n")[0] : "unknown"}`);
     }

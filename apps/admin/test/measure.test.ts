@@ -106,6 +106,63 @@ describe("measure job", () => {
           json: async () => ({ rows: [{ keys: ["crossfit denver"], clicks: 4, impressions: 40, position: 9.2 }] }),
         };
       }
+      if (url.includes("analyticsdata.googleapis.com/v1beta") && url.includes(":runReport")) {
+        const body = init?.body ? JSON.parse(init.body) : {};
+        const dims = (body.dimensions ?? []).map((d: { name: string }) => d.name);
+        if (!body.dateRanges) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              dimensionHeaders: [{ name: "streamName" }],
+              metricHeaders: [{ name: "activeUsers" }],
+              rows: [{ dimensionValues: [{ value: "properties/548090288/dataStreams/1" }], metricValues: [{ value: "0" }] }],
+            }),
+          };
+        }
+        if (dims.includes("eventName")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              dimensionHeaders: [{ name: "streamName" }, { name: "eventName" }],
+              metricHeaders: [{ name: "eventCount" }],
+              rows: [],
+            }),
+          };
+        }
+        if (dims.includes("pagePath")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              dimensionHeaders: [{ name: "streamName" }, { name: "pagePath" }],
+              metricHeaders: [{ name: "screenPageViews" }],
+              rows: [],
+            }),
+          };
+        }
+        if (dims.includes("sessionSource")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              dimensionHeaders: [{ name: "streamName" }, { name: "sessionSource" }],
+              metricHeaders: [{ name: "totalUsers" }],
+              rows: [],
+            }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            dimensionHeaders: [{ name: "streamName" }],
+            metricHeaders: [{ name: "totalUsers" }, { name: "screenPageViews" }, { name: "engagementRate" }, { name: "eventCount" }],
+            rows: [{ dimensionValues: [{ value: "properties/548090288/dataStreams/1" }], metricValues: [{ value: "0" }, { value: "0" }, { value: "0" }, { value: "0" }] }],
+          }),
+        };
+      }
       return { ok: true, status: 200, json: async () => ({}) };
     };
 
