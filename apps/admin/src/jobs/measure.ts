@@ -174,8 +174,8 @@ export async function injectIntoDist(opts: {
   return { injected, files };
 }
 
-/** gym facts from last seed payload (name/city/state) — shared shape with keywordCycle. */
-async function gymFacts(db: AdminDb, site: SiteRow) {
+/** gym facts: the measure job payload wins, then the last seed payload (clone seeds lack them). */
+async function gymFacts(db: AdminDb, site: SiteRow, jobPayload: Record<string, string> = {}) {
   const lastSeed = await db
     .selectFrom("jobs")
     .selectAll()
@@ -184,7 +184,11 @@ async function gymFacts(db: AdminDb, site: SiteRow) {
     .orderBy("createdAt", "desc")
     .executeTakeFirst();
   const p = lastSeed ? (JSON.parse(lastSeed.payload) as Record<string, string>) : {};
-  return { name: p["name"], city: p["city"], state: p["state"] };
+  return {
+    name: jobPayload["name"] ?? p["name"],
+    city: jobPayload["city"] ?? p["city"],
+    state: jobPayload["state"] ?? p["state"],
+  };
 }
 
 export async function runMeasureJob(opts: {
@@ -196,7 +200,8 @@ export async function runMeasureJob(opts: {
 }): Promise<string> {
   const { db, config, job, site, deps } = opts;
   const log = (line: string) => appendLog(db, job.id, line);
-  const facts = await gymFacts(db, site);
+  const payload = JSON.parse(job.payload) as Record<string, string>;
+  const facts = await gymFacts(db, site, payload);
   const company = await db.selectFrom("companies").selectAll().where("id", "=", site.companyId).executeTakeFirstOrThrow();
   void company;
   const digest: string[] = [];
