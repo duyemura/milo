@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { generateAsset } from "../../src/assets/generate.ts";
+import { loadLibrary } from "../../src/assets/library.ts";
 import type { SiteRef } from "../../src/edit/types.ts";
 
 const PNG_1x1 = Buffer.from(
@@ -110,5 +111,20 @@ describe("generateAsset", () => {
     await generateAsset(site, { alias: "hero-image", brief: "a kettlebell", aspectRatio: "1:1" });
     const body = JSON.parse(String(calls[0].init!.body));
     expect(body.image_size).toBe("square_hd");
+  });
+
+  it("catalogs the generated image in the library as source:'generated'", async () => {
+    stubFetch({ imageUrl: "https://cdn.fal.ai/out/generated.png" });
+    const result = await generateAsset(site, { alias: "hero-image", brief: "a competition kettlebell" });
+    expect(result.ok).toBe(true);
+    const lib = loadLibrary(site.dir, "biz_unknown");
+    const ids = Object.keys(lib.assets);
+    expect(ids).toHaveLength(1);
+    const asset = lib.assets[ids[0]];
+    expect(asset.source).toBe("generated");
+    expect(asset.file).toMatch(/^library\/ast_.*\.png$/);
+    expect(asset.usages.some((u) => u.alias === "hero-image")).toBe(true);
+    expect(asset.tags.pending).toBe(true);   // no chat/model → tags stay pending
+    expect(asset.tags.embedding).toBeUndefined();
   });
 });

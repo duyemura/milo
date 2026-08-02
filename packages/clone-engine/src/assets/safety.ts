@@ -1,3 +1,15 @@
+/**
+ * Authenticity safety model.
+ *
+ * AI image generation NEVER produces people or gym interiors — not because the model can't, but
+ * because it MUST NOT for authenticity. A gym's real members know exactly what their gym floor
+ * looks like and who trains there; a fake face or a fabricated interior is instantly recognizable
+ * as fake and destroys trust with the very community the site is meant to serve. Equipment, food,
+ * and textures are safe to generate because they are generic — a stock barbell reads as a barbell,
+ * not as a lie about this specific gym. UNSAFE_PATTERNS enforces this at the brief level (refuse
+ * before generating); HARD_NEGATIVES enforces it at the prompt level (steer the model away). Real
+ * photos of real people/interiors enter the library ONLY as uploads (source:"upload").
+ */
 export type SafeImageCategory =
   | "equipment"       // gym equipment close-ups: barbells, kettlebells, pull-up bars, weights
   | "food"            // nutrition/recipe shots: meal prep, protein shakes, healthy food

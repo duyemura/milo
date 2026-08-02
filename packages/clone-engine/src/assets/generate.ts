@@ -3,8 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import type { SiteRef } from "../edit/types.ts";
-import { swapAsset } from "../edit/ops.ts";
 import { buildPrompt, classifyBrief, UnsafeBriefError, type SafeImageCategory } from "./safety.ts";
+import { ingestAsset } from "./ingest.ts";
+import { placeAsset } from "../edit/place.ts";
 
 const FAL_ENDPOINT = "https://fal.run/fal-ai/flux/dev";
 
@@ -80,9 +81,11 @@ export async function generateAsset(site: SiteRef, args: GenerateAssetArgs): Pro
     const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(60_000) });
     if (!imgRes.ok) return { ok: false, assetAlias: alias, failures: [`generateAsset: image download returned ${imgRes.status}`] };
     fs.writeFileSync(tmpFile, Buffer.from(await imgRes.arrayBuffer()));
-    await swapAsset(site, alias, tmpFile);
+    // Catalog the generated image in the library, then place via the library-aware op.
+    const { assetId } = await ingestAsset(site.dir, { file: tmpFile, source: "generated", brief, chat: args.chat, model: args.model });
+    await placeAsset(site, alias, assetId);
   } catch (err) {
-    return { ok: false, assetAlias: alias, failures: [`generateAsset: swap failed: ${(err as Error).message}`] };
+    return { ok: false, assetAlias: alias, failures: [`generateAsset: ingest/place failed: ${(err as Error).message}`] };
   } finally {
     fs.rmSync(tmpFile, { force: true });
   }
