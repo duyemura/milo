@@ -23,6 +23,7 @@ import { originSlug, pageDir, discoverPages } from "./discover.ts";
 import type { DiscoverOpts } from "./discover.ts";
 import type { BuildReport, PageReport, PageIssues, PageLlmUsage } from "./report.ts";
 import { generateHtmlReport } from "./report.ts";
+import type { EngineEventSink } from "./events.ts";
 
 // ---------------------------------------------------------------------------
 // Cost helpers
@@ -94,6 +95,12 @@ export interface BuildSiteOpts {
    * is used. Useful for reproducible report output in tests or CI.
    */
   builtAt?: string;
+  /**
+   * Optional progress sink. When provided, buildSite emits typed EngineEvents at
+   * each phase boundary (in addition to the existing console.log). No-op when omitted,
+   * so existing callers and the 0-px oracle are unaffected.
+   */
+  onEvent?: EngineEventSink;
 }
 
 export interface BuildSiteResult {
@@ -107,6 +114,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
   const { origin, pages } = opts;
   const cwd = opts.cwd ?? process.cwd();
   const wallStart = Date.now();
+  const emit: EngineEventSink = opts.onEvent ?? (() => {});
 
   // Augment pages with derived url + out fields (mirrors build-site.mjs PAGES.forEach).
   // out-dir is namespaced by origin slug (2-char prefix) so two different origins built
@@ -142,6 +150,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
     let buildMs = 0;
 
     try {
+      emit({ type: "page.capture.started", route: p.route });
       const captureDir = path.join(cwd, p.dir);
       const captureJsonPath = path.join(captureDir, "capture.json");
       const captureCached = fs.existsSync(captureJsonPath);
@@ -159,6 +168,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
         // freshCaptureMs is left undefined — report will use EST_FRESH_CAPTURE_MS_PER_PAGE.
         captureMs = 0;
       }
+      emit({ type: "page.capture.done", route: p.route });
 
       // Label pass: run before project() so it picks up labels.json.
       // When llm is on, call label({llm:true}) — it writes labels.json and uses the LLM
@@ -219,6 +229,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       }
 
       const base = p.route === "/" ? "" : p.route.replace(/\/$/, "");
+      emit({ type: "page.project.started", route: p.route });
       console.log(`=== PROJECT ${p.route} (base='${base}') ===`);
       const tProject = Date.now();
       await project({
@@ -229,6 +240,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
         noDiff: true,
       });
       projectMs = Date.now() - tProject;
+      emit({ type: "page.project.done", route: p.route });
 
       // astro build shells out — it is an external tool, not a TS function.
       // node_modules comes from the spike's out-project-page/astro tree (the canonical
@@ -239,12 +251,14 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
         import.meta.dirname,
         "../../../page-clone-spike/out-project-page/astro/node_modules",
       );
+      emit({ type: "page.build.started", route: p.route });
       const tBuild = Date.now();
       execSync(
         `ln -sf "${astroNodeModules}" node_modules && ./node_modules/.bin/astro build`,
         { cwd: astroDir, stdio: "inherit", shell: "/bin/bash" },
       );
       buildMs = Date.now() - tBuild;
+      emit({ type: "page.build.done", route: p.route });
 
       ok.push(p);
 
@@ -309,6 +323,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.log(`!!! FAILED ${p.route}: ${msg.split("\n")[0]}`);
+      emit({ type: "page.failed", route: p.route, error: msg.split("\n")[0] });
       failed.push(p);
 
       if (collectReport) {
@@ -358,6 +373,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
   console.log(
     `\n✓ assembled full-site/ with ${assembled.length}/${augmented.length} pages (${ok.length} built ok): ${assembled.map((p) => p.route).join("  ")}`,
   );
+  emit({ type: "assemble.done", pages: assembled.length, fullSiteDir: fullSite });
 
   if (opts.reportOut && pageReports.length > 0) {
     // Infer site name from the first successful page's labels.json if available.
@@ -381,6 +397,11 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       pages: pageReports,
     };
     generateHtmlReport(report, opts.reportOut);
+    emit({
+      type: "report.done",
+      reportHtmlPath: opts.reportOut,
+      reportJsonPath: opts.reportOut.replace(/\.html?$/i, ".json"),
+    });
   }
 
   return { ok, failed };
