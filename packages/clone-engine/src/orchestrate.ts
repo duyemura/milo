@@ -221,20 +221,27 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
   fs.rmSync(fullSite, { recursive: true, force: true });
   fs.mkdirSync(fullSite);
 
+  const assembled: AugmentedPage[] = [];
   for (const p of ok) {
+    const astroDist = path.join(cwd, p.out, "astro/dist");
+    if (!fs.existsSync(astroDist)) {
+      // Astro build reported success but left no dist/ — skip to avoid crashing assembly.
+      console.warn(`[assemble] warning: ${p.route} has no dist/ — skipping from full-site`);
+      continue;
+    }
     const dest =
       p.route === "/"
         ? fullSite
         : path.join(fullSite, p.route.replace(/^\/|\/$/g, ""));
     fs.mkdirSync(dest, { recursive: true });
-    const astroDist = path.join(cwd, p.out, "astro/dist");
     // Copy the built astro dist contents into the assembled site dir (no shell — Node 24 fs.cpSync).
     fs.cpSync(astroDist, dest, { recursive: true });
+    assembled.push(p);
   }
 
   const totalWallMs = Date.now() - wallStart;
   console.log(
-    `\n✓ assembled full-site/ with ${ok.length}/${augmented.length} pages: ${ok.map((p) => p.route).join("  ")}`,
+    `\n✓ assembled full-site/ with ${assembled.length}/${augmented.length} pages (${ok.length} built ok): ${assembled.map((p) => p.route).join("  ")}`,
   );
 
   if (opts.reportOut && pageReports.length > 0) {
