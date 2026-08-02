@@ -273,13 +273,13 @@ describe("site.json manifest (Task 4)", () => {
         // ("[data-component=<Comp>] [data-role=<role>]"); an element outside every region
         // (rendered via the page-level fallback) has no owning component → bare "[data-role]".
         if (el.component) {
-          expect(el.selector).toBe(`[data-component=${el.component}] [data-role=${el.role}]`);
+          expect(el.selector).toBe(`[data-component="${el.component}"] [data-role="${el.role}"]`);
           expect(
             out.indexHtml.includes(`data-component="${el.component}"`),
             `elements[].component "${el.component}" not stamped in HTML`,
           ).toBe(true);
         } else {
-          expect(el.selector).toBe(`[data-role=${el.role}]`);
+          expect(el.selector).toBe(`[data-role="${el.role}"]`);
         }
         // The HTML must contain class="... p<n> ..." OR class="p<n>" for this element.
         expect(
@@ -521,13 +521,13 @@ describe("manifest completeness — all handles resolve (Task 7 G)", () => {
       for (const el of page.elements) {
         expect(el.id).toMatch(/^p\d+$/);
         if (el.component) {
-          expect(el.selector).toBe(`[data-component=${el.component}] [data-role=${el.role}]`);
+          expect(el.selector).toBe(`[data-component="${el.component}"] [data-role="${el.role}"]`);
           expect(
             out.indexHtml.includes(`data-component="${el.component}"`),
             `role→element unresolved: data-component="${el.component}" not stamped in HTML`,
           ).toBe(true);
         } else {
-          expect(el.selector).toBe(`[data-role=${el.role}]`);
+          expect(el.selector).toBe(`[data-role="${el.role}"]`);
         }
         expect(
           out.indexHtml.includes(`class="p${el.id.slice(1)}"`),

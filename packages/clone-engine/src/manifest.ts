@@ -57,8 +57,8 @@ export function buildManifest(args: BuildManifestArgs): SiteManifest {
     id: `p${e.id}`,
     component: e.component ?? "",
     selector: e.component
-      ? `[data-component=${e.component}] [data-role=${e.role}]`
-      : `[data-role=${e.role}]`,
+      ? `[data-component="${e.component}"] [data-role="${e.role}"]`
+      : `[data-role="${e.role}"]`,
   }));
 
   // Sections: every region (Navbar, content sections, Footer) gets an entry with the EXPLICIT

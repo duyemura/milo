@@ -75,7 +75,6 @@ export function buildBrand(
   reprOfCanon: Map<string, string>,
   variantMap: Map<string, string>,
 ): BrandDoc {
-  const slotOf = brandSlotOfCanon(labels); // base canon → --color-<slot>
   const varToCanon = new Map([...variantMap].map(([c, name]) => [name, c] as const));
   const slotVar = (slot: string) => `--color-${slot}`;
 
