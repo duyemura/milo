@@ -26,6 +26,12 @@ import type { PageSpec } from "./orchestrate.ts";
 export interface DiscoverOpts {
   /** Max UGC pages to return (default 25). Logs a warning when truncating. */
   ugcLimit?: number;
+  /**
+   * Optional incremental callback fired as pages are found, so a UI can show the
+   * discovered count growing (page 4/18 → 4/19). Reports the running core/ugc split
+   * and the routes so far. Fired at least once (final) before discoverPages returns.
+   */
+  onProgress?: (p: { coreFound: number; ugcFound: number; routes: string[] }) => void;
 }
 
 export interface DiscoverResult {
@@ -218,6 +224,19 @@ export async function discoverPages(
   let allPaths: string[] = [];
   let sitemapOk = false;
 
+  const emitProgress = () => {
+    if (!opts.onProgress) return;
+    const core = new Set<string>(["/"]);
+    const ugc = new Set<string>();
+    for (const raw of allPaths) {
+      const tagged = raw.startsWith(UGC_TAG);
+      const p = tagged ? raw.slice(UGC_TAG.length) : raw;
+      if (p === "/") continue;
+      if (tagged || isUgcPath(p)) ugc.add(p); else core.add(p);
+    }
+    opts.onProgress({ coreFound: core.size, ugcFound: ugc.size, routes: [...core, ...ugc] });
+  };
+
   // --- Try sitemap ---
   try {
     const sitemapXml = await fetchText(`${cleanOrigin}/sitemap.xml`);
@@ -237,6 +256,7 @@ export async function discoverPages(
             // Tag UGC-origin paths with sentinel so we can identify them post-normalization
             allPaths.push(isUgcSub ? `${UGC_TAG}${p}` : p);
           }
+          emitProgress();
         } catch (err) {
           console.warn(`[discover] failed to fetch sub-sitemap ${subUrl}: ${(err as Error).message}`);
         }
@@ -248,6 +268,7 @@ export async function discoverPages(
         const p = normalizePath(loc, originHostname);
         if (p) allPaths.push(p);
       }
+      emitProgress();
     }
 
     sitemapOk = allPaths.length > 0;
@@ -312,6 +333,8 @@ export async function discoverPages(
     route,
     dir: pageDir(slug, route),
   });
+
+  emitProgress();
 
   return {
     core: coreArr.map(toSpec),

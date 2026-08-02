@@ -441,9 +441,14 @@ export async function buildSiteAuto(
   opts: BuildSiteAutoOpts = {},
 ): Promise<BuildSiteAutoResult> {
   const { mode = "core", ugcLimit, coreReportOut, ugcReportOut, ...buildOpts } = opts;
+  const emit = makeEmit(opts.onEvent);
+  emit({ type: "run.started", origin });
 
   console.log(`[build-auto] Discovering pages for ${origin}...`);
-  const discovered = await discoverPages(origin, { ugcLimit });
+  const discovered = await discoverPages(origin, {
+    ugcLimit,
+    onProgress: (p) => emit({ type: "discover.progress", ...p }),
+  });
   console.log(
     `[build-auto] Found ${discovered.core.length} core pages, ${discovered.ugc.length} UGC pages`,
   );
@@ -476,6 +481,8 @@ export async function buildSiteAuto(
   } else if (mode === "full" && discovered.ugc.length === 0) {
     console.log(`[build-auto] No UGC pages found — skipping UGC pass`);
   }
+
+  emit({ type: "run.completed", ok: coreResult.ok.length, failed: coreResult.failed.length });
 
   return { core: coreResult, ugc: ugcResult };
 }
