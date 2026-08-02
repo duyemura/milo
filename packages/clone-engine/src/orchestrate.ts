@@ -364,6 +364,13 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       p.route === "/"
         ? fullSite
         : path.join(fullSite, p.route.replace(/^\/|\/$/g, ""));
+    // Defense-in-depth: routes should be de-duped upstream (discover collapses index.html →
+    // dir), but if two routes still map to the same slot, never let a mkdir-over-a-file crash
+    // the whole assembly after a long build — skip the later duplicate.
+    if (dest !== fullSite && fs.existsSync(dest) && !fs.statSync(dest).isDirectory()) {
+      console.warn(`[assemble] warning: ${p.route} collides with an already-assembled page — skipping`);
+      continue;
+    }
     fs.mkdirSync(dest, { recursive: true });
     // Copy the built astro dist contents into the assembled site dir (no shell — Node 24 fs.cpSync).
     fs.cpSync(astroDist, dest, { recursive: true });

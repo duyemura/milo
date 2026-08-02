@@ -92,6 +92,37 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("discoverPages() — index.html collapses to its directory (assembly-collision guard)", () => {
+  const INDEX_URLSET = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://beanburito.github.io/</loc></url>
+  <url><loc>https://beanburito.github.io/index.html</loc></url>
+  <url><loc>https://beanburito.github.io/about.html</loc></url>
+  <url><loc>https://beanburito.github.io/programs/open-gym.html</loc></url>
+  <url><loc>https://beanburito.github.io/programs/index.html</loc></url>
+</urlset>`;
+  beforeEach(() => {
+    vi.stubGlobal("fetch", makeMockFetch({
+      "https://beanburito.github.io/sitemap.xml": INDEX_URLSET,
+    }));
+  });
+
+  it("collapses /index.html into a single / route (no duplicate homepage)", async () => {
+    const result = await discoverPages("https://beanburito.github.io");
+    const routes = [...result.core, ...result.ugc].map((p) => p.route);
+    expect(routes.filter((r) => r === "/")).toHaveLength(1);
+    expect(routes).not.toContain("/index.html");
+  });
+
+  it("collapses a nested /programs/index.html to /programs/ and never emits an index.html route", async () => {
+    const result = await discoverPages("https://beanburito.github.io");
+    const routes = [...result.core, ...result.ugc].map((p) => p.route);
+    expect(routes).toContain("/programs/");
+    // No route may end in index.html — that is exactly what collided in full-site assembly.
+    expect(routes.some((r) => /index\.html?$/i.test(r))).toBe(false);
+  });
+});
+
 describe("originSlug()", () => {
   it("strips www. and TLD for multi-part domain", () => {
     expect(originSlug("https://www.ksathleticclub.com")).toBe("ksathleticclub");

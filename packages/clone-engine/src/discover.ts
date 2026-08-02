@@ -121,6 +121,13 @@ function normalizePath(raw: string, originHostname: string): string | null {
   if (JUNK_PATHS.test(p)) return null;
   if (JUNK_SEGMENTS.test(p)) return null;
 
+  // Collapse a directory-index file to its directory: `/index.html` and `/` are the SAME
+  // page (GitHub Pages and most static hosts serve both), and `/foo/index.html` == `/foo/`.
+  // Without this the homepage is discovered twice (/ and /index.html) and full-site assembly
+  // collides — `/` writes full-site/index.html (a file), then `/index.html` tries to mkdir
+  // full-site/index.html (a dir) → EEXIST. Only matches a whole `index.htm(l)` segment.
+  p = p.replace(/(^|\/)index\.html?$/i, "$1") || "/";
+
   // Normalize trailing slash (only for path-only URLs, not file extensions)
   if (!p.endsWith("/") && !p.match(/\.[a-z]{2,5}$/i)) {
     p = p + "/";
