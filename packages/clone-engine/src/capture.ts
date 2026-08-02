@@ -50,7 +50,8 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
     for (let y = 0, i = 0; y <= H && i < 200; y += 300, i++) { window.scrollTo(0, y); await sleep(100); }
     window.scrollTo(0, 0);
     await sleep(1200);
-    if (document.fonts) await document.fonts.ready;
+    // Race fonts.ready against a ceiling: a webfont that never resolves must not hang tagging.
+    if (document.fonts) await Promise.race([document.fonts.ready, sleep(3000)]);
     // force still-faded content elements to full opacity (inline; evaluate can't see outer helpers)
     for (const el of document.querySelectorAll("*")) {
       const cs = getComputedStyle(el);
@@ -211,9 +212,17 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
     return `<${el.tag}${a}>${el.children.map(render).join("")}</${el.tag}>`;
   }
 
+  // networkidle NEVER fires on pages that hold a socket/poller open (analytics,
+  // funnel-builder injects, chat widgets), so waitForLoadState would run Playwright's
+  // 30s default — once initially and once per viewport width — turning a fast capture
+  // into 3–6 minutes. Cap it explicitly; the .catch already treats "never settled" as
+  // fine. document.fonts.ready is likewise raced against a ceiling so a webfont that
+  // never resolves can't hang the capture.
+  const NETIDLE_MS = 4000;
+  const FONTS_MS = 3000;
   async function settle(page: Page) {
-    await page.waitForLoadState("networkidle").catch(() => {});
-    await page.evaluate(async () => { window.scrollTo(0, document.body.scrollHeight); await new Promise((r) => setTimeout(r, 200)); window.scrollTo(0, 0); if (document.fonts) await document.fonts.ready; });
+    await page.waitForLoadState("networkidle", { timeout: NETIDLE_MS }).catch(() => {});
+    await page.evaluate(async (fontsMs) => { window.scrollTo(0, document.body.scrollHeight); await new Promise((r) => setTimeout(r, 200)); window.scrollTo(0, 0); if (document.fonts) await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, fontsMs))]); }, FONTS_MS);
     await page.waitForTimeout(300);
   }
 
@@ -223,7 +232,7 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
     const page = await browser.newPage({ viewport: { width: WIDTHS[0], height: 900 } });
     console.log(`→ ${SRC_URL}`);
     await page.goto(SRC_URL, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await page.waitForLoadState("networkidle").catch(() => {});
+    await page.waitForLoadState("networkidle", { timeout: NETIDLE_MS }).catch(() => {});
     const { tree, count } = await page.evaluate(neutralizeAndTag, KEEP_ATTRS) as { tree: TreeEl; count: number };
     const head = await page.evaluate(grabHead) as Head;
     console.log(`  tagged ${count} elements`);
@@ -277,7 +286,10 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
         const h = await page.$(`[data-pc-id="${pid}"]`); if (!h) continue;
         await page.mouse.move(2, 2); await page.waitForTimeout(70);
         const before = await page.evaluate(grabSub, pid!);
-        await h.hover().catch(() => {});
+        // hover() defaults to Playwright's 30s actionability timeout; a nav link that
+        // never becomes actionable (overlapped/animating on builder pages) would burn
+        // 30s each here. Cap it — a real hover target is actionable in well under 1s.
+        await h.hover({ timeout: 1000 }).catch(() => {});
         await page.waitForTimeout(140);
         const d = diffMap(before, await page.evaluate(grabSub, pid!));
         if (Object.keys(d).length) hovers.push({ parentId: pid, delta: d });
@@ -373,7 +385,7 @@ ${css}</style></head><body class="pc-${tree.id}">${bodyInner}</body></html>`;
       const p = await browser.newPage({ viewport: { width: w, height: 900 } });
       await p.route("**/*", (route) => { let h = ""; try { h = new URL(route.request().url()).host; } catch {} return h && sourceOrigins.has(h) ? route.abort() : route.continue(); });
       await p.goto("file://" + path.join(OUT, "index.html"), { waitUntil: "load" });
-      await p.evaluate(async () => { if (document.fonts) await document.fonts.ready; }).catch(() => {});
+      await p.evaluate(async (fontsMs) => { if (document.fonts) await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, fontsMs))]); }, FONTS_MS).catch(() => {});
       await p.waitForTimeout(1500);
       await p.screenshot({ path: path.join(OUT, name), fullPage: true });
       await p.close();
