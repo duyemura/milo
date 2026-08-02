@@ -81,8 +81,12 @@ export async function generateAsset(site: SiteRef, args: GenerateAssetArgs): Pro
     const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(60_000) });
     if (!imgRes.ok) return { ok: false, assetAlias: alias, failures: [`generateAsset: image download returned ${imgRes.status}`] };
     fs.writeFileSync(tmpFile, Buffer.from(await imgRes.arrayBuffer()));
-    // Catalog the generated image in the library, then place via the library-aware op.
-    const { assetId } = await ingestAsset(site.dir, { file: tmpFile, source: "generated", brief, chat: args.chat, model: args.model });
+    // Catalog the generated image in the library, await tagging, then place.
+    // Tagging must complete before placeAsset — both write library.json and the last
+    // writer wins on the full record; interleaving silently clobbers usages or tags.
+    // (uploadAsset in place.ts already awaits tagging for the same reason.)
+    const { assetId, tagging } = await ingestAsset(site.dir, { file: tmpFile, source: "generated", brief, chat: args.chat, model: args.model });
+    await tagging;
     await placeAsset(site, alias, assetId);
   } catch (err) {
     return { ok: false, assetAlias: alias, failures: [`generateAsset: ingest/place failed: ${(err as Error).message}`] };
