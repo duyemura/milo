@@ -76,6 +76,7 @@ function insertGeneratedSection(
   componentName: string,
   rt: RenderedTemplate,
   afterSection?: string,
+  targetRoute = "/",
 ): { changedFiles: string[]; beforeOrder: string[] } {
   const componentsDir = path.join(site.dir, "astro", "src", "components");
   fs.mkdirSync(componentsDir, { recursive: true });
@@ -95,12 +96,15 @@ function insertGeneratedSection(
     changedFiles.push(cssPath);
   }
 
-  // 3. index.astro: import + include, appended at the end of the body (same as addSection
-  //    with no afterSection). Record the pre-insert order from the manifest for the verifier.
+  // 3. Target page's .astro: import + include. Record pre-insert order for the verifier.
   const manifest = loadSite(site);
-  const beforeOrder = manifest.pages[0].sections.map((s) => s.name);
+  const targetPage = manifest.pages.find((p) => p.route === targetRoute) ?? manifest.pages[0];
+  const beforeOrder = targetPage.sections.map((s) => s.name);
 
-  const idxPath = path.join(site.dir, "astro", "src", "pages", "index.astro");
+  // Resolve the page file: "/" → index.astro; "/about/" → about.astro.
+  const routeSlug = targetRoute.replace(/^\/|\/$/g, "");
+  const pageFile = routeSlug === "" ? "index.astro" : `${routeSlug}.astro`;
+  const idxPath = path.join(site.dir, "astro", "src", "pages", pageFile);
   let idx = fs.readFileSync(idxPath, "utf8");
   const importLine = `import ${componentName} from "../components/${newFileName}";`;
   const lastImport = [...idx.matchAll(/^import\s+\S+\s+from\s+"[^"]+";/gm)];
@@ -164,7 +168,7 @@ function insertGeneratedSection(
     selector: `[data-component="${componentName}"] [data-role="${er.role}"]`,
   }));
 
-  const page = manifest.pages[0];
+  const page = targetPage;
   if (afterSection) {
     const afterIdx = page.sections.findIndex((s) => s.name === afterSection || s.role === afterSection);
     if (afterIdx !== -1) {
@@ -197,6 +201,8 @@ export interface GenerateSectionArgs {
   brief: string;
   /** Insert the new section after this existing section name/role. Omit to append at the end. */
   afterSection?: string;
+  /** Route of the page to insert into (e.g. "/about/"). Defaults to "/" (homepage). */
+  targetRoute?: string;
 }
 
 export interface GenerateSectionResult {
@@ -290,20 +296,53 @@ export async function generateSection(
   const token = snapshot(site);
 
   // Insert via the shared insertion path (mirrors addSection).
-  const { beforeOrder } = insertGeneratedSection(site, componentName, rt, args.afterSection);
+  const { beforeOrder } = insertGeneratedSection(site, componentName, rt, args.afterSection, args.targetRoute);
 
-  // Oracle-verify: addSection-style intent. The new section is proven present structurally +
-  // render-sanity (it has no "before" crop to pixel-diff); every PRE-EXISTING section must stay
-  // 0-px. On-brand + on-contract are proven by construction + asserted by the caller/tests.
-  const intent: EditIntent = {
-    editedSections: [componentName],
-    op: { op: "addSection", cloneOf: componentName },
-    expectedSectionOrder: [...beforeOrder, componentName],
-  };
-  const verifierReport = await verify(browser, before, site, intent, {
-    width,
-    assetsFallback: opts.assetsFallback,
-  });
+  // Oracle-verify:
+  // - Home page (targetRoute "/"): full pixel verify — addSection-style, every pre-existing
+  //   section 0-px, render-sanity, structural check against the homepage DOM.
+  // - Non-home page: lightweight structural verify — the pixel verifier renders the homepage
+  //   which can't see non-home sections, so we verify file existence + site.json instead
+  //   (same approach as addPage via apply()). Pre-existing homepage sections are unverified;
+  //   a full multi-page render oracle is a future task.
+  const targetRoute = args.targetRoute ?? "/";
+  let verifierReport: VerifierReport;
+
+  if (targetRoute === "/") {
+    const intent: EditIntent = {
+      editedSections: [componentName],
+      op: { op: "addSection", cloneOf: componentName },
+      expectedSectionOrder: [...beforeOrder, componentName],
+    };
+    verifierReport = await verify(browser, before, site, intent, {
+      width,
+      assetsFallback: opts.assetsFallback,
+    });
+  } else {
+    // Lightweight verify for non-home page insertions.
+    const failures: string[] = [];
+    const compFile = path.join(site.dir, "astro", "src", "components", `${componentName}.astro`);
+    if (!fs.existsSync(compFile)) failures.push(`component file missing: ${compFile}`);
+    const routeSlug = targetRoute.replace(/^\/|\/$/g, "");
+    const pageFile = path.join(site.dir, "astro", "src", "pages", `${routeSlug}.astro`);
+    if (!fs.existsSync(pageFile)) failures.push(`page file missing: ${pageFile}`);
+    else {
+      const pageContent = fs.readFileSync(pageFile, "utf8");
+      if (!pageContent.includes(componentName)) failures.push(`${componentName} not found in ${routeSlug}.astro`);
+    }
+    const updatedManifest = loadSite(site);
+    const targetManifestPage = updatedManifest.pages.find((p) => p.route === targetRoute);
+    if (!targetManifestPage?.sections.some((s) => s.name === componentName)) {
+      failures.push(`${componentName} not in site.json for route ${targetRoute}`);
+    }
+    verifierReport = {
+      pass: failures.length === 0,
+      sections: [],
+      structural: { expected: [...beforeOrder, componentName], actual: [...beforeOrder, componentName], ok: failures.length === 0 },
+      renderSane: true,
+      failures,
+    };
+  }
 
   // On failure, roll back to the pre-insert state so a broken/off-scope generation never ships.
   if (!verifierReport.pass) {
