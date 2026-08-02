@@ -970,8 +970,11 @@ export function addSection(
       elementRoles: srcSection.elementRoles.map((er) => ({ ...er })),
     };
 
-    // Insert AFTER the afterSection (if provided and found), else after the source section.
-    let insertAfterIdx = page.sections.findIndex((s) => s.name === srcName);
+    // Insert AFTER the afterSection (if provided and found), else at the END — matching
+    // index.astro, which appends the new include at the end of the body when afterSection is
+    // omitted. Defaulting to "after the source section" here would desync site.json order from
+    // the rendered DOM and trip the structural verifier's expectedSectionOrder in the apply loop.
+    let insertAfterIdx = page.sections.length - 1;
     if (afterSection) {
       const afterIdx = page.sections.findIndex(
         (s) => s.role === afterSection || s.name === afterSection,
