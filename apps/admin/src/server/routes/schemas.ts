@@ -21,6 +21,10 @@ export const seedBody = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   templateId: z.string().optional(),
+  // Clone seeds only: include blog/UGC pages (runs the engine's `full` pass). Default off
+  // keeps clones to the coherent core set (fast); ugcLimit caps how many UGC pages to take.
+  includeUgc: z.boolean().optional(),
+  ugcLimit: z.coerce.number().int().positive().max(500).optional(),
 });
 
 export const createSiteBody = seedBody.extend({

@@ -155,10 +155,19 @@ async function runCloneSeed(opts: {
   fs.mkdirSync(p.seedDir, { recursive: true });
   const cloneCli = path.join(config.repoRoot, "packages/clone-engine/src/cli.ts");
 
+  // Clone scope (from the seed payload): default is the coherent `core` set (fast). Opting
+  // into blog/UGC pages runs the engine's `full` pass, optionally capped by ugcLimit.
+  const payload = JSON.parse(job.payload) as { includeUgc?: boolean; ugcLimit?: number };
+  const includeUgc = payload.includeUgc === true;
+  const ugcLimit = typeof payload.ugcLimit === "number" ? payload.ugcLimit : undefined;
+  const modeArgs = includeUgc
+    ? ["--mode", "full", ...(ugcLimit ? ["--ugc-limit", String(ugcLimit)] : [])]
+    : ["--mode", "core"];
+
   await appendLog(
     db,
     job.id,
-    `$ node packages/clone-engine/src/cli.ts build-auto --site ${url} --mode core --emit-events`,
+    `$ node packages/clone-engine/src/cli.ts build-auto --site ${url} ${modeArgs.join(" ")} --emit-events`,
   );
   const bridge = makeEventBridge({ db, jobId: job.id, siteId: site.id, hub });
   const code = await spawnLines({
@@ -167,7 +176,7 @@ async function runCloneSeed(opts: {
       cloneCli,
       "build-auto",
       "--site", url,
-      "--mode", "core",
+      ...modeArgs,
       "--cwd", p.seedDir,
       "--out", p.reportHtml,
       "--emit-events",

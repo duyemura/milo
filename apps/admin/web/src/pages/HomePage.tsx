@@ -9,6 +9,8 @@ export function HomePage() {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [includeUgc, setIncludeUgc] = useState(false);
+  const [ugcLimit, setUgcLimit] = useState("");
   const sites = useQuery({ queryKey: ["sites"], queryFn: () => api.listSites().then((r) => r.sites) });
 
   const startClone = async () => {
@@ -16,7 +18,11 @@ export function HomePage() {
     setBusy(true);
     try {
       const companyId = await ensureDefaultCompany();
-      const { site } = await api.cloneSite(companyId, url.trim());
+      const limit = ugcLimit.trim() ? Number(ugcLimit.trim()) : undefined;
+      const { site } = await api.cloneSite(companyId, url.trim(), {
+        includeUgc,
+        ugcLimit: includeUgc && limit && limit > 0 ? limit : undefined,
+      });
       nav(`/sites/${site.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
@@ -39,6 +45,25 @@ export function HomePage() {
           <Button onClick={startClone} disabled={busy || !url.trim()}>
             {busy ? "Starting…" : "Clone site"}
           </Button>
+        </div>
+        <div className="ugc-toggle">
+          <label>
+            <input type="checkbox" checked={includeUgc} onChange={(e) => setIncludeUgc(e.target.checked)} />
+            Include blog posts
+          </label>
+          {includeUgc && (
+            <label className="ugc-limit">
+              Limit
+              <input
+                type="number"
+                min={1}
+                placeholder="all"
+                value={ugcLimit}
+                onChange={(e) => setUgcLimit(e.target.value)}
+              />
+            </label>
+          )}
+          <span className="hint">Off clones the core pages only (faster). On also captures blog/news pages.</span>
         </div>
         {error && <p className="error">{error}</p>}
       </section>

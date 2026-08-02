@@ -60,11 +60,12 @@ export const api = {
   listSites: () => req<{ sites: Site[] }>("GET", "/api/v1/sites"),
   siteDetail: (id: string) => req<SiteDetail>("GET", `/api/v1/sites/${id}`),
   /** Clone a site: creates the record and auto-enqueues the clone seed in one call. */
-  cloneSite: (companyId: string, sourceUrl: string) =>
+  cloneSite: (companyId: string, sourceUrl: string, opts?: { includeUgc?: boolean; ugcLimit?: number }) =>
     req<{ site: Site; seedJob: { id: string } | null }>("POST", "/api/v1/sites", {
       companyId,
       seedType: "clone",
       sourceUrl,
+      ...(opts?.includeUgc ? { includeUgc: true, ...(opts.ugcLimit ? { ugcLimit: opts.ugcLimit } : {}) } : {}),
     }),
   reseed: (id: string, sourceUrl: string) =>
     req<{ seedJob: { id: string } }>("POST", `/api/v1/sites/${id}/seed`, { seedType: "clone", sourceUrl }),

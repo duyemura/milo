@@ -14,7 +14,7 @@ export function registerSiteRoutes(app: FastifyInstance, db: AdminDb, queue: Eng
     }
     return null;
   };
-  const enqueueSeed = (site: { id: string; workspaceId: string; companyId: string }, b: { sourceUrl?: string; name?: string; city?: string; state?: string; templateId?: string }) =>
+  const enqueueSeed = (site: { id: string; workspaceId: string; companyId: string }, b: { sourceUrl?: string; name?: string; city?: string; state?: string; templateId?: string; includeUgc?: boolean; ugcLimit?: number }) =>
     enqueueJob(db, queue, {
       siteId: site.id,
       workspaceId: site.workspaceId,
@@ -26,6 +26,8 @@ export function registerSiteRoutes(app: FastifyInstance, db: AdminDb, queue: Eng
         city: b.city ?? "",
         state: b.state ?? "",
         templateId: b.templateId ?? "modern",
+        includeUgc: b.includeUgc ?? false,
+        ...(b.ugcLimit ? { ugcLimit: b.ugcLimit } : {}),
       },
     });
 

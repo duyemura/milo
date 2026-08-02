@@ -12,6 +12,10 @@ body { margin: 0; font-family: -apple-system, system-ui, sans-serif; color: #1a1
 .paste h1 { margin: 0 0 4px; }
 .paste-row { display: flex; gap: 8px; margin-top: 16px; }
 .paste-row > :first-child { flex: 1; }
+.ugc-toggle { display: flex; align-items: center; gap: 14px; margin-top: 10px; font-size: 14px; color: #555; flex-wrap: wrap; }
+.ugc-toggle label { display: flex; align-items: center; gap: 6px; }
+.ugc-toggle .ugc-limit input { width: 64px; padding: 4px 6px; border: 1px solid #e5e5e7; border-radius: 6px; }
+.ugc-toggle .hint { color: #888; }
 .gallery { margin-top: 48px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .card { text-align: left; padding: 16px; background: #fff; border: 1px solid #e5e5e7; border-radius: 8px; cursor: pointer; }

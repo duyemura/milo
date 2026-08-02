@@ -116,6 +116,41 @@ describe("sites + jobs routes", () => {
     await app.close();
   });
 
+  it("clone seed threads includeUgc + ugcLimit into the seed job payload", async () => {
+    const { app, db } = await testApp();
+    await seedRegistry(db);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/sites",
+      payload: { companyId: "co1", seedType: "clone", sourceUrl: "https://ksathleticclub.com", includeUgc: true, ugcLimit: 100 },
+    });
+    expect(res.statusCode).toBe(201);
+    const siteId = (res.json() as { site: { id: string } }).site.id;
+    const job = await db.selectFrom("jobs").select("payload").where("siteId", "=", siteId).where("type", "=", "seed").executeTakeFirstOrThrow();
+    const payload = JSON.parse(job.payload) as { includeUgc?: boolean; ugcLimit?: number };
+    expect(payload.includeUgc).toBe(true);
+    expect(payload.ugcLimit).toBe(100);
+    await app.close();
+  });
+
+  it("clone seed defaults to core-only (includeUgc false, no ugcLimit) when omitted", async () => {
+    const { app, db } = await testApp();
+    await seedRegistry(db);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/sites",
+      payload: { companyId: "co1", seedType: "clone", sourceUrl: "https://ksathleticclub.com" },
+    });
+    const siteId = (res.json() as { site: { id: string } }).site.id;
+    const job = await db.selectFrom("jobs").select("payload").where("siteId", "=", siteId).where("type", "=", "seed").executeTakeFirstOrThrow();
+    const payload = JSON.parse(job.payload) as { includeUgc?: boolean; ugcLimit?: number };
+    expect(payload.includeUgc).toBe(false);
+    expect(payload.ugcLimit).toBeUndefined();
+    await app.close();
+  });
+
   it("seedType 'none' creates an unseeded shell with no job", async () => {
     const queue = fakeQueue();
     const { app, db } = await testApp(queue);
