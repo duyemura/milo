@@ -6,7 +6,7 @@ import App from "./App.tsx";
 import "@pushpress/pushpress-ui/styles.css";
 import "./styles.css";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
