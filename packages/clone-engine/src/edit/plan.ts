@@ -56,6 +56,12 @@ For ADDING A NEW PAGE use addPage:
 For ADDING A LINK TO THE NAV use addNavLink (call after addPage when the page should be in nav):
   { op: "addNavLink", text: "<link label>", href: "<route e.g. /about/>" }
 
+For REPLACING AN IMAGE with a freshly generated one use generateAsset (targets an existing asset alias):
+  { op: "generateAsset", alias: "<existing asset alias>", brief: "<what the image should show>" }
+  SAFE subjects ONLY: gym equipment, food/nutrition, textures, architectural details, nature, generic products.
+  NEVER request people, faces, bodies, workout poses, or identifiable gym interiors — those are refused.
+  Optional: category ("equipment"|"food"|"texture"|"architecture"|"nature"|"product"), aspectRatio ("16:9"|"1:1"|"4:3", default 16:9).
+
 Output valid JSON matching the schema. No markdown, no prose outside the JSON.`;
 
 /**
@@ -222,5 +228,12 @@ async function validateOpTarget(site: SiteRef, op: unknown): Promise<void> {
       }
       break;
     }
+
+    case "addNavLink":
+      break; // no additional target validation needed beyond Zod (text + href are free strings)
+
+    case "generateAsset":
+      resolveAsset(site, parsed.alias);
+      break;
   }
 }

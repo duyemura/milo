@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { PageType, PageGoal } from "../types.ts";
+import type { SafeImageCategory } from "../assets/safety.ts";
 
 export interface SiteRef { dir: string; }              // a projected OUT dir (from project())
 
@@ -13,7 +14,8 @@ export type EditOp =
   | { op: "addSection"; cloneOf: string; afterSection?: string }
   | { op: "addPage"; route: string; cloneOfPage?: string; pageType?: PageType }   // cloneOfPage optional → auto-pick nearest-type; pageType optional → classify from route
   | { op: "generateSection"; role: string; brief: string; afterSection?: string; targetRoute?: string | string[] | "all" } // role must be in TEMPLATE_LIBRARY; targetRoute: "/" | "/about/" | ["/","/about/"] | "all"
-  | { op: "addNavLink"; text: string; href: string }; // add a link to the site nav
+  | { op: "addNavLink"; text: string; href: string } // add a link to the site nav
+  | { op: "generateAsset"; alias: string; brief: string; category?: SafeImageCategory; aspectRatio?: "16:9" | "1:1" | "4:3" }; // safe AI image generation
 
 export interface OpResult { op: EditOp; changedFiles: string[]; targetSections: string[]; }
 
@@ -166,6 +168,13 @@ export const EditOpSchema = z.discriminatedUnion("op", [
     pageType: z.enum(["home", "pillar", "content", "conversion", "utility"]).optional(),
   }),
   z.object({ op: z.literal("addNavLink"), text: z.string().min(1), href: z.string().min(1) }),
+  z.object({
+    op: z.literal("generateAsset"),
+    alias: z.string().min(1),
+    brief: z.string().min(1),
+    category: z.enum(["equipment", "food", "texture", "architecture", "nature", "product"]).optional(),
+    aspectRatio: z.enum(["16:9", "1:1", "4:3"]).optional(),
+  }),
 ]);
 
 /**

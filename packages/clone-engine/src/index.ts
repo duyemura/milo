@@ -49,3 +49,5 @@ export type { SiteReport, Issue, PageReport as SitePageReport, IssueSeverity, In
 // UGC content-page composition — composePage builds a full on-brand content page from a brief.
 export { composePage, BLUEPRINTS as UGC_BLUEPRINTS } from "./ugc/index.ts";
 export type { ComposePageArgs, ComposePageResult, ContentKind } from "./ugc/index.ts";
+// Safe AI image generation — generateAsset + the safe-image prompt layer.
+export * as assets from "./assets/index.ts";

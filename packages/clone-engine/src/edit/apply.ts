@@ -36,6 +36,7 @@ import {
   addNavLink,
 } from "./ops.ts";
 import { generateSection } from "./generate.ts";
+import { generateAsset } from "../assets/generate.ts";
 import { verify } from "./verify.ts";
 import { renderSnapshot, sectionListOf, type RenderSnapshot } from "./snapshot.ts";
 import { snapshot, restore } from "./history.ts";
@@ -214,6 +215,12 @@ async function applyOpsDeterministically(site: SiteRef, ops: EditOp[], opts: App
       case "addNavLink":
         results.push(addNavLink(site, op.text, op.href));
         break;
+      case "generateAsset": {
+        const genResult = await generateAsset(site, { alias: op.alias, brief: op.brief, category: op.category, aspectRatio: op.aspectRatio });
+        if (!genResult.ok) throw new Error(`generateAsset failed: ${genResult.failures.join("; ")}`);
+        results.push({ op, changedFiles: [], targetSections: [] });
+        break;
+      }
       case "generateSection": {
         // generateSection runs its own internal verify. If it fails, throw so apply() can retry.
         const genResult = await generateSection(
@@ -420,6 +427,8 @@ function targetIdentity(op: EditOp): string {
       return `generateSection:${op.role}`;
     case "addNavLink":
       return `addNavLink:${op.href}`;
+    case "generateAsset":
+      return `generateAsset:${op.alias}`;
   }
 }
 
