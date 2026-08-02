@@ -41,13 +41,17 @@ export function makeSiteDir(opts: {
     fonts.map((f) => `@font-face { font-family: '${f.family}'; src: url('/${f.family}.woff2'); }`).join("\n"),
   );
 
-  const bodyHtml = opts.distHtml ?? sections.map((s) =>
-    `<section data-component="${s.name}" data-section="${s.role}">${s.copyKeys.map((k) => `<p data-copy="${k}">Content for ${k}</p>`).join("")}</section>`
-  ).join("\n");
+  // When distHtml is provided it replaces the entire body; default includes an <h1> for SEO tests.
+  const bodyHtml = opts.distHtml ?? [
+    "<h1>Default heading</h1>",
+    ...sections.map((s) =>
+      `<section data-component="${s.name}" data-section="${s.role}">${s.copyKeys.map((k) => `<p data-copy="${k}">Content for ${k}</p>`).join("")}</section>`
+    ),
+  ].join("\n");
 
   fs.writeFileSync(
     path.join(distDir, "index.html"),
-    `<!doctype html><html lang="en"><head><title>Test Site</title><meta name="description" content="A test site"></head><body><h1>Heading</h1>${bodyHtml}</body></html>`,
+    `<!doctype html><html lang="en"><head><title>Test Site</title><meta name="description" content="A test site"></head><body>${bodyHtml}</body></html>`,
   );
   return dir;
 }
