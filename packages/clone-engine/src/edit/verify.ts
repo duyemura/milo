@@ -51,6 +51,14 @@ export interface EditIntent {
    * OUTSIDE the element box are flagged as intra-section collateral. Omit for a whole-section trust.
    */
   elementSelector?: string;
+  /**
+   * REFLOW ops (removeSection/reorderSection): the caller declares the intended post-edit section
+   * order by name. When provided, the structural check uses this as the expected order instead of
+   * deriving it heuristically — the op declares what it intended and the verifier confirms both the
+   * rendered DOM and site.json match. This makes the check non-circular: the op is the authority,
+   * the verifier is the confirmation. Omit to keep the current default behavior (backward-compat).
+   */
+  expectedSectionOrder?: string[];
 }
 
 const OVERLAP_TOLERANCE_PX = 2; // sections may share a 1-2px seam (border collapse / sub-pixel).
@@ -302,8 +310,38 @@ export async function verify(
         failures.push(`setBrand recolor changed nothing along the delta-vector (the recolor did not land)`);
       }
     }
+  } else if (intent.op.op === "reorderSection") {
+    // REORDER: a pure position change — all sections in the affected range may or may not show
+    // pixel differences depending on sub-pixel Y rendering. The correctness guarantee is the
+    // STRUCTURAL check (expectedSectionOrder), not pixel counts. For sections declared as edited
+    // (the reordered range) we report inScopePx=px and never fail on "no change" — it's fine
+    // for a section to look identical after a position-only move. Sections NOT in the edited set
+    // are truly untouched and must still report 0-px (collateral guard).
+    const elBoxDoc = null; // reorder has no element-level scope
+    for (const name of beforeNames) {
+      if (!afterNames.has(name)) continue;
+      const b = before.sections.get(name)!;
+      const a = afterSnap.sections.get(name)!;
+      const { px, dimChanged } = await cropDiffPx(browser, b.cropPng, a.cropPng);
+      const isEdited = edited.has(name);
+
+      if (!isEdited) {
+        // UNTOUCHED section (outside the reorder range): any change is out-of-scope collateral.
+        sections.push({ section: name, changed: px > 0, inScopePx: 0, outScopePx: px });
+        if (px > 0) {
+          failures.push(
+            `section '${name}' changed ${px}px outside the edited target` +
+              (dimChanged ? " (changed dimensions — content/layout of an untouched section shifted)" : ""),
+          );
+        }
+      } else {
+        // POSITION-SHIFTED section: px may be 0 (looks identical) or >0 (sub-pixel Y rendering
+        // changed). Both are valid — no "must show a change" requirement for a position-only op.
+        sections.push({ section: name, changed: px > 0, inScopePx: px, outScopePx: 0 });
+      }
+    }
   } else {
-    // editCopy / swapAsset / styleTweak: per-section box diffs.
+    // editCopy / swapAsset / styleTweak / removeSection (surviving sections): per-section box diffs.
     // The edited element's box relative to its section crop (for the intra-section sub-scope).
     const elBoxDoc = intent.elementSelector ? afterSnap.extraBoxes.get(intent.elementSelector) ?? null : null;
     for (const name of beforeNames) {
@@ -369,14 +407,18 @@ export async function verify(
 
 /** The section order we EXPECT after applying the op to the before order. */
 function expectedSectionOrder(beforeOrder: string[], intent: EditIntent): string[] {
+  // Caller-declared order takes precedence — the op is the authority, the verifier is the witness.
+  // This is REQUIRED for reorderSection (without it the structural check would false-fail every
+  // reorder). Also correct for any op that needs to express the exact post-edit order.
+  if (intent.expectedSectionOrder) return intent.expectedSectionOrder;
+
   const op = intent.op;
   if (op.op === "removeSection") {
     // op.section may be a role; the edited set resolves it to names. Drop any edited name.
     return beforeOrder.filter((n) => !intent.editedSections.includes(n) && n !== op.section);
   }
-  // editCopy/setBrand/swapAsset/styleTweak/addSection/reorder: order is unchanged by default
-  // (addSection/reorder verification is out of this task's negative controls; the structural
-  // check still compares to the rendered DOM so a divergence is caught).
+  // editCopy/setBrand/swapAsset/styleTweak/addSection: order is unchanged by default
+  // (the structural check still compares to the rendered DOM so a divergence is caught).
   return beforeOrder;
 }
 

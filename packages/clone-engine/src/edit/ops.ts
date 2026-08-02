@@ -20,7 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { SiteRef, EditOp, OpResult } from "./types.ts";
 import { STYLE_PROPS } from "./types.ts";
-import { resolveCopy, resolveAsset, resolveSection } from "./target.ts";
+import { resolveCopy, resolveAsset, resolveSection, loadSite } from "./target.ts";
 import { flattenRoot, canon } from "../brand.ts";
 import type { BrandDoc, SiteManifest } from "../types.ts";
 
@@ -555,4 +555,222 @@ export function styleTweak(
 
   const op: EditOp = { op: "styleTweak", target, prop, value };
   return { op, changedFiles: [cssPath], targetSections: [component] };
+}
+
+// ---------------------------------------------------------------------------
+// Shared helpers for index.astro manipulation
+// ---------------------------------------------------------------------------
+
+/**
+ * Find all `<ComponentName />` tags in the template body of an index.astro file.
+ * Returns an array of { compName, start, end } where [start, end) is the span of the
+ * entire self-closing tag (including any surrounding whitespace captured by the match).
+ *
+ * The projector may place all section includes on a single line OR on separate lines;
+ * both layouts are handled identically by operating at the string/offset level.
+ *
+ * Only uppercase-first component names (PascalCase) are matched — this excludes HTML
+ * void elements like `<meta ... />` and Astro built-ins like `<Fragment ... />`.
+ */
+interface IncludeToken { compName: string; start: number; end: number }
+
+function parseIncludes(src: string): IncludeToken[] {
+  // Match `<ComponentName />` — PascalCase only, no attributes (section includes are bare).
+  // The leading/trailing space is intentionally NOT part of the match so that removal
+  // leaves the surrounding content intact without double-spacing.
+  const re = /<([A-Z][A-Za-z0-9]*)\s*\/>/g;
+  const tokens: IncludeToken[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    tokens.push({ compName: m[1], start: m.index, end: m.index + m[0].length });
+  }
+  return tokens;
+}
+
+/**
+ * Remove the import statement for `name` from the frontmatter section of an .astro file.
+ * Handles both import-per-line and any whitespace layout. Returns the modified source.
+ */
+function stripImport(src: string, name: string): string {
+  // Match: `import <Name> from "...";` on its own line (possibly with leading whitespace).
+  return src
+    .split("\n")
+    .filter((line) => !new RegExp(`^\\s*import\\s+${name}\\s+from`).test(line))
+    .join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// removeSection
+// ---------------------------------------------------------------------------
+
+/**
+ * Remove a section from a projected site.
+ *
+ * Steps (all or nothing before any file write):
+ *   1. Resolve the section via site.json (throws TargetError if absent).
+ *   2. Delete the component .astro file.
+ *   3. Strip the import statement + the `<Component />` include from index.astro.
+ *      Works with both one-include-per-line and all-inline layouts.
+ *   4. Drop the section from site.json pages[].sections AND its owned copy[] entries
+ *      (by copyKeys) AND its owned elements[] entries (by elementRoles[].role).
+ *
+ * Returns an OpResult with changedFiles + targetSections set to the removed name.
+ * Leaves the astro/ directory in a buildable state (no dangling imports).
+ */
+export function removeSection(site: SiteRef, sectionName: string): OpResult {
+  // 1. Resolve — throws TargetError if the section is not found.
+  const { file: componentFile, name } = resolveSection(site, sectionName);
+
+  const idxPath = path.join(site.dir, "astro", "src", "pages", "index.astro");
+  const manifestPath = path.join(site.dir, "site.json");
+
+  const changedFiles: string[] = [];
+
+  // 2. Delete the component file.
+  if (fs.existsSync(componentFile)) {
+    fs.rmSync(componentFile);
+    changedFiles.push(componentFile);
+  }
+
+  // 3. Strip import + include from index.astro.
+  if (fs.existsSync(idxPath)) {
+    let idx = fs.readFileSync(idxPath, "utf8");
+
+    // Remove the import statement for this component.
+    idx = stripImport(idx, name);
+
+    // Remove ALL occurrences of `<Name />` (handles both inline and per-line layouts).
+    // We use parseIncludes to find exact byte spans and splice them out — no regex
+    // replace that might accidentally corrupt other content.
+    const tokens = parseIncludes(idx).filter((t) => t.compName === name);
+    // Walk backwards so earlier offsets remain valid after each splice.
+    for (let i = tokens.length - 1; i >= 0; i--) {
+      const { start, end } = tokens[i];
+      // Strip a single leading space if one exists before the tag (avoids double-space).
+      const trimStart = start > 0 && idx[start - 1] === " " ? start - 1 : start;
+      idx = idx.slice(0, trimStart) + idx.slice(end);
+    }
+
+    fs.writeFileSync(idxPath, idx);
+    changedFiles.push(idxPath);
+  }
+
+  // 4. Update site.json: drop section, its copy entries, and its element entries.
+  const manifest = loadSite(site);
+  for (const page of manifest.pages) {
+    const section = page.sections.find((s) => s.name === name);
+    if (!section) continue;
+
+    // Gather the copy keys owned by this section so we can drop them from copy[].
+    const ownedKeys = new Set(section.copyKeys);
+    // Gather the element roles owned by this section so we can drop from elements[].
+    const ownedRoles = new Set(section.elementRoles.map((er) => er.role));
+
+    page.sections = page.sections.filter((s) => s.name !== name);
+    page.copy = page.copy.filter((c) => !ownedKeys.has(c.key));
+    // Remove element entries whose component is this section (or whose role was in elementRoles).
+    page.elements = page.elements.filter(
+      (e) => e.component !== name && !ownedRoles.has(e.role),
+    );
+  }
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  changedFiles.push(manifestPath);
+
+  const op: EditOp = { op: "removeSection", section: sectionName };
+  return { op, changedFiles, targetSections: [name] };
+}
+
+// ---------------------------------------------------------------------------
+// reorderSection
+// ---------------------------------------------------------------------------
+
+/**
+ * Move a section to a new position in the rendered include order.
+ *
+ * The `toIndex` is the desired zero-based position in the final section array
+ * (matching the `reorderSection` EditOp variant). Only the `<Component />` include
+ * order in index.astro and the sections[] array in site.json are changed; import
+ * declarations can stay in any order (they are not rendered positionally).
+ *
+ * Handles both one-include-per-line and all-inline projector layouts.
+ *
+ * Returns an OpResult with changedFiles + targetSections set to the moved name.
+ */
+export function reorderSection(site: SiteRef, sectionName: string, toIndex: number): OpResult {
+  // Resolve — throws TargetError if the section is not found.
+  const { name } = resolveSection(site, sectionName);
+
+  const idxPath = path.join(site.dir, "astro", "src", "pages", "index.astro");
+  const manifestPath = path.join(site.dir, "site.json");
+
+  const changedFiles: string[] = [];
+
+  // --- Reorder the <Component /> include tokens in index.astro ---
+  if (fs.existsSync(idxPath)) {
+    const src = fs.readFileSync(idxPath, "utf8");
+    const tokens = parseIncludes(src);
+
+    if (!tokens.find((t) => t.compName === name)) {
+      throw new Error(`reorderSection: could not find <${name} /> include in index.astro`);
+    }
+
+    const clampedIndex = Math.max(0, Math.min(toIndex, tokens.length - 1));
+    const fromPos = tokens.findIndex((t) => t.compName === name);
+
+    if (fromPos !== clampedIndex) {
+      // Extract the original tag text for the moved section.
+      const movedTag = src.slice(tokens[fromPos].start, tokens[fromPos].end);
+
+      // Build a new order of tag strings.
+      const tagStrings = tokens.map((t) => src.slice(t.start, t.end));
+      tagStrings.splice(fromPos, 1);
+      tagStrings.splice(clampedIndex, 0, movedTag);
+
+      // Replace the original token spans with the reordered tags.
+      // Walk backwards so earlier spans stay valid after each replacement.
+      let rebuilt = src;
+      // All tokens share the same source offsets; we need to rebuild from scratch.
+      // Strategy: remove all tokens (back to front), leaving placeholders, then re-insert.
+      // Simplest: collect all the text BETWEEN tokens and join with the reordered tags.
+      const segments: string[] = [];
+      let cursor = 0;
+      for (const tok of tokens) {
+        segments.push(rebuilt.slice(cursor, tok.start)); // text before this token
+        cursor = tok.end;
+      }
+      segments.push(rebuilt.slice(cursor)); // text after the last token
+
+      // Interleave segments and reordered tags.
+      let result = segments[0];
+      for (let i = 0; i < tagStrings.length; i++) {
+        result += tagStrings[i] + segments[i + 1];
+      }
+
+      fs.writeFileSync(idxPath, result);
+      changedFiles.push(idxPath);
+    }
+  }
+
+  // --- Reorder sections[] in site.json to match ---
+  const manifest = loadSite(site);
+  let affectedNames: string[] = [name];
+  for (const page of manifest.pages) {
+    const fromPos = page.sections.findIndex((s) => s.name === name);
+    if (fromPos === -1) continue;
+    const clampedIndex = Math.max(0, Math.min(toIndex, page.sections.length - 1));
+    if (fromPos !== clampedIndex) {
+      // All sections in the range [min, max] shift position — they may render with slightly
+      // different sub-pixel values at their new Y coordinates, so we report them all as affected.
+      const lo = Math.min(fromPos, clampedIndex);
+      const hi = Math.max(fromPos, clampedIndex);
+      affectedNames = page.sections.slice(lo, hi + 1).map((s) => s.name);
+      const [moved] = page.sections.splice(fromPos, 1);
+      page.sections.splice(clampedIndex, 0, moved);
+    }
+  }
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  changedFiles.push(manifestPath);
+
+  const op: EditOp = { op: "reorderSection", section: sectionName, toIndex };
+  return { op, changedFiles, targetSections: affectedNames };
 }
