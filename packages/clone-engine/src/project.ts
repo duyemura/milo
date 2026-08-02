@@ -14,7 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { CaptureJson, TreeNode, TreeEl, Labels, ManifestCopyEntry } from "./types.ts";
 import { esc, escA, diff } from "./html.ts";
-import { canon, COLOR_RE, findTag as findTagIn, partitionRegions } from "./tree.ts";
+import { canon, COLOR_RE, findTag as findTagIn, partitionRegions, dropRedundantLogical } from "./tree.ts";
 import { pixelDiff } from "./pixel.ts";
 import { heuristicLabels } from "./labels.ts";
 import { buildBrand, brandSlotOfCanon, deriveVariants, flattenRoot } from "./brand.ts";
@@ -140,9 +140,12 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
     for (const [k, v] of Object.entries(full)) {
       fullProps++;
       const keep = ALWAYS_KEEP.has(k) || forceKeep.has(k) ? true : INHERITED.has(k) ? (!par || par[k] !== v) : (!def || def[k] !== v);
-      if (keep) { out[k] = v; keptProps++; }
+      if (keep) out[k] = v;
     }
-    return out;
+    // Byte-safe dedup: drop logical props equal to their physical twin (see tree.ts).
+    const deduped = dropRedundantLogical(out);
+    keptProps += Object.keys(deduped).length;
+    return deduped;
   }
 
   // ---- non-destructive tokenization (colors + fonts) ----
@@ -204,8 +207,8 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   function cssFor(ids: number[]) {
     let base = "", tab = "", mob = "";
     for (const id of ids) { const b = trimmed(id); if (Object.keys(b).length) base += `.p${id}{${declTok(b)}}\n`; }
-    for (const id of ids) { if (S1[id] && S2[id]) { const d = diff(S1[id], S2[id]); if (Object.keys(d).length) tab += `.p${id}{${declTok(d)}}\n`; } }
-    for (const id of ids) { if (S2[id] && S3[id]) { const d = diff(S2[id], S3[id]); if (Object.keys(d).length) mob += `.p${id}{${declTok(d)}}\n`; } }
+    for (const id of ids) { if (S1[id] && S2[id]) { const d = dropRedundantLogical(diff(S1[id], S2[id])); if (Object.keys(d).length) tab += `.p${id}{${declTok(d)}}\n`; } }
+    for (const id of ids) { if (S2[id] && S3[id]) { const d = dropRedundantLogical(diff(S2[id], S3[id])); if (Object.keys(d).length) mob += `.p${id}{${declTok(d)}}\n`; } }
     return `${base}\n@media(max-width:768px){\n${tab}}\n@media(max-width:480px){\n${mob}}\n`;
   }
   function idsOf(n: TreeNode, a: number[] = []): number[] { if ((n as { t?: string }).t !== undefined) return a; const el = n as TreeEl; a.push(el.id); el.children.forEach((c) => idsOf(c, a)); return a; }
@@ -304,17 +307,37 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   // interactivity: captured menu open-state → CSS behind body[data-pc-open] + a tiny toggle script on the menu button
   const inter = CAP.interactions;
   let interCss = "", interScript = "";
+  // Slim an open-state delta the same way the base CSS is slimmed: an open-state rule only
+  // needs the props that actually CHANGE from the closed (base) state. So drop (a) logical
+  // props equal to their physical twin, (b) trivial `min-*:auto`, and (c) any prop whose
+  // value equals the element's closed-state computed value (S1[id]) — re-emitting it is a
+  // no-op. Every prop that genuinely differs on open is preserved, so the open menu still
+  // renders correctly.
+  const trimOpenDelta = (id: number, delta: Record<string, string>): Record<string, string> => {
+    const base = S1[id];
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(delta)) {
+      if (k.startsWith("min-") && v === "auto") continue;          // UA default no-op
+      if (base && base[k] === v) continue;                          // equals closed state → not a delta
+      out[k] = v;
+    }
+    return dropRedundantLogical(out);                               // logical==physical dedup
+  };
   if (inter && inter.toggles) {
     const scripts: string[] = [];
     for (const t of inter.toggles) {
-      for (const id in t.openDelta) interCss += `body[data-pc-open-${t.toggleId}] .p${id}{${declTok(t.openDelta[id])}}\n`;
+      for (const id in t.openDelta) {
+        const d = trimOpenDelta(Number(id), t.openDelta[id]);
+        if (Object.keys(d).length) interCss += `body[data-pc-open-${t.toggleId}] .p${id}{${declTok(d)}}\n`;
+      }
       scripts.push(`var e${t.toggleId}=document.querySelector('.p${t.toggleId}');if(e${t.toggleId}){e${t.toggleId}.style.cursor='pointer';e${t.toggleId}.addEventListener('click',function(ev){${t.prevent ? "ev.preventDefault();" : ""}ev.stopPropagation();document.body.toggleAttribute('data-pc-open-${t.toggleId}');});}`);
     }
     if (scripts.length) interScript = `<script>(function(){${scripts.join("")}})();</script>`;
   }
   if (inter && inter.hovers) for (const h of inter.hovers) for (const id in h.delta) {
     const sel = id === h.parentId ? `.p${h.parentId}:hover` : `.p${h.parentId}:hover .p${id}`;
-    interCss += `${sel}{${declTok(h.delta[id])}}\n`;
+    const d = dropRedundantLogical(h.delta[id]);
+    if (Object.keys(d).length) interCss += `${sel}{${declTok(d)}}\n`;
   }
   const metaTags = head.metas.map((m) => `<meta ${m.key.startsWith("og:") ? "property" : "name"}="${escA(m.key)}" content="${escA(m.content)}">`).join("\n");
   const iconTags = head.icons.map((ic) => `<link rel="${escA(ic.rel)}" href="${escA(ic.href)}"${ic.sizes ? ` sizes="${escA(ic.sizes)}"` : ""}>`).join("\n");
