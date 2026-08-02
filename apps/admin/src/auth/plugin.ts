@@ -54,11 +54,11 @@ export function registerAuth(app: FastifyInstance, config: AdminConfig): void {
     }
 
     const session = req.cookies?.[SESSION_COOKIE];
-    const user = session && workos ? await workos.authenticateCookie(session, reply) : null;
-    if (!user) {
-      if (session) {
-        // Stale/foreign-workspace cookies (invalid_jwt) must not survive: clearing
-        // them lets the next login write a clean sealed session.
+    const outcome = session && workos ? await workos.authenticateCookie(session, reply) : null;
+    if (!outcome?.ok) {
+      // Only clear a cookie the SDK deemed genuinely dead — never on a lost refresh race,
+      // where the browser may already hold a freshly-rotated cookie from a sibling request.
+      if (session && outcome?.clearCookie) {
         reply.clearCookie(SESSION_COOKIE, { path: "/" });
       }
       if (req.url.startsWith("/api/")) {
@@ -66,7 +66,7 @@ export function registerAuth(app: FastifyInstance, config: AdminConfig): void {
       }
       return reply.redirect("/auth/login");
     }
-    req.actor = { type: "team", email: user };
+    req.actor = { type: "team", email: outcome.email };
   });
 
   app.get("/auth/config", async () => ({

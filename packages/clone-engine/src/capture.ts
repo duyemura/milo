@@ -299,8 +299,11 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
         const d = diffMap(before, await page.evaluate(grabSub, pid!));
         if (Object.keys(d).length) hovers.push({ parentId: pid, delta: d });
       }
-      if (hovers.length) console.log(`  captured ${hovers.length} hover state(s) (interactions ${dt()})`);
+      if (hovers.length) console.log(`  captured ${hovers.length} hover state(s)`);
     } catch {}
+    // Always report the interactions-block time (mobile menu + dropdowns + hovers), even
+    // when nothing was captured, so dt() fires exactly once here and the timing is accurate.
+    console.log(`  interactions (${dt()})`);
     if (!toggles.length && !hovers.length) console.log(`  note: no interactive nav elements detected — nav will render static (non-standard builder?)`);
     const interactions = (toggles.length || hovers.length) ? { toggles, hovers } : null;
 
