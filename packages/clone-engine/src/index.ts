@@ -39,3 +39,6 @@ export type { EngineEvent, EngineEventSink, EnginePhase, RunState } from "./even
 // Subsystem C — LLM-driven per-site edit operations, verifier-gated, self-correcting, reversible.
 // Namespaced under `edit` to avoid collisions with engine-level types (SiteManifest, BrandDoc, etc.).
 export * as edit from "./edit/index.ts";
+// Subsystem F — Goal measurement: tracker injection + goal evaluation against GA4 data.
+export { evaluateGoal, injectTrackerIntoSite, TRACKER_MARKER } from "./pagegoal.ts";
+export type { GoalReport } from "./pagegoal.ts";

@@ -13,6 +13,7 @@
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { injectTrackerIntoSite } from "./pagegoal.ts";
 import { capture } from "./capture.ts";
 import { project } from "./project.ts";
 import { label, heuristicLabels } from "./labels.ts";
@@ -369,6 +370,9 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
     fs.cpSync(astroDist, dest, { recursive: true });
     assembled.push(p);
   }
+
+  // Inject the engagement tracker into every assembled HTML page (Subsystem F).
+  injectTrackerIntoSite(fullSite);
 
   const totalWallMs = Date.now() - wallStart;
   console.log(
