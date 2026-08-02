@@ -15,10 +15,45 @@ import fs from "node:fs";
 import path from "node:path";
 import { capture } from "./capture.ts";
 import { project } from "./project.ts";
-import { heuristicLabels } from "./labels.ts";
+import { label, heuristicLabels } from "./labels.ts";
+import { llmCostAccumulator } from "@milo/llm";
 import type { CaptureJson } from "./types.ts";
-import type { BuildReport, PageReport, PageIssues } from "./report.ts";
+import type { BuildReport, PageReport, PageIssues, PageLlmUsage } from "./report.ts";
 import { generateHtmlReport } from "./report.ts";
+
+// ---------------------------------------------------------------------------
+// Cost helpers
+// ---------------------------------------------------------------------------
+
+/** Rates for google/gemini-2.5-flash (mid-2025) via OpenRouter. */
+const COST_PER_M_INPUT_USD = 0.10;
+const COST_PER_M_OUTPUT_USD = 0.40;
+
+function computeLabelCost(promptTokens: number, completionTokens: number): number {
+  return (promptTokens / 1_000_000) * COST_PER_M_INPUT_USD +
+    (completionTokens / 1_000_000) * COST_PER_M_OUTPUT_USD;
+}
+
+interface AccumulatorSnap { promptTokens: number; completionTokens: number; model: string }
+
+/** Flatten the accumulator summary to total tokens + the most-recently-used model. */
+function accumulatorTotal(
+  summary: Array<{ model: string; promptTokens: number; completionTokens: number; calls: number }>,
+): AccumulatorSnap {
+  let promptTokens = 0;
+  let completionTokens = 0;
+  let model = "unknown";
+  for (const s of summary) {
+    promptTokens += s.promptTokens;
+    completionTokens += s.completionTokens;
+    model = s.model; // last entry wins (only one model used per label call in practice)
+  }
+  return { promptTokens, completionTokens, model };
+}
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 export interface PageSpec {
   route: string;
@@ -43,6 +78,13 @@ export interface BuildSiteOpts {
    * The report includes per-page timings, LLM cost, issues, and fidelity data.
    */
   reportOut?: string;
+  /**
+   * When true (the default), run the LLM semantic labeler before each projection so
+   * `project()` picks up richer brand slots + section/element roles from `labels.json`.
+   * Falls back to the heuristic automatically on any LLM error or missing provider env.
+   * Set to false to force the deterministic heuristic-only path (no LLM cost incurred).
+   */
+  llm?: boolean;
 }
 
 export interface BuildSiteResult {
@@ -103,16 +145,52 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
         captureMs = 0;
       }
 
-      // Heuristic label pass (for issue counting only — does NOT write labels.json,
-      // so it does not affect project.ts, which reads the existing labels.json if present
-      // or falls back to its own heuristic). The build pipeline does not call the LLM
-      // labeler here — that is a separate concern (CLI "label" subcommand).
+      // Label pass: run before project() so it picks up labels.json.
+      // When llm is on, call label({llm:true}) — it writes labels.json and uses the LLM
+      // if a provider is configured (falls back to heuristic on any error).
+      // When llm is off, use the heuristic-only path and don't write labels.json here
+      // (project() will fall back to its own heuristic if no labels.json exists).
+      const runLlm = opts.llm !== false; // default true
       let lblsForReport = null;
-      if (collectReport) {
+      let pageLlmUsage: PageLlmUsage | undefined = undefined;
+      {
         const tLabel = Date.now();
         try {
           const captureJson = JSON.parse(fs.readFileSync(captureJsonPath, "utf8")) as CaptureJson;
-          lblsForReport = heuristicLabels(captureJson);
+          const labelsJsonPath = path.join(captureDir, "labels.json");
+
+          if (runLlm) {
+            // Snapshot accumulator totals before the label call so we can compute delta.
+            const preSnap = accumulatorTotal(llmCostAccumulator.summary());
+
+            let usedLlm = false;
+            if (!fs.existsSync(labelsJsonPath)) {
+              // Not cached — run the label pass (LLM or heuristic fallback).
+              // label()'s `out` is a directory (it writes `labels.json` inside it).
+              lblsForReport = await label({ dir: captureDir, out: captureDir, llm: true });
+              usedLlm = true;
+            } else {
+              // labels.json already present from a prior run — reuse it (don't re-pay LLM).
+              console.log(`=== label cached ${p.route} ===`);
+              lblsForReport = JSON.parse(fs.readFileSync(labelsJsonPath, "utf8")) as typeof lblsForReport;
+            }
+
+            if (usedLlm) {
+              // Compute per-page token delta from the global accumulator.
+              const postSnap = accumulatorTotal(llmCostAccumulator.summary());
+              const deltaPrompt = postSnap.promptTokens - preSnap.promptTokens;
+              const deltaCompletion = postSnap.completionTokens - preSnap.completionTokens;
+              if (deltaPrompt > 0 || deltaCompletion > 0) {
+                // Pull model name from the accumulator (new entry since preSnap).
+                const model = postSnap.model ?? "unknown";
+                const costUsd = computeLabelCost(deltaPrompt, deltaCompletion);
+                pageLlmUsage = { model, promptTokens: deltaPrompt, completionTokens: deltaCompletion, costUsd };
+              }
+            }
+          } else {
+            // llm:false — heuristic only (no labels.json written).
+            lblsForReport = heuristicLabels(captureJson);
+          }
         } catch { /* ignore — not critical for the build */ }
         labelMs = Date.now() - tLabel;
       }
@@ -152,9 +230,10 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
         const unknownSections = lblsForReport
           ? lblsForReport.sections.filter((s) => s.role === "unknown").length
           : 0;
-        // The build pipeline uses heuristic labeling only (llmFallback=true is accurate:
-        // LLM labeling is a separate CLI step, not part of buildSite).
-        const llmFallback = true;
+        // llmFallback is true when llm was requested but no LLM cost was incurred
+        // (meaning the heuristic ran instead, either because no provider is configured
+        // or because a cached labels.json was reused or an error occurred).
+        const llmFallback = runLlm && pageLlmUsage === undefined;
 
         // leftoverSourceRefs: proxy from sourceOrigins length in capture.json.
         let leftoverSourceRefs = 0;
@@ -184,9 +263,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
           route: p.route,
           status: "ok",
           timing: { route: p.route, captureMs, labelMs, projectMs, buildMs },
-          // LLM cost: buildSite() uses heuristic labels only (no LLM calls in the pipeline).
-          // The label CLI command tracks LLM cost separately.
-          llm: undefined,
+          llm: pageLlmUsage,
           issues,
           thumbPath,
         });
