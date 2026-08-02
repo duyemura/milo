@@ -1237,3 +1237,52 @@ export function addPage(
   };
   return { op, changedFiles, targetSections: addedSectionNames };
 }
+
+/**
+ * Add a link to the site's nav component. Idempotent — adding the same href twice is a no-op.
+ * Finds the nav section by looking for a section with role "navbar" or name containing "Nav".
+ * Inserts a new <li><a href="...">text</a></li> before the closing </ul> tag.
+ */
+export function addNavLink(
+  site: SiteRef,
+  text: string,
+  href: string,
+): OpResult {
+  const manifest = loadSite(site);
+  const allSections = manifest.pages.flatMap((p) => p.sections);
+  const navSection = allSections.find(
+    (s) => s.role === "navbar" || /nav/i.test(s.name),
+  );
+  if (!navSection) throw new TargetError("addNavLink: no nav section found in site.json");
+
+  const navFile = path.join(site.dir, navSection.file);
+  if (!fs.existsSync(navFile)) throw new TargetError(`addNavLink: nav file not found: ${navSection.file}`);
+
+  let src = fs.readFileSync(navFile, "utf8");
+
+  // Idempotent — skip if href already in the nav
+  if (src.includes(`href="${href}"`)) {
+    return { op: { op: "addNavLink" as never, text, href }, changedFiles: [], targetSections: [navSection.name] };
+  }
+
+  // Copy the last <li> tag structure as a template, substituting href + text.
+  const liMatches = [...src.matchAll(/<li[^>]*>.*?<\/li>/gs)];
+  let newLi: string;
+  if (liMatches.length > 0) {
+    const last = liMatches[liMatches.length - 1][0];
+    // Replace the href and text content of the last <li>
+    newLi = last
+      .replace(/href="[^"]*"/, `href="${href}"`)
+      .replace(/>([^<]+)<\/a>/, `>${text}</a>`);
+  } else {
+    newLi = `<li><a href="${href}">${text}</a></li>`;
+  }
+
+  // Insert before </ul>
+  const ulEnd = src.indexOf("</ul>");
+  if (ulEnd === -1) throw new TargetError("addNavLink: no </ul> found in nav component");
+  src = src.slice(0, ulEnd) + newLi + src.slice(ulEnd);
+  fs.writeFileSync(navFile, src);
+
+  return { op: { op: "addNavLink" as never, text, href }, changedFiles: [navFile], targetSections: [navSection.name] };
+}

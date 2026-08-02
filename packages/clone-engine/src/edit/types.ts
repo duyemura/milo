@@ -12,7 +12,8 @@ export type EditOp =
   | { op: "reorderSection"; section: string; toIndex: number }
   | { op: "addSection"; cloneOf: string; afterSection?: string }
   | { op: "addPage"; route: string; cloneOfPage?: string; pageType?: PageType }   // cloneOfPage optional → auto-pick nearest-type; pageType optional → classify from route
-  | { op: "generateSection"; role: string; brief: string; afterSection?: string; targetRoute?: string | string[] | "all" }; // role must be in TEMPLATE_LIBRARY; targetRoute: "/" | "/about/" | ["/","/about/"] | "all"
+  | { op: "generateSection"; role: string; brief: string; afterSection?: string; targetRoute?: string | string[] | "all" } // role must be in TEMPLATE_LIBRARY; targetRoute: "/" | "/about/" | ["/","/about/"] | "all"
+  | { op: "addNavLink"; text: string; href: string }; // add a link to the site nav
 
 export interface OpResult { op: EditOp; changedFiles: string[]; targetSections: string[]; }
 
@@ -164,6 +165,7 @@ export const EditOpSchema = z.discriminatedUnion("op", [
     cloneOfPage: z.string().optional(),
     pageType: z.enum(["home", "pillar", "content", "conversion", "utility"]).optional(),
   }),
+  z.object({ op: z.literal("addNavLink"), text: z.string().min(1), href: z.string().min(1) }),
 ]);
 
 /**

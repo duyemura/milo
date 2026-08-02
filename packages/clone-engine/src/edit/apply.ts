@@ -33,6 +33,7 @@ import {
   reorderSection,
   addSection,
   addPage,
+  addNavLink,
 } from "./ops.ts";
 import { generateSection } from "./generate.ts";
 import { verify } from "./verify.ts";
@@ -209,6 +210,9 @@ async function applyOpsDeterministically(site: SiteRef, ops: EditOp[], opts: App
         break;
       case "addPage":
         results.push(addPage(site, op.route, op.cloneOfPage, op.pageType));
+        break;
+      case "addNavLink":
+        results.push(addNavLink(site, op.text, op.href));
         break;
       case "generateSection": {
         // generateSection runs its own internal verify. If it fails, throw so apply() can retry.
@@ -414,6 +418,8 @@ function targetIdentity(op: EditOp): string {
       return `addPage:${op.route}`;
     case "generateSection":
       return `generateSection:${op.role}`;
+    case "addNavLink":
+      return `addNavLink:${op.href}`;
   }
 }
 

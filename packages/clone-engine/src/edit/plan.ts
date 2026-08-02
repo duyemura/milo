@@ -50,6 +50,12 @@ For ADDING A NEW SECTION that doesn't exist yet, use generateSection (not addSec
                location-map, cta-band, feature-grid
   Optional: afterSection: "<existing section name>" to control placement.
 
+For ADDING A NEW PAGE use addPage:
+  { op: "addPage", route: "<route>", pageType?: "home|pillar|content|conversion|utility" }
+
+For ADDING A LINK TO THE NAV use addNavLink (call after addPage when the page should be in nav):
+  { op: "addNavLink", text: "<link label>", href: "<route e.g. /about/>" }
+
 Output valid JSON matching the schema. No markdown, no prose outside the JSON.`;
 
 /**
