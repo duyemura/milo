@@ -311,7 +311,7 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
 
   const seen = new Set<string>();
   for (const r of regions) {
-    let name = r.name, i = 2; while (seen.has(name)) name = r.name + i++; seen.add(name); r.file = name;
+    let name = r.name, i = 2; while (seen.has(name)) name = r.name + i++; seen.add(name); r.name = name; r.file = name;
     // region root carries data-component (owning .astro) + data-section (role, for content sections).
     componentNameOfRegionId.set(r.node.id, name);
   }
