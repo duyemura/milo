@@ -22,15 +22,9 @@ importers:
       '@milo/clone-engine':
         specifier: workspace:*
         version: link:../../packages/clone-engine
-      '@milo/llm':
-        specifier: workspace:*
-        version: link:../../packages/llm
       '@milo/publish':
         specifier: workspace:*
         version: link:../../packages/publish
-      '@milo/schema':
-        specifier: workspace:*
-        version: link:../../packages/schema
       '@pushpress/pushpress-ui':
         specifier: ^1.9.0
         version: 1.9.0(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@types/mdast@4.0.4)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(@xyflow/react@12.11.2(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.15)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(micromark-util-types@2.0.2)(micromark@4.0.2)(react-day-picker@10.0.1(@types/react@19.2.18)(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-is@16.13.1)(react@19.2.8)(redux@5.0.1)(unified@11.0.5)(yaml@2.9.0)

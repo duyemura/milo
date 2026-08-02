@@ -16,7 +16,14 @@ export const createCompanyBody = z.object({
 // Kept as one source so a new seed field can't be added to one path and forgotten on the other.
 export const seedBody = z.object({
   seedType: z.enum(["clone", "template", "none"]),
-  sourceUrl: z.string().url().optional(),
+  // Must be a real web URL: z.url() alone accepts javascript:/file:/data: — the clone
+  // engine spawns against this, so pin it to http(s). (http allowed so a valid http-only
+  // site isn't rejected; the scheme block is what matters.)
+  sourceUrl: z
+    .string()
+    .url()
+    .refine((u) => /^https?:\/\//i.test(u), "Enter a URL starting with http:// or https://.")
+    .optional(),
   name: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),

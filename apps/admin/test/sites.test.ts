@@ -151,6 +151,20 @@ describe("sites + jobs routes", () => {
     await app.close();
   });
 
+  it("rejects a non-http(s) sourceUrl scheme (javascript:/file:)", async () => {
+    const { app, db } = await testApp();
+    await seedRegistry(db);
+    for (const bad of ["javascript:alert(1)", "file:///etc/passwd"]) {
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/v1/sites",
+        payload: { companyId: "co1", seedType: "clone", sourceUrl: bad },
+      });
+      expect(res.statusCode).toBe(400);
+    }
+    await app.close();
+  });
+
   it("seedType 'none' creates an unseeded shell with no job", async () => {
     const queue = fakeQueue();
     const { app, db } = await testApp(queue);

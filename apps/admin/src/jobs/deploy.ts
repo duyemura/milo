@@ -8,6 +8,7 @@ import {
   publishStaging,
   resolveOrInitConfig,
 } from "@milo/publish";
+import { originSlug } from "@milo/clone-engine";
 import type { AdminDb } from "../db/index.ts";
 import type { AdminConfig } from "../config.ts";
 import type { JobRow, SiteRow } from "../db/types.ts";
@@ -41,11 +42,13 @@ export async function runDeploy(opts: {
       .select("name")
       .where("id", "=", site.companyId)
       .executeTakeFirstOrThrow();
-    const slug =
-      site.slug ??
-      company.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") +
-        "-" +
-        randomUUID().slice(0, 6);
+    // Staging slug: the cloned domain + last 4 of the site uuid — self-identifying
+    // (ksathleticclub-262a) and stable per site (re-deploys reuse site.slug and update in
+    // place), while the uuid suffix keeps two sites of the same domain from colliding.
+    const base = site.sourceUrl
+      ? originSlug(site.sourceUrl)
+      : company.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const slug = site.slug ?? `${base}-${site.id.slice(-4)}`;
     const cloneCli = path.join(opts.config.repoRoot, "packages/clone-engine/src/cli.ts");
     await log(`$ node packages/clone-engine/src/cli.ts deploy --dist dist/ --slug ${slug}`);
     const r = await sp("node", [cloneCli, "deploy", "--dist", distDir, "--slug", slug], {
