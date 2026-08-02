@@ -97,6 +97,17 @@ interface RunState {
 
 Only the **clone** seed path is built in v1; the endpoints are seed-generic so template slots in later with no redesign.
 
+### Leaving room: the template seed (future, not v1)
+
+Documented here as an intentional seam, **not** designed in this spec. The second seed of "two seeds, one substrate": for a gym with no site, a bad site, or one that wants a PushPress-owned design, the seed is a **prebuilt template hydrated with that gym's specifics** — its brand, services/offerings, coaches/staff, locations, hours — repurposed into the *same* editable A+B substrate the clone emits. Because the substrate is identical, the chat workbench edits a template-seeded site exactly as it edits a cloned one; that convergence is the whole point.
+
+What it needs (its own subsystem, its own spec):
+- **A business/brand intake** — structured knowledge of company / brand / services / coaches. Prior art: `@milo/intake` + `gym.json` + `@milo/generate` (template seed already proven end-to-end via admin: Torrance intake→generate→build).
+- **Sources for that knowledge**, any or all: explicit intake, the **PushPress platform API** (company, classes/coaches, plans — `GET /company`, `/classes`, `/customers`), and even **the clone itself** (a cloned site already yields `brand.json` + extracted services, so "know the brand" can be bootstrapped from an existing site).
+- **A template library** whose sections inherit the brand + semantic system (subsystem E / E-v2 section-harvest is the substrate for this).
+
+This spec guarantees only the **plug point**: `seedType: 'template'` on the create/seed endpoints, and the same `RunState`/events/`job_logs`/preview pipeline the clone uses (a template build emits the same seam events, so the workbench shows its progress + report identically). The intake schema, template library, and hydration logic are deliberately out of scope and will be specified separately.
+
 ## Data flow — `job_logs` is truth, `RunState` is a projection
 
 Clone:
@@ -130,7 +141,7 @@ Property: a server restart or a late-joining browser both reconstruct state the 
 
 ## Out of scope (YAGNI, v1)
 
-- **Template seed path** — modeled, not built.
+- **Template seed path** — modeled + seam documented ("Leaving room: the template seed"), not built. Its intake schema / template library / hydration logic are a separate subsystem + spec.
 - **QA Inspector** (`src/qa/`) — surfaced via the report seam whenever it lands; workbench shows the current report until then.
 - **Live S3/CloudFront production publish** — the old `deploy.ts` path stays human-authorized; the workbench previews locally, never pushes to mygymseo.com.
 - **Per-user isolation** — shared gallery behind WorkOS is fine.
