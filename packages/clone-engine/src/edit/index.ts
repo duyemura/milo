@@ -9,6 +9,19 @@ export * from "./target.ts";
 // removeSection, reorderSection, addSection, addPage, pickTemplatePage).
 export * from "./ops.ts";
 
+// Subsystem E — BOUNDED on-brand section generation (template library + LLM-filled copy).
+// generate.ts re-exports TEMPLATE_LIBRARY + isGenerateRole + GenerateRole from templates.ts,
+// so we export generate.ts wholesale and only the extra template TYPES from templates.ts.
+export { generateSection, TEMPLATE_LIBRARY, isGenerateRole } from "./generate.ts";
+export type { GenerateSectionArgs, GenerateSectionResult, GenerateRole } from "./generate.ts";
+export type {
+  SectionTemplate,
+  RenderedTemplate,
+  TemplateElementRole,
+  TemplateSectionRole,
+} from "./templates.ts";
+export { renderAstroComponent } from "./templates.ts";
+
 // Reversible history (snapshot, restore, revert).
 export * from "./history.ts";
 
