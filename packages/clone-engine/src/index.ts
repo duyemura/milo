@@ -25,6 +25,17 @@ export { discoverPages, originSlug, pageDir } from "./discover.ts";
 export type { DiscoverOpts, DiscoverResult } from "./discover.ts";
 export { buildSiteAuto } from "./orchestrate.ts";
 export type { BuildSiteAutoOpts, BuildSiteAutoResult } from "./orchestrate.ts";
+// Progress event contract + pure RunState projection + insulated emitter + CLI line serializer.
+export {
+  initialRunState,
+  reduceRunState,
+  projectRunState,
+  makeEmit,
+  eventToJsonLine,
+  parseEventLine,
+  EVENT_MARKER,
+} from "./events.ts";
+export type { EngineEvent, EngineEventSink, EnginePhase, RunState } from "./events.ts";
 // Subsystem C — LLM-driven per-site edit operations, verifier-gated, self-correcting, reversible.
 // Namespaced under `edit` to avoid collisions with engine-level types (SiteManifest, BrandDoc, etc.).
 export * as edit from "./edit/index.ts";
