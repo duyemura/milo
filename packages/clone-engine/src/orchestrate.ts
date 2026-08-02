@@ -16,6 +16,7 @@ import path from "node:path";
 import { capture } from "./capture.ts";
 import { project } from "./project.ts";
 import { label, heuristicLabels } from "./labels.ts";
+import type { LabelSource } from "./labels.ts";
 import { llmCostAccumulator } from "@milo/llm";
 import type { CaptureJson } from "./types.ts";
 import { originSlug, pageDir, discoverPages } from "./discover.ts";
@@ -158,6 +159,9 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       const runLlm = opts.llm !== false; // default true
       let lblsForReport = null;
       let pageLlmUsage: PageLlmUsage | undefined = undefined;
+      // Honest label source for reporting — set in the block below.
+      let pageLabelSource: LabelSource | "llm-cached" = runLlm ? "heuristic-disabled" : "heuristic-disabled";
+      let pageLabelFallbackReason: string | undefined;
       {
         const tLabel = Date.now();
         try {
@@ -168,35 +172,40 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
             // Snapshot accumulator totals before the label call so we can compute delta.
             const preSnap = accumulatorTotal(llmCostAccumulator.summary());
 
-            let usedLlm = false;
             if (!fs.existsSync(labelsJsonPath)) {
               // Not cached — run the label pass (LLM or heuristic fallback).
               // label()'s `out` is a directory (it writes `labels.json` inside it).
-              lblsForReport = await label({ dir: captureDir, out: captureDir, llm: true });
-              usedLlm = true;
+              const result = await label({ dir: captureDir, out: captureDir, llm: true });
+              lblsForReport = result.labels;
+              pageLabelSource = result.source;
+              pageLabelFallbackReason = result.fallbackReason;
+
+              if (result.source === "llm-fresh") {
+                // Compute per-page token delta from the global accumulator.
+                const postSnap = accumulatorTotal(llmCostAccumulator.summary());
+                const deltaPrompt = postSnap.promptTokens - preSnap.promptTokens;
+                const deltaCompletion = postSnap.completionTokens - preSnap.completionTokens;
+                if (deltaPrompt > 0 || deltaCompletion > 0) {
+                  // Pull model name from the accumulator (new entry since preSnap).
+                  const model = postSnap.model ?? "unknown";
+                  const costUsd = computeLabelCost(deltaPrompt, deltaCompletion);
+                  pageLlmUsage = { model, promptTokens: deltaPrompt, completionTokens: deltaCompletion, costUsd };
+                }
+              }
             } else {
-              // labels.json already present from a prior run — reuse it (don't re-pay LLM).
+              // labels.json already present from a prior run — reuse it (no re-cost).
               console.log(`=== label cached ${p.route} ===`);
               lblsForReport = JSON.parse(fs.readFileSync(labelsJsonPath, "utf8")) as typeof lblsForReport;
-            }
-
-            if (usedLlm) {
-              // Compute per-page token delta from the global accumulator.
-              const postSnap = accumulatorTotal(llmCostAccumulator.summary());
-              const deltaPrompt = postSnap.promptTokens - preSnap.promptTokens;
-              const deltaCompletion = postSnap.completionTokens - preSnap.completionTokens;
-              if (deltaPrompt > 0 || deltaCompletion > 0) {
-                // Pull model name from the accumulator (new entry since preSnap).
-                const model = postSnap.model ?? "unknown";
-                const costUsd = computeLabelCost(deltaPrompt, deltaCompletion);
-                pageLlmUsage = { model, promptTokens: deltaPrompt, completionTokens: deltaCompletion, costUsd };
-              }
+              pageLabelSource = "llm-cached";
             }
           } else {
             // llm:false — heuristic only (no labels.json written).
             lblsForReport = heuristicLabels(captureJson);
+            pageLabelSource = "heuristic-disabled";
           }
-        } catch { /* ignore — not critical for the build */ }
+        } catch (e) {
+          console.warn(`[orchestrate] label pass failed for ${p.route}: ${(e as Error).message}`);
+        }
         labelMs = Date.now() - tLabel;
       }
 
@@ -235,10 +244,6 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
         const unknownSections = lblsForReport
           ? lblsForReport.sections.filter((s) => s.role === "unknown").length
           : 0;
-        // llmFallback is true when llm was requested but no LLM cost was incurred
-        // (meaning the heuristic ran instead, either because no provider is configured
-        // or because a cached labels.json was reused or an error occurred).
-        const llmFallback = runLlm && pageLlmUsage === undefined;
 
         // leftoverSourceRefs: proxy from sourceOrigins length in capture.json.
         let leftoverSourceRefs = 0;
@@ -252,7 +257,8 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
         const issues: PageIssues = {
           assetsFailed: 0, // not surfaced by capture without refactoring
           leftoverSourceRefs,
-          llmFallback,
+          labelSource: pageLabelSource,
+          labelFallbackReason: pageLabelFallbackReason,
           unknownSections,
           captureRetries: 0,
           selfContainmentWarnings: 0,
@@ -284,7 +290,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
           status: "failed",
           error: msg,
           timing: { route: p.route, captureMs, labelMs, projectMs, buildMs },
-          issues: { assetsFailed: 0, leftoverSourceRefs: 0, llmFallback: false, unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
+          issues: { assetsFailed: 0, leftoverSourceRefs: 0, labelSource: "heuristic-disabled", unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
         });
       }
     }

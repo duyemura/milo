@@ -798,6 +798,10 @@ function configFromEnv(): { config: LlmConfig; model: string } | null {
     console.warn(`[labels] LLM_PROVIDER=${provider} is set but DEFAULT_LLM_MODEL is missing; falling back to heuristic labeling`);
     return null;
   }
+  if (provider === "openrouter" && !process.env.OPENROUTER_API_KEY) {
+    console.warn(`[labels] LLM_PROVIDER=openrouter is set but OPENROUTER_API_KEY is missing; falling back to heuristic labeling`);
+    return null;
+  }
   const config: LlmConfig = {
     provider,
     openrouterBaseUrl: process.env.OPENROUTER_BASE_URL,
@@ -811,35 +815,62 @@ function configFromEnv(): { config: LlmConfig; model: string } | null {
 // ---- Public entry-point ----
 
 /**
+ * Discriminated result from label(): reports which code path ran and why,
+ * so callers can distinguish a genuine LLM run from a silent error fallback.
+ */
+export type LabelSource =
+  | "llm-fresh"           // LLM ran and succeeded (cost incurred)
+  | "heuristic-disabled"  // llm:false was passed — intentional no-LLM run
+  | "heuristic-error";    // LLM was attempted but threw; fell back to heuristic
+
+export interface LabelResult {
+  labels: Labels;
+  source: LabelSource;
+  /** Set when source="heuristic-error": the error message from the LLM call. */
+  fallbackReason?: string;
+}
+
+/**
  * Read `capture.json`, produce `Labels`, write `labels.json`.
  *
  * LLM is an ENHANCEMENT, never a dependency: if `llm !== false` and `LLM_PROVIDER`
- * is configured, we try `llmLabels`; on ANY error we log a warning and fall back to
- * the deterministic `heuristicLabels`. With `llm: false` or no provider, we go
- * straight to the heuristic. Either path yields a valid, schema-conformant site.
+ * is configured (with API key present), we try `llmLabels`; on ANY error we log a
+ * warning and fall back to the deterministic `heuristicLabels`. With `llm: false`
+ * or no provider/key, we go straight to the heuristic. Either path yields a valid,
+ * schema-conformant site.
+ *
+ * Returns a `LabelResult` with `source` and optional `fallbackReason` so callers
+ * can distinguish an honest LLM success from a silent error fallback.
  */
-export async function label(opts: { dir: string; out?: string; llm?: boolean }): Promise<Labels> {
+export async function label(opts: { dir: string; out?: string; llm?: boolean }): Promise<LabelResult> {
   const dir = path.resolve(opts.dir);
   const cap: CaptureJson = JSON.parse(fs.readFileSync(path.join(dir, "capture.json"), "utf8"));
 
   let labels: Labels;
+  let source: LabelSource;
+  let fallbackReason: string | undefined;
+
   const env = opts.llm !== false ? configFromEnv() : null;
   if (env) {
     try {
       const chat: ChatFn = (o) => chatCompletion(o, env.config);
       labels = await llmLabels(cap, chat, env.model);
+      source = "llm-fresh";
       console.log(`[labels] LLM path (${env.model}) — annotated ${labels.sections.length} sections`);
     } catch (err) {
-      console.warn(`[labels] LLM labeling failed (${(err as Error).message}); falling back to heuristic`);
+      fallbackReason = (err as Error).message;
+      console.warn(`[labels] LLM labeling failed (${fallbackReason}); falling back to heuristic`);
       labels = heuristicLabels(cap);
+      source = "heuristic-error";
     }
   } else {
     labels = heuristicLabels(cap);
+    source = "heuristic-disabled";
     console.log("[labels] heuristic path" + (opts.llm === false ? " (llm disabled)" : " (no LLM_PROVIDER)"));
   }
 
   const outDir = path.resolve(opts.out ?? opts.dir);
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, "labels.json"), JSON.stringify(labels, null, 2));
-  return labels;
+  return { labels, source, fallbackReason };
 }

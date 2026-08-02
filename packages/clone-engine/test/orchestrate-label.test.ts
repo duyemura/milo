@@ -5,10 +5,11 @@
  * 1. Cost accumulator delta helpers (indirectly via accumulatorTotal logic).
  * 2. Report cost plumbing: a PageReport with llm data is correctly reflected in the
  *    HTML report's cost breakdown.
- * 3. llm:false path: the report marks pages as heuristic (llm field undefined).
- * 4. llmFallback flag: when llm is on but no LLM cost is incurred, llmFallback=true.
- *
- * No real LLM calls, no real capture, no real project or astro build.
+ * 3. llm:false path: the report marks pages as heuristic-disabled (benign).
+ * 4. heuristic-error vs heuristic-disabled: key-missing error shows RED actionable
+ *    text; intentional llm:false shows benign "no action needed" copy.
+ * 5. Honest source states: llm-fresh, llm-cached, heuristic-disabled, heuristic-error
+ *    each produce distinct report output.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "node:fs";
@@ -75,7 +76,7 @@ describe("report: LLM cost shown when pages have llm data", () => {
         completionTokens: 300,
         costUsd: computeLabelCost(3_000, 300),
       },
-      issues: { assetsFailed: 0, leftoverSourceRefs: 0, llmFallback: false, unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
+      issues: { assetsFailed: 0, leftoverSourceRefs: 0, labelSource: "llm-fresh" as const, unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
     },
     {
       route: "/about/",
@@ -87,7 +88,7 @@ describe("report: LLM cost shown when pages have llm data", () => {
         completionTokens: 280,
         costUsd: computeLabelCost(2_800, 280),
       },
-      issues: { assetsFailed: 0, leftoverSourceRefs: 0, llmFallback: false, unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
+      issues: { assetsFailed: 0, leftoverSourceRefs: 0, labelSource: "llm-fresh" as const, unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
     },
   ];
 
@@ -131,15 +132,15 @@ describe("report: LLM cost shown when pages have llm data", () => {
   });
 });
 
-describe("report: heuristic-only path (llm:false) — no LLM cost shown", () => {
+describe("report: heuristic-disabled path (llm:false) — benign, no LLM cost shown", () => {
   const pagesHeuristic: PageReport[] = [
     {
       route: "/",
       status: "ok",
       timing: { route: "/", captureMs: 0, labelMs: 1_000, projectMs: 900, buildMs: 1_500 },
-      // llm is undefined → heuristic path
+      // llm is undefined → heuristic-disabled (intentional)
       llm: undefined,
-      issues: { assetsFailed: 0, leftoverSourceRefs: 0, llmFallback: true, unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
+      issues: { assetsFailed: 0, leftoverSourceRefs: 0, labelSource: "heuristic-disabled" as const, unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
     },
   ];
 
@@ -173,13 +174,75 @@ describe("report: heuristic-only path (llm:false) — no LLM cost shown", () => 
     expect(html).toContain("$0");
   });
 
-  it("shows 'LLM fallback' issue for the heuristic page", () => {
-    // The page has llmFallback: true — the issue cell should call it out.
-    expect(html).toContain("LLM fallback");
+  it("shows 'no action needed' copy (benign — not an error)", () => {
+    // heuristic-disabled is intentional — report says no action needed
+    expect(html).toContain("no action needed");
+  });
+
+  it("does NOT show red LLM-error copy", () => {
+    // An intentional heuristic run must not look like an error.
+    expect(html).not.toContain("check OPENROUTER_API_KEY");
   });
 });
 
-describe("report: mixed — one LLM page + one heuristic fallback page", () => {
+describe("report: heuristic-error — LLM was attempted but failed (RED, actionable)", () => {
+  const pagesError: PageReport[] = [
+    {
+      route: "/",
+      status: "ok",
+      timing: { route: "/", captureMs: 0, labelMs: 500, projectMs: 900, buildMs: 1_500 },
+      llm: undefined, // no LLM cost because it failed
+      issues: {
+        assetsFailed: 0,
+        leftoverSourceRefs: 0,
+        labelSource: "heuristic-error" as const,
+        labelFallbackReason: "HTTP 401 Unauthorized",
+        unknownSections: 0,
+        captureRetries: 0,
+        selfContainmentWarnings: 0,
+      },
+    },
+  ];
+
+  const report: BuildReport = {
+    site: "Error Gym",
+    origin: "https://errorgym.com",
+    generatedAt: "2026-08-01T00:00:00.000Z",
+    totalWallMs: 5_000,
+    pages: pagesError,
+  };
+
+  let html: string;
+
+  beforeAll(() => {
+    const reportPath = path.join(tmpDir, "report-error.html");
+    generateHtmlReport(report, reportPath);
+    html = fs.readFileSync(reportPath, "utf8");
+  });
+
+  it("shows the error reason (HTTP 401) in the report", () => {
+    expect(html).toContain("HTTP 401 Unauthorized");
+  });
+
+  it("shows actionable key-check copy", () => {
+    expect(html).toContain("OPENROUTER_API_KEY");
+  });
+
+  it("shows 'LLM labeling failed' text", () => {
+    expect(html).toContain("LLM labeling failed");
+  });
+
+  it("does NOT show benign 'no action needed' copy for this error page", () => {
+    expect(html).not.toContain("no action needed");
+  });
+
+  it("renders the error in red (cb2431 color)", () => {
+    // The error copy should be rendered with the error color, not the warning orange.
+    expect(html).toContain("#cb2431");
+  });
+});
+
+describe("report: mixed — one LLM-fresh page + one heuristic-error page", () => {
   const pagesMixed: PageReport[] = [
     {
       route: "/",
@@ -191,15 +254,23 @@ describe("report: mixed — one LLM page + one heuristic fallback page", () => {
         completionTokens: 300,
         costUsd: computeLabelCost(3_000, 300),
       },
-      issues: { assetsFailed: 0, leftoverSourceRefs: 0, llmFallback: false, unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
+      issues: { assetsFailed: 0, leftoverSourceRefs: 0, labelSource: "llm-fresh" as const, unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
     },
     {
       route: "/schedule/",
       status: "ok",
       timing: { route: "/schedule/", captureMs: 0, labelMs: 800, projectMs: 900, buildMs: 1_500 },
-      // This page fell back to heuristic (e.g. LLM error).
+      // This page fell back to heuristic (LLM error).
       llm: undefined,
-      issues: { assetsFailed: 0, leftoverSourceRefs: 0, llmFallback: true, unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
+      issues: {
+        assetsFailed: 0,
+        leftoverSourceRefs: 0,
+        labelSource: "heuristic-error" as const,
+        labelFallbackReason: "HTTP 401 Unauthorized",
+        unknownSections: 0,
+        captureRetries: 0,
+        selfContainmentWarnings: 0,
+      },
     },
   ];
 
@@ -228,17 +299,64 @@ describe("report: mixed — one LLM page + one heuristic fallback page", () => {
     expect(html).toContain("heuristic");
   });
 
-  it("shows 'LLM fallback' issue for the fallback page", () => {
-    expect(html).toContain("LLM fallback");
+  it("shows LLM error info for the failed page", () => {
+    expect(html).toContain("LLM labeling failed");
   });
 
-  it("the homepage LLM page does NOT show the fallback issue", () => {
-    // The / page has llmFallback:false so it shows "clean" not "LLM fallback"
-    // The HTML won't have "LLM fallback" for the / page, only for /schedule/.
-    // We can't distinguish rows easily in raw HTML, so just verify the count:
-    // There should be exactly 1 "LLM fallback" mention in the issues text area.
-    const fallbackCount = (html.match(/LLM fallback/g) ?? []).length;
-    // One from the issue cell, one from the "found X → did Y" issues table.
-    expect(fallbackCount).toBeGreaterThanOrEqual(1);
+  it("shows the error reason in the issues table", () => {
+    expect(html).toContain("HTTP 401 Unauthorized");
+  });
+
+  it("the homepage LLM-fresh page shows 'clean' (no issues)", () => {
+    // The / page is llm-fresh and has no issues — it should show "clean"
+    expect(html).toContain("clean");
+  });
+});
+
+describe("report: llm-cached — labels.json reused, no re-cost (benign)", () => {
+  const pagesCached: PageReport[] = [
+    {
+      route: "/",
+      status: "ok",
+      timing: { route: "/", captureMs: 0, labelMs: 50, projectMs: 900, buildMs: 1_500 },
+      llm: undefined, // no new LLM cost — reused prior labels.json
+      issues: {
+        assetsFailed: 0,
+        leftoverSourceRefs: 0,
+        labelSource: "llm-cached" as const,
+        unknownSections: 0,
+        captureRetries: 0,
+        selfContainmentWarnings: 0,
+      },
+    },
+  ];
+
+  const report: BuildReport = {
+    site: "Cached Gym",
+    origin: "https://cachedgym.com",
+    generatedAt: "2026-08-01T00:00:00.000Z",
+    totalWallMs: 5_000,
+    pages: pagesCached,
+  };
+
+  let html: string;
+
+  beforeAll(() => {
+    const reportPath = path.join(tmpDir, "report-cached.html");
+    generateHtmlReport(report, reportPath);
+    html = fs.readFileSync(reportPath, "utf8");
+  });
+
+  it("shows 'labels cached' in the issues cell", () => {
+    expect(html).toContain("labels cached");
+  });
+
+  it("shows 'no re-cost' copy (benign)", () => {
+    expect(html).toContain("no re-cost");
+  });
+
+  it("does NOT show LLM error copy", () => {
+    expect(html).not.toContain("check OPENROUTER_API_KEY");
+    expect(html).not.toContain("LLM labeling failed");
   });
 });

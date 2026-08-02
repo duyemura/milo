@@ -332,3 +332,82 @@ describe("discoverPages() — sitemap 404 fallback", () => {
     expect(result.ugc).toHaveLength(0);
   });
 });
+
+describe("discoverPages() — T6: partial sub-sitemap failure (one 503, others succeed)", () => {
+  // WordPress sitemap index with 3 sub-sitemaps:
+  //   page-sitemap.xml   → succeeds (core pages)
+  //   post-sitemap1.xml  → succeeds (UGC pages)
+  //   post-sitemap2.xml  → returns 503 (should be skipped, not abort all)
+  const WP_INDEX_PARTIAL = `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap><loc>https://partial.example.com/page-sitemap.xml</loc></sitemap>
+  <sitemap><loc>https://partial.example.com/post-sitemap1.xml</loc></sitemap>
+  <sitemap><loc>https://partial.example.com/post-sitemap2.xml</loc></sitemap>
+</sitemapindex>`;
+
+  const WP_PAGE = `<?xml version="1.0"?>
+<urlset>
+  <url><loc>https://partial.example.com/</loc></url>
+  <url><loc>https://partial.example.com/about/</loc></url>
+  <url><loc>https://partial.example.com/schedule/</loc></url>
+</urlset>`;
+
+  const WP_POST1 = `<?xml version="1.0"?>
+<urlset>
+  <url><loc>https://partial.example.com/strength-training-basics/</loc></url>
+  <url><loc>https://partial.example.com/nutrition-for-athletes/</loc></url>
+</urlset>`;
+
+  // post-sitemap2.xml is intentionally absent → mock returns 503 for it
+  function makeMockFetchWithPartialFailure() {
+    return vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
+      const urlStr = url instanceof Request ? url.url : String(url);
+      const responses: Record<string, string> = {
+        "https://partial.example.com/sitemap.xml": WP_INDEX_PARTIAL,
+        "https://partial.example.com/page-sitemap.xml": WP_PAGE,
+        "https://partial.example.com/post-sitemap1.xml": WP_POST1,
+        // post-sitemap2.xml is missing → 503
+      };
+      const body = responses[urlStr];
+      if (body !== undefined) {
+        return { ok: true, status: 200, text: async () => body } as unknown as Response;
+      }
+      // Everything else (including post-sitemap2.xml) returns 503
+      return { ok: false, status: 503, text: async () => "Service Unavailable" } as unknown as Response;
+    });
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", makeMockFetchWithPartialFailure());
+  });
+
+  it("returns pages from the successful sub-sitemaps (partial.example.com core pages)", async () => {
+    const result = await discoverPages("https://partial.example.com");
+    const coreRoutes = result.core.map((p) => p.route);
+    expect(coreRoutes).toContain("/");
+    expect(coreRoutes).toContain("/about/");
+    expect(coreRoutes).toContain("/schedule/");
+  });
+
+  it("returns UGC pages from the successful post-sitemap1 sub-sitemap", async () => {
+    const result = await discoverPages("https://partial.example.com");
+    const ugcRoutes = result.ugc.map((p) => p.route);
+    expect(ugcRoutes).toContain("/strength-training-basics/");
+    expect(ugcRoutes).toContain("/nutrition-for-athletes/");
+  });
+
+  it("does NOT include pages from the failed post-sitemap2.xml", async () => {
+    // The 503 sub-sitemap contributes nothing, but its absence must not wipe other pages.
+    // We verify by checking that we still have the expected total (core + UGC from post1).
+    const result = await discoverPages("https://partial.example.com");
+    // All pages come from page-sitemap + post-sitemap1; post-sitemap2 adds nothing.
+    // If the failed sub-sitemap had caused a full abort, core would be just ["/"].
+    expect(result.core.length).toBeGreaterThan(1); // at least / + about + schedule
+    expect(result.ugc.length).toBe(2);             // only from post-sitemap1
+  });
+
+  it("partial failure does not propagate to crash the full discovery", async () => {
+    // Must resolve, not reject.
+    await expect(discoverPages("https://partial.example.com")).resolves.toBeDefined();
+  });
+});

@@ -133,7 +133,7 @@ switch (subcommand) {
     const dir = requireArg("dir");
     const out = arg("out");
     const noLlm = hasFlag("no-llm");
-    const labels = await label({ dir, out, llm: !noLlm });
+    const { labels, source, fallbackReason } = await label({ dir, out, llm: !noLlm });
     const roleCounts = labels.sections.reduce<Record<string, number>>((m, s) => {
       m[s.role] = (m[s.role] ?? 0) + 1;
       return m;
@@ -144,6 +144,7 @@ switch (subcommand) {
       `${labels.elements.length} elements, ${labels.assets.length} assets`,
     );
     console.log(`  section roles: ${Object.entries(roleCounts).map(([r, n]) => `${r}×${n}`).join(", ")}`);
+    console.log(`  label source: ${source}${fallbackReason ? ` (reason: ${fallbackReason})` : ""}`);
     console.log(`  → wrote ${path.join(path.resolve(out ?? dir), "labels.json")}`);
     break;
   }

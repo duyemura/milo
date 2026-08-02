@@ -300,6 +300,13 @@ export async function discoverPages(
     ugcArr.splice(ugcLimit);
   }
 
+  // --- Warn when discovery effectively found only the homepage ---
+  if (coreArr.length === 1 && ugcArr.length === 0) {
+    console.warn(
+      `[discover] discovery found only the homepage for ${cleanOrigin} — sitemap may be empty/inaccessible and nav scrape yielded no links. Only "/" will be built.`,
+    );
+  }
+
   // --- Build PageSpec arrays ---
   const toSpec = (route: string): PageSpec => ({
     route,

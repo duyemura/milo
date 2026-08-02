@@ -21,7 +21,7 @@ const mockPages: PageReport[] = [
     status: "ok",
     timing: { route: "/", captureMs: 90_000, labelMs: 12_000, projectMs: 5_000, buildMs: 8_000 },
     llm: { model: "google/gemini-2.5-flash", promptTokens: 45_000, completionTokens: 2_000, costUsd: 0.005300 },
-    issues: { assetsFailed: 0, leftoverSourceRefs: 3, llmFallback: false, unknownSections: 1, captureRetries: 0, selfContainmentWarnings: 0 },
+    issues: { assetsFailed: 0, leftoverSourceRefs: 3, labelSource: "llm-fresh", unknownSections: 1, captureRetries: 0, selfContainmentWarnings: 0 },
     thumbPath: undefined,
     oraclePx: 0,
   },
@@ -30,7 +30,7 @@ const mockPages: PageReport[] = [
     status: "failed",
     error: "TimeoutError: page load timed out after 30000ms",
     timing: { route: "/about/", captureMs: 30_000, labelMs: 0, projectMs: 0, buildMs: 0 },
-    issues: { assetsFailed: 0, leftoverSourceRefs: 0, llmFallback: false, unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
+    issues: { assetsFailed: 0, leftoverSourceRefs: 0, labelSource: "heuristic-disabled", unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
   },
 ];
 

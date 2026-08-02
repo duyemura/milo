@@ -226,14 +226,14 @@ describe("label() — LLM is an enhancement, never a dependency", () => {
     return tmp;
   }
 
-  it("garbage LLM JSON → falls back to heuristicLabels (byte-identical to heuristic)", async () => {
+  it("garbage LLM JSON → falls back to heuristicLabels (byte-identical to heuristic), source=heuristic-error", async () => {
     const cap = loadCapture("torrance");
     const heur = heuristicLabels(cap);
     const tmp = writeCapture("torrance");
 
     // Force the LLM path on (mock the provider + model via env), but make the
     // provider return garbage. `label()` must swallow the error and use the heuristic.
-    const prev = { p: process.env.LLM_PROVIDER, m: process.env.DEFAULT_LLM_MODEL };
+    const prev = { p: process.env.LLM_PROVIDER, m: process.env.DEFAULT_LLM_MODEL, k: process.env.OPENROUTER_API_KEY };
     // NOTE: we cannot inject a fakeChat into label() directly — it constructs the real
     // chatCompletion from env. Instead we point it at an unreachable/invalid config so
     // the real call fails fast, exercising the SAME fallback branch as an LLM error.
@@ -242,42 +242,77 @@ describe("label() — LLM is an enhancement, never a dependency", () => {
     process.env.OPENROUTER_BASE_URL = "http://127.0.0.1:1/v1"; // refused connection
     process.env.OPENROUTER_API_KEY = "test";
     try {
-      const labels = await label({ dir: tmp, llm: true });
-      expect(labels).toEqual(heur); // fell back to the deterministic heuristic
-      expect(() => LabelSchema.parse(labels)).not.toThrow();
+      const result = await label({ dir: tmp, llm: true });
+      expect(result.labels).toEqual(heur); // fell back to the deterministic heuristic
+      expect(() => LabelSchema.parse(result.labels)).not.toThrow();
+      // Honest source: error path, not a silent no-LLM run
+      expect(result.source).toBe("heuristic-error");
+      expect(result.fallbackReason).toBeDefined();
     } finally {
       process.env.LLM_PROVIDER = prev.p;
       process.env.DEFAULT_LLM_MODEL = prev.m;
+      if (prev.k !== undefined) process.env.OPENROUTER_API_KEY = prev.k;
+      else delete process.env.OPENROUTER_API_KEY;
       fs.rmSync(tmp, { recursive: true, force: true });
     }
   });
 
-  it("llm:false → heuristic path even if a provider is configured", async () => {
+  it("llm:false → heuristic path even if a provider is configured, source=heuristic-disabled", async () => {
     const cap = loadCapture("speakeasy");
     const heur = heuristicLabels(cap);
     const tmp = writeCapture("speakeasy");
     const prev = process.env.LLM_PROVIDER;
     process.env.LLM_PROVIDER = "openrouter";
     try {
-      const labels = await label({ dir: tmp, llm: false });
-      expect(labels).toEqual(heur);
+      const result = await label({ dir: tmp, llm: false });
+      expect(result.labels).toEqual(heur);
+      expect(result.source).toBe("heuristic-disabled");
+      expect(result.fallbackReason).toBeUndefined();
     } finally {
       process.env.LLM_PROVIDER = prev;
       fs.rmSync(tmp, { recursive: true, force: true });
     }
   });
 
-  it("no LLM_PROVIDER → heuristic path", async () => {
+  it("no LLM_PROVIDER → heuristic path, source=heuristic-disabled", async () => {
     const cap = loadCapture("sweatshed");
     const heur = heuristicLabels(cap);
     const tmp = writeCapture("sweatshed");
     const prev = process.env.LLM_PROVIDER;
     delete process.env.LLM_PROVIDER;
     try {
-      const labels = await label({ dir: tmp });
-      expect(labels).toEqual(heur);
+      const result = await label({ dir: tmp });
+      expect(result.labels).toEqual(heur);
+      expect(result.source).toBe("heuristic-disabled");
     } finally {
       if (prev !== undefined) process.env.LLM_PROVIDER = prev;
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("missing OPENROUTER_API_KEY → configFromEnv returns null → heuristic-disabled (no unauthenticated request)", async () => {
+    const cap = loadCapture("torrance");
+    const heur = heuristicLabels(cap);
+    const tmp = writeCapture("torrance");
+    const prev = {
+      p: process.env.LLM_PROVIDER,
+      m: process.env.DEFAULT_LLM_MODEL,
+      k: process.env.OPENROUTER_API_KEY,
+    };
+    process.env.LLM_PROVIDER = "openrouter";
+    process.env.DEFAULT_LLM_MODEL = "some-model";
+    delete process.env.OPENROUTER_API_KEY; // key is absent
+    try {
+      const result = await label({ dir: tmp, llm: true });
+      // configFromEnv() returns null when key is missing → straight to heuristic (no error thrown)
+      expect(result.labels).toEqual(heur);
+      // Key missing means configFromEnv returned null → no LLM attempted → heuristic-disabled
+      expect(result.source).toBe("heuristic-disabled");
+      expect(result.fallbackReason).toBeUndefined();
+    } finally {
+      process.env.LLM_PROVIDER = prev.p;
+      process.env.DEFAULT_LLM_MODEL = prev.m;
+      if (prev.k !== undefined) process.env.OPENROUTER_API_KEY = prev.k;
       fs.rmSync(tmp, { recursive: true, force: true });
     }
   });

@@ -32,8 +32,18 @@ export interface PageIssues {
   assetsFailed: number;
   /** Leftover source-origin refs after rehosting (proxy: sourceOrigins count from capture.json). */
   leftoverSourceRefs: number;
-  /** Whether label() fell back to the heuristic path instead of the LLM. */
-  llmFallback: boolean;
+  /**
+   * Honest label source:
+   *   - "llm-fresh"          LLM ran and succeeded (cost incurred)
+   *   - "llm-cached"         labels.json reused from a prior run (no re-cost)
+   *   - "heuristic-disabled" llm:false was passed — intentional no-LLM run (benign)
+   *   - "heuristic-error"    LLM was attempted but threw (actionable — check key/provider)
+   *
+   * Replaces the old boolean `llmFallback`, which conflated cached, disabled, and error states.
+   */
+  labelSource: "llm-fresh" | "llm-cached" | "heuristic-disabled" | "heuristic-error";
+  /** When labelSource="heuristic-error": the error message from the failed LLM call. */
+  labelFallbackReason?: string;
   /** Number of sections with role="unknown" in the labels. */
   unknownSections: number;
   /** Capture retries (capture doesn't retry at the page level; always 0). */
@@ -185,13 +195,22 @@ export function generateHtmlReport(report: BuildReport, outPath: string): void {
     const oracle = p.oraclePx != null ? `${p.oraclePx}px` : "—";
 
     const issues: string[] = [];
+    const errorIssues: string[] = [];
     if (p.issues.assetsFailed > 0) issues.push(`${p.issues.assetsFailed} assets failed`);
     if (p.issues.leftoverSourceRefs > 0) issues.push(`${p.issues.leftoverSourceRefs} source refs`);
-    if (p.issues.llmFallback) issues.push("LLM fallback");
+    if (p.issues.labelSource === "heuristic-error") {
+      const reason = p.issues.labelFallbackReason ? ` (${p.issues.labelFallbackReason})` : "";
+      errorIssues.push(`LLM labeling failed${reason} — check OPENROUTER_API_KEY / provider config`);
+    } else if (p.issues.labelSource === "llm-cached") {
+      issues.push("labels cached");
+    }
     if (p.issues.unknownSections > 0) issues.push(`${p.issues.unknownSections} unknown sections`);
-    const issueCell = issues.length > 0
-      ? `<span style="color:#e36209">${escHtml(issues.join(", "))}</span>`
-      : `<span style="color:#22863a">clean</span>`;
+    const issueCell = errorIssues.length > 0
+      ? `<span style="color:#cb2431;font-weight:600">${escHtml(errorIssues.join("; "))}</span>`
+        + (issues.length > 0 ? `<br><span style="color:#e36209">${escHtml(issues.join(", "))}</span>` : "")
+      : issues.length > 0
+        ? `<span style="color:#e36209">${escHtml(issues.join(", "))}</span>`
+        : `<span style="color:#22863a">clean</span>`;
 
     const errorNote = p.error ? `<br><small style="color:#cb2431">${escHtml(p.error.slice(0, 120))}</small>` : "";
 
@@ -219,20 +238,32 @@ export function generateHtmlReport(report: BuildReport, outPath: string): void {
 
   // Issues rows — "found X → did Y" framing
   const issueRows = report.pages.filter((p) => p.status === "ok").map((p) => {
-    const items: string[] = [];
+    const items: Array<{ text: string; error?: boolean }> = [];
     if (p.issues.unknownSections > 0) {
-      items.push(`Found ${p.issues.unknownSections} section(s) with role=unknown → labeled as "content" by heuristic (no action needed)`);
+      items.push({ text: `Found ${p.issues.unknownSections} section(s) with role=unknown → labeled as "content" by heuristic (no action needed)` });
     }
-    if (p.issues.llmFallback) {
-      items.push("Found LLM path unavailable → fell back to heuristic labeler (output is deterministic, no LLM cost)");
+    if (p.issues.labelSource === "heuristic-error") {
+      const reason = p.issues.labelFallbackReason ? ` — ${p.issues.labelFallbackReason}` : "";
+      items.push({
+        text: `LLM labeling failed on every page${reason}; built with heuristic labels instead. Check OPENROUTER_API_KEY / LLM_PROVIDER config.`,
+        error: true,
+      });
+    } else if (p.issues.labelSource === "heuristic-disabled") {
+      items.push({ text: "LLM labeler disabled (llm:false) → used deterministic heuristic (no LLM cost / no action needed)" });
+    } else if (p.issues.labelSource === "llm-cached") {
+      items.push({ text: "labels.json reused from prior run → no re-cost (no action needed)" });
     }
     if (p.issues.leftoverSourceRefs > 0) {
-      items.push(`Found ${p.issues.leftoverSourceRefs} origin(s) still referenced in capture → all source origins are expected; rehosted assets are self-contained`);
+      items.push({ text: `Found ${p.issues.leftoverSourceRefs} origin(s) still referenced in capture → all source origins are expected; rehosted assets are self-contained` });
     }
     if (items.length === 0) return "";
     return `<tr>
       <td><code>${escHtml(p.route)}</code></td>
-      <td><ul style="margin:0;padding-left:18px">${items.map((i) => `<li>${escHtml(i)}</li>`).join("")}</ul></td>
+      <td><ul style="margin:0;padding-left:18px">${items.map((i) =>
+        i.error
+          ? `<li style="color:#cb2431;font-weight:600">${escHtml(i.text)}</li>`
+          : `<li>${escHtml(i.text)}</li>`
+      ).join("")}</ul></td>
     </tr>`;
   }).filter(Boolean).join("\n") || `<tr><td colspan="2" style="color:#22863a">No issues found.</td></tr>`;
 
