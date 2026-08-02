@@ -170,21 +170,23 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
     return null;
   }
   const FETCH_HEADERS = { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36", "referer": SRC_URL, "accept": "*/*" };
-  async function fetchAsset(u: string): Promise<{ buf: Buffer; ct: string; ext: string | null } | null> {
+  type AssetResult = { ok: true; buf: Buffer; ct: string; ext: string | null } | { ok: false; reason: string };
+  async function fetchAsset(u: string): Promise<AssetResult> {
+    let lastReason = "unknown";
     for (let attempt = 0; attempt < 2; attempt++) { // browser-like headers (CDNs reject bare fetch) + one retry on transient failure
       try {
         const res = await fetch(u, { signal: AbortSignal.timeout(15000), headers: FETCH_HEADERS });
-        if (!res.ok) { if (res.status >= 500 && attempt === 0) continue; return null; }
-        if (Number(res.headers.get("content-length") || 0) > 25_000_000) return null;
+        if (!res.ok) { lastReason = `HTTP ${res.status}`; if (res.status >= 500 && attempt === 0) continue; return { ok: false, reason: lastReason }; }
+        if (Number(res.headers.get("content-length") || 0) > 25_000_000) return { ok: false, reason: "too large (>25MB)" };
         const buf = Buffer.from(await res.arrayBuffer());
-        if (buf.length > 25_000_000) return null;
+        if (buf.length > 25_000_000) return { ok: false, reason: "too large (>25MB)" };
         const ct = (res.headers.get("content-type") || "").split(";")[0].trim();
         const ext = sniffExt(buf);
-        if (ext === "HTML" || ct === "text/html") return null; // a document (embed/404 page), not an asset — don't rehost
-        return { buf, ct, ext };
-      } catch { if (attempt === 0) continue; return null; }
+        if (ext === "HTML" || ct === "text/html") return { ok: false, reason: "not an asset (HTML/404 page)" }; // a document (embed/404 page), not an asset — don't rehost
+        return { ok: true, buf, ct, ext };
+      } catch (e) { lastReason = e instanceof Error && e.name === "TimeoutError" ? "timeout (15s)" : e instanceof Error ? e.message : "fetch error"; if (attempt === 0) continue; return { ok: false, reason: lastReason }; }
     }
-    return null;
+    return { ok: false, reason: lastReason };
   }
   const EXT_BY_CT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "image/svg+xml": "svg", "image/avif": "avif", "font/woff2": "woff2", "font/woff": "woff", "font/ttf": "ttf", "font/otf": "otf", "application/font-woff2": "woff2", "video/mp4": "mp4" };
   const extFor = (u: string, ct: string, ext: string | null) => ext || EXT_BY_CT[ct] || u.split("?")[0].match(/\.(\w{2,5})$/)?.[1]?.toLowerCase() || "bin";
@@ -315,15 +317,19 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
     const sourceOrigins = new Set(urls.map((u) => { try { return new URL(u).host; } catch { return ""; } }));
     console.log(`  rehosting ${urls.length} assets from ${sourceOrigins.size} origins… (${dt()})`);
     const map = new Map<string, string>();
-    let n = 0, failed = 0;
+    const failures: { url: string; reason: string }[] = [];
+    let n = 0;
     await Promise.all(urls.map(async (u) => {
       const a = await fetchAsset(u);
-      if (!a) { failed++; return; }
+      if (!a.ok) { failures.push({ url: u, reason: a.reason }); return; }
       const name = `a${n++}.${extFor(u, a.ct, a.ext)}`;
       fs.writeFileSync(path.join(ASSETS, name), a.buf);
       map.set(u, `assets/${name}`);
     }));
-    console.log(`  rehosted ${map.size}/${urls.length}${failed ? ` (${failed} failed)` : ""} (${dt()})`);
+    console.log(`  rehosted ${map.size}/${urls.length}${failures.length ? ` (${failures.length} failed)` : ""} (${dt()})`);
+    // Name each failed asset + why, so a failure is diagnosable (a dead tracking script is
+    // fine; a missing hero image is not). These refs fall back to the source origin at runtime.
+    for (const f of failures) console.log(`    ✗ ${f.reason}: ${f.url}`);
     rewriteTree(tree, map);
     for (const w of WIDTHS) for (const id in styles[w]) for (const k in styles[w][id]) styles[w][id][k] = rewriteStyleVal(styles[w][id][k], map);
     const subUrl = (u: string) => map.get(absolutize(u)!) || u;
@@ -346,7 +352,7 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
     }));
     for (const m of [...fontCss.matchAll(URL_RE)]) {
       const abs = absolutize(m[2]); if (!abs) continue;
-      const a = await fetchAsset(abs); if (!a) continue;
+      const a = await fetchAsset(abs); if (!a.ok) continue;
       const name = `f${n++}.${extFor(abs, a.ct, a.ext)}`;
       fs.writeFileSync(path.join(ASSETS, name), a.buf);
       fontCss = fontCss.replaceAll(m[2], `assets/${name}`);
