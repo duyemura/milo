@@ -75,6 +75,7 @@ function insertGeneratedSection(
   site: SiteRef,
   componentName: string,
   rt: RenderedTemplate,
+  afterSection?: string,
 ): { changedFiles: string[]; beforeOrder: string[] } {
   const componentsDir = path.join(site.dir, "astro", "src", "components");
   fs.mkdirSync(componentsDir, { recursive: true });
@@ -111,15 +112,26 @@ function insertGeneratedSection(
     const fmClose = idx.indexOf("\n---\n");
     if (fmClose !== -1) idx = idx.slice(0, fmClose) + "\n" + importLine + idx.slice(fmClose);
   }
-  // Append the include after the last existing PascalCase include, else before </body>.
+  // Insert after `afterSection`'s include tag if provided, else append after the last include.
   const includeTag = `<${componentName} />`;
-  const includes = [...idx.matchAll(/<([A-Z][A-Za-z0-9]*)\s*\/>/g)];
-  if (includes.length > 0) {
-    const last = includes[includes.length - 1];
-    const at = last.index! + last[0].length;
-    idx = idx.slice(0, at) + " " + includeTag + idx.slice(at);
+  const allIncludes = [...idx.matchAll(/<([A-Z][A-Za-z0-9]*)\s*\/>/g)];
+  if (afterSection) {
+    const afterMatch = allIncludes.find((m) => m[1] === afterSection);
+    if (afterMatch && afterMatch.index !== undefined) {
+      const at = afterMatch.index + afterMatch[0].length;
+      idx = idx.slice(0, at) + " " + includeTag + idx.slice(at);
+    } else {
+      // afterSection not in the page — fall back to appending at end (matches addSection behaviour).
+      const last = allIncludes[allIncludes.length - 1];
+      idx = last
+        ? idx.slice(0, last.index! + last[0].length) + " " + includeTag + idx.slice(last.index! + last[0].length)
+        : idx.replace("</body>", ` ${includeTag} </body>`);
+    }
   } else {
-    idx = idx.replace("</body>", ` ${includeTag} </body>`);
+    const last = allIncludes[allIncludes.length - 1];
+    idx = last
+      ? idx.slice(0, last.index! + last[0].length) + " " + includeTag + idx.slice(last.index! + last[0].length)
+      : idx.replace("</body>", ` ${includeTag} </body>`);
   }
   fs.writeFileSync(idxPath, idx);
   changedFiles.push(idxPath);
@@ -153,7 +165,16 @@ function insertGeneratedSection(
   }));
 
   const page = manifest.pages[0];
-  page.sections.push(newSection);
+  if (afterSection) {
+    const afterIdx = page.sections.findIndex((s) => s.name === afterSection || s.role === afterSection);
+    if (afterIdx !== -1) {
+      page.sections.splice(afterIdx + 1, 0, newSection);
+    } else {
+      page.sections.push(newSection); // afterSection not found — append at end
+    }
+  } else {
+    page.sections.push(newSection);
+  }
   page.copy.push(...newCopy);
   page.elements.push(...newElements);
   const manifestPath = path.join(site.dir, "site.json");
@@ -174,6 +195,8 @@ export interface GenerateSectionArgs {
   goal?: PageGoal;
   /** A short natural-language brief for the copy the LLM should write. */
   brief: string;
+  /** Insert the new section after this existing section name/role. Omit to append at the end. */
+  afterSection?: string;
 }
 
 export interface GenerateSectionResult {
@@ -267,7 +290,7 @@ export async function generateSection(
   const token = snapshot(site);
 
   // Insert via the shared insertion path (mirrors addSection).
-  const { beforeOrder } = insertGeneratedSection(site, componentName, rt);
+  const { beforeOrder } = insertGeneratedSection(site, componentName, rt, args.afterSection);
 
   // Oracle-verify: addSection-style intent. The new section is proven present structurally +
   // render-sanity (it has no "before" crop to pixel-diff); every PRE-EXISTING section must stay

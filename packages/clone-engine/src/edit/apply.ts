@@ -147,7 +147,8 @@ async function applyAndVerify(
       const failures: string[] = [];
       for (const op of ops) {
         if (op.op !== "addPage") continue;
-        const cleanRoute = op.route.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+        // Must exactly match ops.ts::addPage sanitizer (all 4 steps) or file/route lookup diverges.
+        const cleanRoute = op.route.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase().replace(/^-+|-+$/g, "");
         const pageFile = path.join(site.dir, "astro", "src", "pages", `${cleanRoute}.astro`);
         if (!fs.existsSync(pageFile)) failures.push(`addPage: page file missing: ${pageFile}`);
         const inManifest = manifest.pages.some((p) => p.route === `/${cleanRoute}/`);
@@ -213,7 +214,7 @@ async function applyOpsDeterministically(site: SiteRef, ops: EditOp[], opts: App
         // generateSection runs its own internal verify. If it fails, throw so apply() can retry.
         const genResult = await generateSection(
           site,
-          { role: op.role, brief: op.brief },
+          { role: op.role, brief: op.brief, afterSection: op.afterSection },
           opts.chat,
           opts.model,
           opts.browser,
