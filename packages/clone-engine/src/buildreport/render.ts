@@ -1,5 +1,9 @@
 import type { SiteReport, Issue } from "./types.ts";
 
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 function badge(s: Issue["severity"]): string {
   return s === "blocker" ? "🔴" : s === "note" ? "🟡" : "ℹ️";
 }
@@ -11,7 +15,7 @@ export function renderSiteReport(report: SiteReport): string {
     : `⚠️ NEEDS_FIXES — ${report.blockerCount} blocker${report.blockerCount !== 1 ? "s" : ""}`;
 
   const issueRows = report.issues.map((i) =>
-    `<tr><td>${badge(i.severity)} ${i.severity}</td><td>${i.page}</td><td>${i.section ?? "—"}</td><td>${i.kind}</td><td>${i.detail}</td></tr>`
+    `<tr><td>${badge(i.severity)} ${esc(i.severity)}</td><td>${esc(i.page)}</td><td>${esc(i.section ?? "—")}</td><td>${esc(i.kind)}</td><td>${esc(i.detail)}</td></tr>`
   ).join("");
 
   const pageRows = report.pages.map((p) =>

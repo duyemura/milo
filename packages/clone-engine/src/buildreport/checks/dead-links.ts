@@ -6,7 +6,10 @@ import { getLinks } from "../html.ts";
 
 function isInternal(href: string): boolean {
   if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return false;
-  return !href.startsWith("http://") && !href.startsWith("https://") && !href.startsWith("//");
+  if (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("//")) return false;
+  // Only check root-absolute paths (/about/) — relative paths (about/) may be correct relative to
+  // the current route and are hard to resolve without knowing the base; skip to avoid false blockers.
+  return href.startsWith("/");
 }
 
 function normalizeRoute(href: string): string {

@@ -19,11 +19,11 @@ export async function checkFidelity(
   page: PageContext,
   browser: Browser,
   width: number,
-): Promise<{ issues: CheckResult["issues"]; fidelityPct: number }> {
-  if (!page.source?.captureDir) return { issues: [], fidelityPct: 0 };
+): Promise<{ issues: CheckResult["issues"]; fidelityPct?: number }> {
+  if (!page.source?.captureDir) return { issues: [] };
   const sourcePngPath = path.join(page.source.captureDir, "source-desktop.png");
   if (!fs.existsSync(sourcePngPath)) {
-    return { issues: [{ severity: "info", page: page.route, kind: "fidelity-skip", detail: "source-desktop.png not found — fidelity check skipped" }], fidelityPct: 0 };
+    return { issues: [{ severity: "info", page: page.route, kind: "fidelity-skip", detail: "source-desktop.png not found — fidelity check skipped" }] };
   }
 
   const snap = await renderSnapshot(browser, { dir: page.siteDir }, { width });
