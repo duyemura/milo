@@ -34,6 +34,7 @@ import {
   addSection,
   addPage,
 } from "./ops.ts";
+import { generateSection } from "./generate.ts";
 import { verify } from "./verify.ts";
 import { renderSnapshot, sectionListOf, type RenderSnapshot } from "./snapshot.ts";
 import { snapshot, restore } from "./history.ts";
@@ -54,7 +55,7 @@ export interface ApplyOptions {
 }
 
 /** Structural ops change section membership/order, so the verifier needs an expectedSectionOrder. */
-const STRUCTURAL_OPS = new Set<EditOp["op"]>(["removeSection", "reorderSection", "addSection"]);
+const STRUCTURAL_OPS = new Set<EditOp["op"]>(["removeSection", "reorderSection", "addSection", "generateSection"]);
 
 /**
  * Apply a batch of ops with self-correction, never shipping a broken edit.
@@ -133,7 +134,7 @@ async function applyAndVerify(
   opts: ApplyOptions,
 ): Promise<VerifierReport> {
   try {
-    const results = await applyOpsDeterministically(site, ops);
+    const results = await applyOpsDeterministically(site, ops, opts);
     const intent = buildIntent(site, ops, results, brandBefore);
     return await verify(opts.browser, before, site, intent, {
       width: opts.width ?? before.width,
@@ -153,7 +154,7 @@ async function applyAndVerify(
 }
 
 /** Dispatch each op to its deterministic implementation, in order. */
-async function applyOpsDeterministically(site: SiteRef, ops: EditOp[]): Promise<OpResult[]> {
+async function applyOpsDeterministically(site: SiteRef, ops: EditOp[], opts: ApplyOptions): Promise<OpResult[]> {
   const results: OpResult[] = [];
   for (const op of ops) {
     switch (op.op) {
@@ -181,6 +182,26 @@ async function applyOpsDeterministically(site: SiteRef, ops: EditOp[]): Promise<
       case "addPage":
         results.push(addPage(site, op.route, op.cloneOfPage, op.pageType));
         break;
+      case "generateSection": {
+        // generateSection runs its own internal verify. If it fails, throw so apply() can retry.
+        const genResult = await generateSection(
+          site,
+          { role: op.role, brief: op.brief },
+          opts.chat,
+          opts.model,
+          opts.browser,
+          { width: opts.width, assetsFallback: opts.assetsFallback },
+        );
+        if (!genResult.ok) {
+          throw new Error(`generateSection failed: ${genResult.verifierReport.failures.join("; ")}`);
+        }
+        results.push({
+          op,
+          changedFiles: [],
+          targetSections: [genResult.sectionName],
+        });
+        break;
+      }
     }
   }
   return results;
@@ -363,6 +384,8 @@ function targetIdentity(op: EditOp): string {
       return `addSection:${op.cloneOf}`;
     case "addPage":
       return `addPage:${op.route}`;
+    case "generateSection":
+      return `generateSection:${op.role}`;
   }
 }
 

@@ -12,6 +12,7 @@
  */
 import type { SiteRef, EditOp, PlanResult, ConversationTurn } from "./types.ts";
 import { PlanSchema, EditOpSchema } from "./types.ts";
+import { isGenerateRole } from "./templates.ts";
 import { digest } from "./digest.ts";
 import {
   resolveCopy,
@@ -24,7 +25,7 @@ import {
 import { llmJson } from "@milo/llm";
 import type { ChatFn, ChatMessage } from "@milo/llm";
 
-const SYSTEM_PROMPT = `You edit ONE gym website. Given the site digest and the conversation, determine the user's intent.
+const SYSTEM_PROMPT = `You edit ONE local business website. Given the site digest and the conversation, determine the user's intent.
 
 If the request is CLEAR and SPECIFIC:
 - Output a list of edit ops from the schema (1–5 ops), each targeting a REAL identifier from the digest.
@@ -41,6 +42,13 @@ NEVER invent targets. Only reference:
 - asset aliases from the digest (e.g. "logo")
 - brand slots: primary, accent, surface, text, muted
 - element roles from the digest
+
+For ADDING A NEW SECTION that doesn't exist yet, use generateSection (not addSection):
+  { op: "generateSection", role: "<role>", brief: "<what the section should say/do>" }
+  Valid roles: hero, faq, coach-grid, program-cards, testimonials, pricing, stats-band,
+               schedule, logo-strip, media-block, content-block, contact-form, lead-form,
+               location-map, cta-band, feature-grid
+  Optional: afterSection: "<existing section name>" to control placement.
 
 Output valid JSON matching the schema. No markdown, no prose outside the JSON.`;
 
@@ -81,7 +89,7 @@ export async function plan(
 
   for (const op of raw.ops) {
     try {
-      validateOpTarget(site, op);
+      await validateOpTarget(site, op);
       validated.push(op as EditOp);
     } catch (err) {
       // Only a TargetError means the op referenced something not on the site (a hallucination
@@ -127,7 +135,7 @@ export async function plan(
  * Validate that an op's targets exist in the real site.json.
  * Throws `TargetError` if any target is missing (hallucinated).
  */
-function validateOpTarget(site: SiteRef, op: unknown): void {
+async function validateOpTarget(site: SiteRef, op: unknown): Promise<void> {
   // Cast through EditOpSchema to get a typed op.
   const parsed = EditOpSchema.parse(op);
 
@@ -175,6 +183,21 @@ function validateOpTarget(site: SiteRef, op: unknown): void {
         }
       }
       break;
+
+    case "generateSection": {
+      // Validate role is in the template library (bounded vocabulary).
+      if (!isGenerateRole(parsed.role)) {
+        throw new TargetError(`generateSection: role "${parsed.role}" is not in the template library`);
+      }
+      if (parsed.afterSection !== undefined) {
+        try {
+          resolveSection(site, parsed.afterSection);
+        } catch {
+          console.warn(`[plan] generateSection.afterSection "${parsed.afterSection}" not found — will append at end`);
+        }
+      }
+      break;
+    }
 
     case "addPage": {
       // route must be non-empty (Zod already checks z.string(), we add a runtime guard).

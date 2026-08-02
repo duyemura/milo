@@ -11,7 +11,8 @@ export type EditOp =
   | { op: "removeSection"; section: string }            // section = data-section role or component name
   | { op: "reorderSection"; section: string; toIndex: number }
   | { op: "addSection"; cloneOf: string; afterSection?: string }
-  | { op: "addPage"; route: string; cloneOfPage?: string; pageType?: PageType };  // cloneOfPage optional → auto-pick nearest-type; pageType optional → classify from route
+  | { op: "addPage"; route: string; cloneOfPage?: string; pageType?: PageType }   // cloneOfPage optional → auto-pick nearest-type; pageType optional → classify from route
+  | { op: "generateSection"; role: string; brief: string; afterSection?: string }; // role must be in TEMPLATE_LIBRARY; brief is natural-language copy guidance for the LLM
 
 export interface OpResult { op: EditOp; changedFiles: string[]; targetSections: string[]; }
 
@@ -149,6 +150,12 @@ export const EditOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("removeSection"), section: z.string() }),
   z.object({ op: z.literal("reorderSection"), section: z.string(), toIndex: z.number().int().nonnegative() }),
   z.object({ op: z.literal("addSection"), cloneOf: z.string(), afterSection: z.string().optional() }),
+  z.object({
+    op: z.literal("generateSection"),
+    role: z.string().min(1),
+    brief: z.string().min(1),
+    afterSection: z.string().optional(),
+  }),
   z.object({
     op: z.literal("addPage"),
     route: z.string(),
