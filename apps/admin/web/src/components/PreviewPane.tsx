@@ -8,18 +8,33 @@ import { ReportTab } from "./ReportTab.tsx";
 type Tab = "preview" | "report" | "logs";
 type Device = "desktop" | "mobile";
 
-export function PreviewPane(props: { id: string; state: RunState; jobs: Job[] }) {
-  const { id, state, jobs } = props;
+export function PreviewPane(props: { id: string; state: RunState; jobs: Job[]; stagingUrl: string | null }) {
+  const { id, state, jobs, stagingUrl } = props;
   const [tab, setTab] = useState<Tab>("preview");
   const [device, setDevice] = useState<Device>("desktop");
   const failed = state.status === "failed";
+
+  // Every build auto-deploys to staging — surface where it landed (or that it's on its way).
+  const deployJob = jobs.find((j) => j.type === "deploy-staging");
+  const deploying = deployJob != null && ["waiting", "queued", "running"].includes(deployJob.status);
+  const deployFailed = deployJob?.status === "failed";
 
   return (
     <div className="pane-layout">
       <aside className="chat-rail">
         <h2>Chat</h2>
         <div className="chat-log muted">
-          <p>{failed ? "This build failed. Check the logs tab." : "Your site is ready."}</p>
+          {failed ? (
+            <p>This build failed. Check the logs tab.</p>
+          ) : stagingUrl ? (
+            <p>Live on staging: <a href={stagingUrl} target="_blank" rel="noreferrer">{stagingUrl.replace(/^https?:\/\//, "")}</a></p>
+          ) : deploying ? (
+            <p>Deploying to staging…</p>
+          ) : deployFailed ? (
+            <p className="error">Staging deploy failed. Check the logs tab.</p>
+          ) : (
+            <p>Your site is ready.</p>
+          )}
           <p className="hint">Editing by chat is coming in the next update.</p>
         </div>
         <div className="chat-input">

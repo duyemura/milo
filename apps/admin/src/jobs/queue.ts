@@ -1,7 +1,7 @@
 import type { AdminDb } from "../db/index.ts";
 import type { AdminConfig } from "../config.ts";
 import type { EngineQueue } from "./dispatch.ts";
-import { finishJob, markRunning, appendLog } from "./dispatch.ts";
+import { finishJob, markRunning, appendLog, enqueueJob } from "./dispatch.ts";
 import { runJob } from "./runner.ts";
 import { encodeLoggedEvent, type RunHub } from "./run-state.ts";
 
@@ -43,6 +43,18 @@ async function execute(
   try {
     const text = await runJob({ db, config, job, site, hub });
     await finishJob(db, queue, jobId, { status: "succeeded", text: typeof text === "string" ? text : undefined });
+    // A finished clone build must always land on staging — that's the only way a client can
+    // view it. Auto-enqueue the staging deploy; enqueueJob self-promotes now that the build
+    // job is done, so it runs immediately. A deploy failure is isolated to its own job (the
+    // build already succeeded and stays viewable locally).
+    if (job.type === "seed" && site.seedType === "clone") {
+      await enqueueJob(db, queue, {
+        siteId: job.siteId,
+        workspaceId: job.workspaceId,
+        companyId: job.companyId,
+        type: "deploy-staging",
+      });
+    }
   } catch (err) {
     await appendLog(db, jobId, `ERROR: ${err instanceof Error ? err.message : String(err)}`);
     await db.updateTable("sites").set({ status: "error" }).where("id", "=", job.siteId).execute();
