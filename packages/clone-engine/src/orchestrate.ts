@@ -15,8 +15,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { capture } from "./capture.ts";
 import { project } from "./project.ts";
-import { label } from "./labels.ts";
-import { llmCostAccumulator } from "@milo/llm";
+import { heuristicLabels } from "./labels.ts";
+import type { CaptureJson } from "./types.ts";
 import type { BuildReport, PageReport, PageIssues } from "./report.ts";
 import { generateHtmlReport } from "./report.ts";
 
@@ -103,17 +103,19 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
         captureMs = 0;
       }
 
-      // Label pass — always runs (project needs labels.json).
-      // Reset accumulator so we get per-page LLM cost.
-      llmCostAccumulator.reset();
-      console.log(`=== LABEL ${p.route} ===`);
-      const tLabel = Date.now();
-      const lbls = await label({ dir: captureDir, llm: true });
-      labelMs = Date.now() - tLabel;
-
-      // Snapshot LLM usage for this page.
-      const llmSummary = llmCostAccumulator.summary();
-      llmCostAccumulator.reset();
+      // Heuristic label pass (for issue counting only — does NOT write labels.json,
+      // so it does not affect project.ts, which reads the existing labels.json if present
+      // or falls back to its own heuristic). The build pipeline does not call the LLM
+      // labeler here — that is a separate concern (CLI "label" subcommand).
+      let lblsForReport = null;
+      if (collectReport) {
+        const tLabel = Date.now();
+        try {
+          const captureJson = JSON.parse(fs.readFileSync(captureJsonPath, "utf8")) as CaptureJson;
+          lblsForReport = heuristicLabels(captureJson);
+        } catch { /* ignore — not critical for the build */ }
+        labelMs = Date.now() - tLabel;
+      }
 
       const base = p.route === "/" ? "" : p.route.replace(/\/$/, "");
       console.log(`=== PROJECT ${p.route} (base='${base}') ===`);
@@ -128,10 +130,17 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       projectMs = Date.now() - tProject;
 
       // astro build shells out — it is an external tool, not a TS function.
+      // node_modules comes from the spike's out-project-page/astro tree (the canonical
+      // Astro install for the clone engine). We use an absolute path so this works
+      // from any cwd (not just page-clone-spike/).
       const astroDir = path.join(cwd, p.out, "astro");
+      const astroNodeModules = path.resolve(
+        import.meta.dirname,
+        "../../../page-clone-spike/out-project-page/astro/node_modules",
+      );
       const tBuild = Date.now();
       execSync(
-        `ln -sf ../../out-project-page/astro/node_modules node_modules && ./node_modules/.bin/astro build`,
+        `ln -sf "${astroNodeModules}" node_modules && ./node_modules/.bin/astro build`,
         { cwd: astroDir, stdio: "inherit", shell: "/bin/bash" },
       );
       buildMs = Date.now() - tBuild;
@@ -140,12 +149,14 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
 
       if (collectReport) {
         // Count issues from available data.
-        const unknownSections = lbls.sections.filter((s) => s.role === "unknown").length;
-        const llmFallback = llmSummary.length === 0; // no LLM calls → heuristic was used
+        const unknownSections = lblsForReport
+          ? lblsForReport.sections.filter((s) => s.role === "unknown").length
+          : 0;
+        // The build pipeline uses heuristic labeling only (llmFallback=true is accurate:
+        // LLM labeling is a separate CLI step, not part of buildSite).
+        const llmFallback = true;
 
-        // leftoverSourceRefs: the capture.json has a `sourceOrigins` array of origins
-        // that were rehosted. Its length tells us how many source origins were present
-        // (not how many refs remain), so we use it as a proxy.
+        // leftoverSourceRefs: proxy from sourceOrigins length in capture.json.
         let leftoverSourceRefs = 0;
         try {
           const cap = JSON.parse(fs.readFileSync(captureJsonPath, "utf8")) as { sourceOrigins?: string[] };
@@ -163,17 +174,6 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
           selfContainmentWarnings: 0,
         };
 
-        // Aggregate LLM usage across all models for this page.
-        const totalPrompt = llmSummary.reduce((s, e) => s + e.promptTokens, 0);
-        const totalCompletion = llmSummary.reduce((s, e) => s + e.completionTokens, 0);
-        const primaryModel = llmSummary[0]?.model ?? "heuristic";
-
-        // Compute cost using OpenRouter rates (see report.ts constants).
-        const COST_PER_M_INPUT = 0.10;
-        const COST_PER_M_OUTPUT = 0.40;
-        const costUsd = (totalPrompt / 1_000_000) * COST_PER_M_INPUT +
-          (totalCompletion / 1_000_000) * COST_PER_M_OUTPUT;
-
         // Thumbnail: use source-desktop.png from the capture dir.
         const thumbAbs = path.join(captureDir, "source-desktop.png");
         const thumbPath = fs.existsSync(thumbAbs)
@@ -184,7 +184,9 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
           route: p.route,
           status: "ok",
           timing: { route: p.route, captureMs, labelMs, projectMs, buildMs },
-          llm: llmSummary.length > 0 ? { model: primaryModel, promptTokens: totalPrompt, completionTokens: totalCompletion, costUsd } : undefined,
+          // LLM cost: buildSite() uses heuristic labels only (no LLM calls in the pipeline).
+          // The label CLI command tracks LLM cost separately.
+          llm: undefined,
           issues,
           thumbPath,
         });
