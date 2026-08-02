@@ -465,9 +465,11 @@ Expected: PASS (unchanged — `onProgress` is optional).
 In `orchestrate.ts` `buildSiteAuto` (line 416+). After `const { mode = "core", ugcLimit, coreReportOut, ugcReportOut, ...buildOpts } = opts;` (line 420), add:
 
 ```ts
-  const emit: EngineEventSink = opts.onEvent ?? (() => {});
+  const emit = makeEmit(opts.onEvent);
   emit({ type: "run.started", origin });
 ```
+
+(`makeEmit` is the shared insulated emitter added to `events.ts` in Task 2 — it swallows sink exceptions so a throwing consumer can never corrupt a build. Use it here too rather than a bare `?? (() => {})`.)
 
 Change the `discoverPages(origin, { ugcLimit })` call (line 423) to forward progress as `discover.progress` events:
 
@@ -488,7 +490,7 @@ Note: `coreResult` is the variable holding the core pass's `BuildSiteResult` (th
 
 - [ ] **Step 6: Add `EngineEventSink` import if not already present**
 
-Ensure `orchestrate.ts` has (from Task 2): `import type { EngineEventSink } from "./events.ts";` — already added in Task 2, no change needed.
+Ensure `orchestrate.ts` has (from Task 2): `import { makeEmit, type EngineEventSink } from "./events.ts";` — already added in Task 2, so `makeEmit` is in scope here. No import change needed.
 
 - [ ] **Step 7: Typecheck**
 
@@ -589,6 +591,7 @@ export {
   initialRunState,
   reduceRunState,
   projectRunState,
+  makeEmit,
   eventToJsonLine,
   parseEventLine,
   EVENT_MARKER,
