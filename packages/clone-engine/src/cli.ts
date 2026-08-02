@@ -17,7 +17,7 @@
 import { capture } from "./capture.ts";
 import { project } from "./project.ts";
 import { label } from "./labels.ts";
-import { buildSite } from "./orchestrate.ts";
+import { buildSite, buildSiteAuto } from "./orchestrate.ts";
 import { crawlSite } from "./crawl.ts";
 import { deploy } from "./deploy.ts";
 import { mjsCapture, mjsProject, mjsBuild } from "./run-mjs.ts";
@@ -95,7 +95,7 @@ const subcommand = findSubcommand();
 const engine = arg("engine", "ts");
 
 if (!subcommand) {
-  console.error("Usage: node src/cli.ts <capture|label|project|build|build-site|deploy> [--engine <ts|mjs>] [flags]");
+  console.error("Usage: node src/cli.ts <capture|label|project|build|build-site|build-auto|deploy> [--engine <ts|mjs>] [flags]");
   process.exit(1);
 }
 
@@ -182,6 +182,24 @@ switch (subcommand) {
     break;
   }
 
+  case "build-auto": {
+    // node src/cli.ts build-auto --site <origin> [--mode core|full] [--out <report.html>] [--cwd <dir>] [--ugc-limit <n>]
+    const site = requireArg("site");
+    const mode = (arg("mode", "core") as "core" | "full");
+    const reportOut = arg("out");
+    const buildCwd = arg("cwd", process.cwd());
+    const ugcLimitStr = arg("ugc-limit");
+    const ugcLimit = ugcLimitStr ? parseInt(ugcLimitStr, 10) : undefined;
+
+    await buildSiteAuto(site, {
+      cwd: buildCwd,
+      mode,
+      reportOut,
+      ugcLimit,
+    });
+    break;
+  }
+
   case "deploy": {
     const dist = requireArg("dist");
     const slug = requireArg("slug");
@@ -195,7 +213,7 @@ switch (subcommand) {
 
   default: {
     console.error(`Unknown subcommand: ${subcommand}`);
-    console.error("Valid subcommands: capture, label, project, build, build-site, deploy");
+    console.error("Valid subcommands: capture, label, project, build, build-site, build-auto, deploy");
     process.exit(1);
   }
 }

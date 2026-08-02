@@ -21,3 +21,7 @@ export type { PageSpec, BuildSiteOpts, BuildSiteResult } from "./orchestrate.ts"
 export { crawlSite } from "./crawl.ts";
 export type { BuildReport, PageReport, PageTiming, PageLlmUsage, PageIssues } from "./report.ts";
 export { generateHtmlReport } from "./report.ts";
+export { discoverPages, originSlug, pageDir } from "./discover.ts";
+export type { DiscoverOpts, DiscoverResult } from "./discover.ts";
+export { buildSiteAuto } from "./orchestrate.ts";
+export type { BuildSiteAutoOpts, BuildSiteAutoResult } from "./orchestrate.ts";

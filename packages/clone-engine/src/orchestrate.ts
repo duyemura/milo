@@ -18,6 +18,8 @@ import { project } from "./project.ts";
 import { label, heuristicLabels } from "./labels.ts";
 import { llmCostAccumulator } from "@milo/llm";
 import type { CaptureJson } from "./types.ts";
+import { originSlug, pageDir, discoverPages } from "./discover.ts";
+import type { DiscoverOpts } from "./discover.ts";
 import type { BuildReport, PageReport, PageIssues, PageLlmUsage } from "./report.ts";
 import { generateHtmlReport } from "./report.ts";
 
@@ -100,10 +102,13 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
   const wallStart = Date.now();
 
   // Augment pages with derived url + out fields (mirrors build-site.mjs PAGES.forEach).
+  // out-dir is namespaced by origin slug (2-char prefix) so two different origins built
+  // in the same cwd never collide on the same route (e.g. both "/" → "sp-home").
+  const slug = originSlug(origin);
   const augmented: AugmentedPage[] = pages.map((p) => ({
     ...p,
     url: origin + p.route,
-    out: p.route === "/" ? "sp-home" : "sp-" + p.route.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, ""),
+    out: pageDir(slug, p.route),
   }));
 
   // Full internal link map (both slash forms) so nav rewrites everywhere.
@@ -346,4 +351,75 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
   }
 
   return { ok, failed };
+}
+
+// ---------------------------------------------------------------------------
+// Auto build: discover → core first → UGC second pass
+// ---------------------------------------------------------------------------
+
+export interface BuildSiteAutoOpts extends Omit<BuildSiteOpts, "pages" | "origin">, DiscoverOpts {
+  /** 'core' builds only core pages (default). 'full' also runs a second UGC pass. */
+  mode?: "core" | "full";
+  /** Report output path for the core pass (alias for reportOut on the core build). */
+  coreReportOut?: string;
+  /** Report output path for the UGC pass (only used when mode==='full'). */
+  ugcReportOut?: string;
+}
+
+export interface BuildSiteAutoResult {
+  /** Result of the core-page build pass. */
+  core: BuildSiteResult;
+  /** Result of the UGC build pass — present only when mode==='full' and UGC pages exist. */
+  ugc?: BuildSiteResult;
+}
+
+/**
+ * Auto-discover pages via sitemap (or homepage fallback) and build in staged passes:
+ *   1. Core pages — always; produces a coherent, publishable site.
+ *   2. UGC pages — only when mode==='full'; blog/news follow-up pass.
+ *
+ * `buildSite()` is unchanged; this orchestrates on top of it.
+ */
+export async function buildSiteAuto(
+  origin: string,
+  opts: BuildSiteAutoOpts = {},
+): Promise<BuildSiteAutoResult> {
+  const { mode = "core", ugcLimit, coreReportOut, ugcReportOut, ...buildOpts } = opts;
+
+  console.log(`[build-auto] Discovering pages for ${origin}...`);
+  const discovered = await discoverPages(origin, { ugcLimit });
+  console.log(
+    `[build-auto] Found ${discovered.core.length} core pages, ${discovered.ugc.length} UGC pages`,
+  );
+  console.log(`[build-auto] Core: ${discovered.core.map((p) => p.route).join("  ")}`);
+  if (discovered.ugc.length > 0) {
+    const preview = discovered.ugc.slice(0, 5).map((p) => p.route).join("  ");
+    const more = discovered.ugc.length > 5 ? " …" : "";
+    console.log(`[build-auto] UGC (${discovered.ugc.length}): ${preview}${more}`);
+  }
+
+  // --- Core pass ---
+  console.log(`\n[build-auto] === CORE PASS (${discovered.core.length} pages) ===`);
+  const coreResult = await buildSite({
+    ...buildOpts,
+    origin,
+    pages: discovered.core,
+    reportOut: coreReportOut ?? opts.reportOut,
+  });
+
+  // --- UGC pass (only when mode==='full') ---
+  let ugcResult: BuildSiteResult | undefined;
+  if (mode === "full" && discovered.ugc.length > 0) {
+    console.log(`\n[build-auto] === UGC PASS (${discovered.ugc.length} pages) ===`);
+    ugcResult = await buildSite({
+      ...buildOpts,
+      origin,
+      pages: discovered.ugc,
+      reportOut: ugcReportOut,
+    });
+  } else if (mode === "full" && discovered.ugc.length === 0) {
+    console.log(`[build-auto] No UGC pages found — skipping UGC pass`);
+  }
+
+  return { core: coreResult, ugc: ugcResult };
 }
