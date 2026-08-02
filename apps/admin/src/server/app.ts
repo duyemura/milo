@@ -13,14 +13,11 @@ import { registerCompanyRoutes } from "./routes/companies.ts";
 import { registerSiteRoutes } from "./routes/sites.ts";
 import { registerJobLogRoutes } from "./routes/jobLogs.ts";
 import { registerGlobalRoutes } from "./routes/global.ts";
-import { registerChatRoutes, type ChatDeps } from "./routes/chat.ts";
-import { registerBriefRoutes } from "./routes/briefs.ts";
 
 export interface AppDeps {
   config: AdminConfig;
   db: AdminDb;
   queue: EngineQueue;
-  chat?: ChatDeps["chat"];
 }
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
@@ -36,8 +33,6 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerSiteRoutes(app, db, queue);
   registerJobLogRoutes(app, db);
   registerGlobalRoutes(app, db);
-  registerChatRoutes(app, { db, queue, chat: deps.chat ?? null, chatModel: config.chatModel });
-  registerBriefRoutes(app, db, config);
 
   // Serve the built SPA; dev uses vite (dev:web) instead.
   const webDist = path.join(path.resolve(), "web", "dist");

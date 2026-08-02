@@ -19,15 +19,12 @@ importers:
       '@fastify/static':
         specifier: ^8.0.0
         version: 8.3.0
-      '@milo/keyword-brain':
+      '@milo/clone-engine':
         specifier: workspace:*
-        version: link:../../packages/keyword-brain
+        version: link:../../packages/clone-engine
       '@milo/llm':
         specifier: workspace:*
         version: link:../../packages/llm
-      '@milo/measurement':
-        specifier: workspace:*
-        version: link:../../packages/measurement
       '@milo/publish':
         specifier: workspace:*
         version: link:../../packages/publish

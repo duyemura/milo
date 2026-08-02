@@ -38,7 +38,7 @@ export interface SiteRow {
   createdAt: string;
 }
 
-export type JobType = "seed" | "build" | "deploy-staging" | "promote" | "rollback" | "keyword-cycle" | "measure";
+export type JobType = "seed" | "build" | "deploy-staging" | "promote" | "rollback";
 export type JobStatus = "waiting" | "queued" | "running" | "succeeded" | "failed";
 
 export interface JobRow {
@@ -93,7 +93,7 @@ export interface PageBriefRow {
   workspaceId: string;
   companyId: string;
   siteId: string;
-  /** Full PageBrief JSON (handshake contract, zod from @milo/keyword-brain). */
+  /** Full PageBrief JSON (handshake contract; validated at the brief-producer boundary). */
   payload: string;
   status: "pending" | "accepted" | "built" | "dismissed";
   createdAt: string;

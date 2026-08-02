@@ -12,43 +12,12 @@ import type { AdminDb } from "../db/index.ts";
 import type { AdminConfig } from "../config.ts";
 import type { JobRow, SiteRow } from "../db/types.ts";
 import type { SpawnFn } from "./runner.ts";
-import { injectIntoDist, gscEnsureBeforeDeploy } from "./measure.ts";
 
 /**
  * Deploy/promote/rollback via the battle-tested @milo/publish (NOT the spike's deploy.mjs —
  * per the consolidation map, v2's publish is the capable one). Site slug comes from the
  * publish.json that resolveOrInitConfig materializes next to gym.json.
  */
-/** GSC ensure + analytics injection once the deploy slug/URL is known.
- *  Policy gate: production publishes only (staging ships clean); the paying-client
- *  check is the future-work placeholder at exactly this seam. */
-async function ensureAndInject(opts: {
-  db: AdminDb;
-  adminConfig: AdminConfig;
-  site: SiteRow;
-  distDir: string;
-  schemeUrl: string;
-  env: "staging" | "production";
-  log: (line: string) => Promise<void>;
-}): Promise<void> {
-  if (opts.env !== "production" && !opts.adminConfig.analyticsOnStaging) {
-    await opts.log("analytics skipped (staging publishes carry no tracking — production gate");
-    return;
-  }
-  // FUTURE WORK: paying-client gate goes here — if the gym isn't paying, the gate
-  // verifies GSC/GA4/GSC-meta are NOT on the site and skips provisioning too.
-
-  const ensured = await gscEnsureBeforeDeploy({
-    db: opts.db,
-    config: opts.adminConfig,
-    site: opts.site,
-    schemeUrl: opts.schemeUrl,
-  });
-  if (ensured.issued) await opts.log("gsc: property ensured — meta tag rides this deploy");
-  else if (ensured.reason) await opts.log(`gsc ensure skipped: ${ensured.reason}`);
-  const inj = await injectIntoDist({ db: opts.db, site: opts.site, distDir: opts.distDir });
-  if (inj.injected > 0) await opts.log(`analytics injected into ${inj.injected}/${inj.files} html file(s)`);
-}
 
 export async function runDeploy(opts: {
   db: AdminDb;
@@ -77,8 +46,6 @@ export async function runDeploy(opts: {
       company.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") +
         "-" +
         randomUUID().slice(0, 6);
-    const cloneUrl = `https://${slug}-staging.mygymseo.com/`;
-    await ensureAndInject({ db, adminConfig: opts.config, site, distDir, schemeUrl: cloneUrl, env: "staging", log });
     const cloneCli = path.join(opts.config.repoRoot, "packages/clone-engine/src/cli.ts");
     await log(`$ node packages/clone-engine/src/cli.ts deploy --dist dist/ --slug ${slug}`);
     const r = await sp("node", [cloneCli, "deploy", "--dist", distDir, "--slug", slug], {
@@ -118,9 +85,6 @@ export async function runDeploy(opts: {
   const env = job.type === "promote" || job.type === "rollback" ? "production" : "staging";
   const host = `${config.slug}-${env}.${config.siteDomain}`;
   const url = `https://${host}`;
-
-  const stagingScheme = `https://${config.slug}-staging.${config.siteDomain}/`;
-  await ensureAndInject({ db, adminConfig: opts.config, site, distDir, schemeUrl: stagingScheme, env, log });
 
   if (job.type === "deploy-staging") {
     await log(`publishing staging → ${url}`);
