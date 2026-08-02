@@ -18,7 +18,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { project } from "../src/project.ts";
 import { heuristicLabels } from "../src/labels.ts";
-import type { CaptureJson, SiteManifest, ManifestCopyEntry } from "../src/types.ts";
+import type { CaptureJson, SiteManifest, ManifestCopyEntry, PageType, PageGoal } from "../src/types.ts";
+import { GOAL_OF_TYPE } from "../src/pagemodel.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const SITES = ["speakeasy", "sweatshed"] as const;
@@ -571,6 +572,51 @@ describe("manifest completeness — all handles resolve (Task 7 G)", () => {
           `copy→slot unresolved: data-copy key "${entry.key}" not stamped in ${entry.component}.astro`,
         ).toBe(true);
       }
+    }, 180_000);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Subsystem D: page type + goal in manifest + data-page-role/data-goal on body
+// ---------------------------------------------------------------------------
+
+const PAGE_TYPES: ReadonlyArray<PageType> = ["home", "pillar", "content", "conversion", "utility"];
+const PAGE_GOALS: ReadonlyArray<PageGoal> = ["orient", "inform", "engage", "convert", "none"];
+
+describe("subsystem D — page type + goal (manifest + rendered attrs)", () => {
+  for (const site of ALL_SITES) {
+    const goldenDir = path.join(dir, "golden", site);
+
+    it(`${site}: site.json pages[0] has valid type + goal`, async () => {
+      const out = await projectTmp(goldenDir);
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(out.outDir, "site.json"), "utf8"),
+      ) as SiteManifest;
+      const page = manifest.pages[0];
+
+      // type must be a valid PageType.
+      expect(PAGE_TYPES).toContain(page.type);
+      // goal must be a valid PageGoal.
+      expect(PAGE_GOALS).toContain(page.goal);
+      // goal must match GOAL_OF_TYPE[type] (default mapping — all golden sites are root "/").
+      expect(page.goal).toBe(GOAL_OF_TYPE[page.type]);
+      // All three golden sites project the root "/" route → type is "home".
+      expect(page.type).toBe("home");
+      expect(page.goal).toBe("orient");
+    }, 180_000);
+
+    it(`${site}: index.html <body> carries data-page-role + data-goal`, async () => {
+      const out = await projectTmp(goldenDir);
+      // Pixel-parity invariant: the attributes are render-neutral and must not appear
+      // in the diff oracle. We verify they ARE present here.
+      expect(out.indexHtml).toContain(`data-page-role="home"`);
+      expect(out.indexHtml).toContain(`data-goal="orient"`);
+      // They must be on the <body> element specifically (not some inner element).
+      const bodyTagMatch = /<body\s[^>]*>/.exec(out.indexHtml);
+      expect(bodyTagMatch, "<body> tag not found in index.html").not.toBeNull();
+      const bodyTag = bodyTagMatch![0];
+      expect(bodyTag).toContain(`data-page-role="home"`);
+      expect(bodyTag).toContain(`data-goal="orient"`);
     }, 180_000);
   }
 });

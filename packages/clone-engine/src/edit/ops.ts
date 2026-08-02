@@ -22,7 +22,8 @@ import type { SiteRef, EditOp, OpResult } from "./types.ts";
 import { STYLE_PROPS } from "./types.ts";
 import { resolveCopy, resolveAsset, resolveSection, loadSite, TargetError } from "./target.ts";
 import { flattenRoot, canon } from "../brand.ts";
-import type { BrandDoc, SiteManifest, ManifestSection, ManifestCopyEntry, ManifestPage, ManifestElement } from "../types.ts";
+import type { BrandDoc, SiteManifest, ManifestSection, ManifestCopyEntry, ManifestPage, ManifestElement, PageType } from "../types.ts";
+import { classifyPage, GOAL_OF_TYPE } from "../pagemodel.ts";
 
 // ---------------------------------------------------------------------------
 // editCopy
@@ -1085,6 +1086,7 @@ export function addPage(
   site: SiteRef,
   route: string,
   cloneOfPage?: string,
+  pageType?: PageType,
 ): OpResult {
   // Sanitize route: strip leading/trailing slashes, collapse to alphanumeric-hyphen.
   const cleanRoute = route.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase();
@@ -1177,14 +1179,22 @@ export function addPage(
     .join("\n");
   const includes = newSections.map((s) => `<${s.name} />`).join(" ");
 
+  // Classify the new page's type + goal (subsystem D) — must be set before emitting .astro.
+  const newRoute = `/${cleanRoute}/`;
+  const classified = classifyPage(newRoute);
+  const newPageType = pageType ?? classified.type;
+  const newPageGoal = GOAL_OF_TYPE[newPageType];
+
   // Emit a minimal page wrapper — we can't byte-copy index.astro because it references
   // the original component names. Head meta from the template page would be stale
   // (references the source route), so we emit a neutral wrapper with a placeholder title.
+  // data-page-role + data-goal are render-neutral attributes stamped on <body> (subsystem D).
   const pageAstroContent =
     `---\nimport "../styles/global.css";\n${imports}\n---\n` +
     `<html lang="en">\n<head>\n<meta charset="utf-8" />\n` +
     `<meta name="viewport" content="width=device-width,initial-scale=1" />\n` +
-    `<title>${prefix} | Clone</title>\n</head>\n<body>\n${includes}\n</body>\n</html>\n`;
+    `<title>${prefix} | Clone</title>\n</head>\n` +
+    `<body data-page-role="${newPageType}" data-goal="${newPageGoal}">\n${includes}\n</body>\n</html>\n`;
 
   const pagesDir = path.join(site.dir, "astro", "src", "pages");
   fs.mkdirSync(pagesDir, { recursive: true });
@@ -1194,8 +1204,10 @@ export function addPage(
 
   // Update site.json: add a new ManifestPage entry.
   const newManifestPage: ManifestPage = {
-    route: `/${cleanRoute}/`,
+    route: newRoute,
     component: `${prefix}Page`,
+    type: newPageType,
+    goal: newPageGoal,
     sections: newSections,
     elements: newElements,
     assets: templatePage.assets, // share the same asset pool (same physical files)
@@ -1206,6 +1218,11 @@ export function addPage(
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
   changedFiles.push(manifestPath);
 
-  const op: EditOp = { op: "addPage", route, ...(cloneOfPage ? { cloneOfPage } : {}) };
+  const op: EditOp = {
+    op: "addPage",
+    route,
+    ...(cloneOfPage ? { cloneOfPage } : {}),
+    ...(pageType ? { pageType } : {}),
+  };
   return { op, changedFiles, targetSections: addedSectionNames };
 }

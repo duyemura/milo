@@ -105,6 +105,31 @@ export interface Labels {
   assets: AssetLabel[];
 }
 
+// ---- Page model (Plan 3, Subsystem D) ----
+
+/**
+ * The five page types in the gym-site taxonomy.
+ *   home       = the root "/" page
+ *   pillar     = core informational pages (about, programs, coaches, services, nutrition, team)
+ *   content    = editorial / UGC (blog posts, news, spotlights, recipes, local guides)
+ *   conversion = act pages (pricing, membership, join, trial, contact, schedule, book)
+ *   utility    = legal / nav / infrastructure (privacy, terms, sitemap, search)
+ */
+export type PageType = "home" | "pillar" | "content" | "conversion" | "utility";
+
+/**
+ * The goal of a page — drives editing conventions (C) and measurement (F).
+ *   orient  = home: introduce, orient, navigate
+ *   inform  = pillar: educate about the gym / offering
+ *   engage  = content: keep readers reading; build trust
+ *   convert = conversion: drive a signup / booking / contact
+ *   none    = utility: no measurable engagement goal
+ *
+ * Stored as a separate field (not derived from type at read time) so it can
+ * be overridden independently if needed by a future LLM refinement pass.
+ */
+export type PageGoal = "orient" | "inform" | "engage" | "convert" | "none";
+
 // ---- site.json manifest (Plan 2, Task 4) ----
 
 /**
@@ -137,6 +162,10 @@ export interface ManifestAsset { alias: string; file: string; }
 export interface ManifestPage {
   route: string;
   component: string;
+  /** Page type from the gym-site taxonomy (subsystem D). */
+  type: PageType;
+  /** Goal of the page — drives editing conventions (C) and measurement (F). */
+  goal: PageGoal;
   sections: ManifestSection[];
   elements: ManifestElement[];
   assets: ManifestAsset[];

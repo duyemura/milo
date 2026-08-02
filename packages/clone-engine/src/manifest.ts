@@ -9,7 +9,8 @@
  * Pixel oracle: calling buildManifest never touches HTML/CSS output, so 0-px is
  * trivially preserved.
  */
-import type { Labels, SiteManifest, ManifestSection, ManifestElement, ManifestAsset, ManifestCopyEntry } from "./types.ts";
+import type { Labels, SiteManifest, ManifestSection, ManifestElement, ManifestAsset, ManifestCopyEntry, PageType, PageGoal } from "./types.ts";
+import { classifyPage } from "./pagemodel.ts";
 
 /** The editable brand doc + component + page files ship inside the astro/ project. */
 const BRAND_PATH = "astro/brand.json";
@@ -19,6 +20,10 @@ const PAGE_PATH = "astro/src/pages/index.astro";
 export interface BuildManifestArgs {
   /** BASE path for the site (empty string = root "/"). */
   base: string;
+  /** Optional page type override. When omitted, classifyPage(route) is used. */
+  pageType?: PageType;
+  /** Optional page goal override. When omitted, GOAL_OF_TYPE[type] is used. */
+  pageGoal?: PageGoal;
   /** Ordered region list produced by project.ts after dedup; each entry has a deduped file name. */
   regions: Array<{ name: string; file: string; sectionRole: string }>;
   /**
@@ -46,6 +51,11 @@ export function buildManifest(args: BuildManifestArgs): SiteManifest {
 
   // Route: BASE with trailing slash stripped; "/" when empty.
   const route = base ? `${base}/` : "/";
+
+  // Page type + goal: use overrides when provided; else classify from route.
+  const classified = classifyPage(route);
+  const pageType: PageType = args.pageType ?? classified.type;
+  const pageGoal: PageGoal = args.pageGoal ?? classified.goal;
 
   // Elements: each labeled element becomes an addressable handle.
   // id = "p<n>" (the CSS class stamped on the element in the HTML).
@@ -94,6 +104,8 @@ export function buildManifest(args: BuildManifestArgs): SiteManifest {
       {
         route,
         component: PAGE_PATH,
+        type: pageType,
+        goal: pageGoal,
         sections,
         elements: manifestElements,
         assets: manifestAssets,

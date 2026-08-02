@@ -35,6 +35,7 @@ import {
 import { verify, renderSnapshot, type EditIntent } from "../../../src/edit/verify.ts";
 import type { SiteRef } from "../../../src/edit/types.ts";
 import type { SiteManifest } from "../../../src/types.ts";
+import { GOAL_OF_TYPE } from "../../../src/pagemodel.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const PKG = path.resolve(dir, "../../..");
@@ -83,6 +84,9 @@ describe("pickTemplatePage — pure unit tests", () => {
       pages: pages.map((p) => ({
         route: p.route,
         component: "",
+        // Minimal type+goal stubs for unit test fixtures (subsystem D).
+        type: p.route === "/" ? ("home" as const) : ("pillar" as const),
+        goal: p.route === "/" ? ("orient" as const) : ("inform" as const),
         sections: p.sections.map((s) => ({
           name: s.name,
           role: s.role,
@@ -275,6 +279,65 @@ describe.skipIf(!ASTRO_MODULES)("addSection — verifier-gated (C-T5)", () => {
 });
 
 // -------------------------------------------------------------------------------
+// addPage — subsystem D: type + goal in site.json + data-page-role/data-goal in .astro
+// (pure, no Astro build required — exercised before the build gate)
+// -------------------------------------------------------------------------------
+
+describe("addPage — subsystem D: type + goal (D)", () => {
+  it("addPage classifies route and sets type+goal in site.json", async () => {
+    const { out, site } = await projectFixture();
+    cleanup.add(out);
+
+    // /pricing should be classified as conversion/convert.
+    addPage(site, "pricing");
+
+    const manifest = JSON.parse(fs.readFileSync(path.join(out, "site.json"), "utf8")) as SiteManifest;
+    const pricingPage = manifest.pages.find((p) => p.route === "/pricing/");
+    expect(pricingPage, "site.json must contain /pricing/ page").toBeDefined();
+    expect(pricingPage!.type).toBe("conversion");
+    expect(pricingPage!.goal).toBe("convert");
+  }, 180_000);
+
+  it("addPage explicit pageType overrides route-heuristic and sets correct goal", async () => {
+    const { out, site } = await projectFixture();
+    cleanup.add(out);
+
+    // Force "pillar" type even though the route is "/contact/".
+    addPage(site, "contact", undefined, "pillar");
+
+    const manifest = JSON.parse(fs.readFileSync(path.join(out, "site.json"), "utf8")) as SiteManifest;
+    const contactPage = manifest.pages.find((p) => p.route === "/contact/");
+    expect(contactPage, "site.json must contain /contact/ page").toBeDefined();
+    expect(contactPage!.type).toBe("pillar");
+    expect(contactPage!.goal).toBe(GOAL_OF_TYPE["pillar"]); // "inform"
+  }, 180_000);
+
+  it("addPage emits data-page-role + data-goal on <body> in the page .astro", async () => {
+    const { out, site } = await projectFixture();
+    cleanup.add(out);
+
+    addPage(site, "blog-post");
+
+    const pageFile = path.join(out, "astro", "src", "pages", "blog-post.astro");
+    expect(fs.existsSync(pageFile), "blog-post.astro must exist").toBe(true);
+    const src = fs.readFileSync(pageFile, "utf8");
+    // blog-post starts with /blog — classifies as content/engage.
+    expect(src).toContain(`data-page-role="content"`);
+    expect(src).toContain(`data-goal="engage"`);
+  }, 180_000);
+
+  it("addPage: root page (pages[0]) carries type=home + goal=orient after projection", async () => {
+    const { out } = await projectFixture();
+    cleanup.add(out);
+
+    const manifest = JSON.parse(fs.readFileSync(path.join(out, "site.json"), "utf8")) as SiteManifest;
+    const rootPage = manifest.pages[0];
+    expect(rootPage.route).toBe("/");
+    expect(rootPage.type).toBe("home");
+    expect(rootPage.goal).toBe("orient");
+  }, 180_000);
+});
+
 // addPage — build test (no pixel verification — verifier only targets /)
 // -------------------------------------------------------------------------------
 

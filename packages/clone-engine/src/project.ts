@@ -19,6 +19,7 @@ import { pixelDiff } from "./pixel.ts";
 import { heuristicLabels } from "./labels.ts";
 import { buildBrand, brandSlotOfCanon, deriveVariants, flattenRoot } from "./brand.ts";
 import { buildManifest } from "./manifest.ts";
+import { classifyPage } from "./pagemodel.ts";
 
 export interface ProjectOpts {
   dir: string;
@@ -356,6 +357,12 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
     const d = dropRedundantLogical(h.delta[id]);
     if (Object.keys(d).length) interCss += `${sel}{${declTok(d)}}\n`;
   }
+  // ---- page model (subsystem D): classify route → type + goal data-attrs on <body> ----
+  // data-page-role + data-goal are render-neutral (attributes only) → 0-px oracle must hold.
+  const pageRoute = BASE ? `${BASE}/` : "/";
+  const { type: pageType, goal: pageGoal } = classifyPage(pageRoute);
+  const bodyPageAttrs = ` data-page-role="${escA(pageType)}" data-goal="${escA(pageGoal)}"`;
+
   const metaTags = head.metas.map((m) => `<meta ${m.key.startsWith("og:") ? "property" : "name"}="${escA(m.key)}" content="${escA(m.content)}">`).join("\n");
   const iconTags = head.icons.map((ic) => `<link rel="${escA(ic.rel)}" href="${escA(ic.href)}"${ic.sizes ? ` sizes="${escA(ic.sizes)}"` : ""}>`).join("\n");
   const assembled = `<!doctype html><html lang="${escA(head.lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -365,7 +372,7 @@ ${iconTags}
 <style>html{margin:0;padding:0}${CAP.fontCss || ""}
 ${tokenRoot}
 ${cssFor(idsOf(CAP.tree))}
-${interCss}</style></head><body class="p${CAP.tree.id}">${CAP.tree.children.map(renderP).join("")}${interScript}</body></html>`;
+${interCss}</style></head><body class="p${CAP.tree.id}"${bodyPageAttrs}>${CAP.tree.children.map(renderP).join("")}${interScript}</body></html>`;
   fs.writeFileSync(path.join(OUT, "index.html"), assembled);
 
   // ---- emit a REAL Astro project (components composed + built by the actual compiler) ----
@@ -400,6 +407,8 @@ ${interCss}</style></head><body class="p${CAP.tree.id}">${CAP.tree.children.map(
   // Written after buildTpl so it includes the complete copy[] map.
   const manifest = buildManifest({
     base: BASE,
+    pageType,
+    pageGoal,
     regions: regions.map((r) => ({
       name: r.name,
       file: r.file!,
@@ -419,7 +428,7 @@ ${interCss}</style></head><body class="p${CAP.tree.id}">${CAP.tree.children.map(
     return `<Fragment set:html={${JSON.stringify(absA(renderP(el)))}} />`;
   }
   const imports = regions.map((r) => `import ${r.file} from "../components/${r.file}.astro";`).join("\n");
-  fs.writeFileSync(path.join(AST, "src/pages/index.astro"), `---\nimport "../styles/global.css";\n${imports}\n---\n<html lang="${escA(head.lang)}">\n<head>\n<meta charset="utf-8" />\n<meta name="viewport" content="width=device-width,initial-scale=1" />\n<title>${esc(head.title)}</title>\n<Fragment set:html={${JSON.stringify(absA(metaTags + "\n" + iconTags))}} />\n</head>\n<body class="p${CAP.tree.id}">\n${CAP.tree.children.map(pageAstro).join("")}\n${interScript.replace("<script>", "<script is:inline>")}\n</body>\n</html>\n`);
+  fs.writeFileSync(path.join(AST, "src/pages/index.astro"), `---\nimport "../styles/global.css";\n${imports}\n---\n<html lang="${escA(head.lang)}">\n<head>\n<meta charset="utf-8" />\n<meta name="viewport" content="width=device-width,initial-scale=1" />\n<title>${esc(head.title)}</title>\n<Fragment set:html={${JSON.stringify(absA(metaTags + "\n" + iconTags))}} />\n</head>\n<body class="p${CAP.tree.id}"${bodyPageAttrs}>\n${CAP.tree.children.map(pageAstro).join("")}\n${interScript.replace("<script>", "<script is:inline>")}\n</body>\n</html>\n`);
   fs.writeFileSync(path.join(AST, "package.json"), JSON.stringify({ name: "page-clone-astro", type: "module", private: true, scripts: { build: "astro build" }, dependencies: { astro: "^4.16.0" } }, null, 2));
   fs.writeFileSync(path.join(AST, "astro.config.mjs"), `import { defineConfig } from "astro/config";\nexport default defineConfig(${BASE ? `{ base: "${BASE}" }` : "{}"});\n`);
   console.log(`  emitted real Astro project → ${AST} (${regions.length} components)`);

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PageType, PageGoal } from "../types.ts";
 
 export interface SiteRef { dir: string; }              // a projected OUT dir (from project())
 
@@ -10,7 +11,7 @@ export type EditOp =
   | { op: "removeSection"; section: string }            // section = data-section role or component name
   | { op: "reorderSection"; section: string; toIndex: number }
   | { op: "addSection"; cloneOf: string; afterSection?: string }
-  | { op: "addPage"; route: string; cloneOfPage?: string };  // cloneOfPage optional → auto-pick nearest-type
+  | { op: "addPage"; route: string; cloneOfPage?: string; pageType?: PageType };  // cloneOfPage optional → auto-pick nearest-type; pageType optional → classify from route
 
 export interface OpResult { op: EditOp; changedFiles: string[]; targetSections: string[]; }
 
@@ -65,6 +66,10 @@ export interface DigestSection {
 /** Compact representation of one page. */
 export interface DigestPage {
   route: string;
+  /** Page type from the gym-site taxonomy (subsystem D). */
+  type: PageType;
+  /** Goal of the page — drives editing conventions (C) and measurement (F). */
+  goal: PageGoal;
   sections: DigestSection[];
 }
 
@@ -118,7 +123,12 @@ export const EditOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("removeSection"), section: z.string() }),
   z.object({ op: z.literal("reorderSection"), section: z.string(), toIndex: z.number().int().nonnegative() }),
   z.object({ op: z.literal("addSection"), cloneOf: z.string(), afterSection: z.string().optional() }),
-  z.object({ op: z.literal("addPage"), route: z.string(), cloneOfPage: z.string().optional() }),
+  z.object({
+    op: z.literal("addPage"),
+    route: z.string(),
+    cloneOfPage: z.string().optional(),
+    pageType: z.enum(["home", "pillar", "content", "conversion", "utility"]).optional(),
+  }),
 ]);
 
 /** The full PlanResult schema for the LLM to fill (needsInfo=true XOR needsInfo=false). */

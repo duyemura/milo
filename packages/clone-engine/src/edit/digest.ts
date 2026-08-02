@@ -57,7 +57,7 @@ export function digest(site: SiteRef): SiteDigest {
       };
     });
 
-    return { route: page.route, sections };
+    return { route: page.route, type: page.type, goal: page.goal, sections };
   });
 
   // Read brand.json for color slots. Fall back gracefully if absent.
