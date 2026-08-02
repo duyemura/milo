@@ -1,0 +1,43 @@
+import type { Asset, AssetLibrary, AssetTags } from "./library.ts";
+
+export interface FindQuery {
+  aspectRatio?: Asset["aspectRatio"];
+  setting?: AssetTags["setting"];
+  hasPeople?: boolean;
+  usableContext?: "generated-safe" | "any";
+  minQuality?: "low" | "medium" | "high";
+  embedding?: number[];
+  limit?: number;
+}
+
+const QUALITY_ORDER = { low: 0, medium: 1, high: 2 } as const;
+
+function cosine(a: number[], b: number[]): number {
+  const len = Math.min(a.length, b.length);
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < len; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  const denom = Math.sqrt(na) * Math.sqrt(nb);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+export function findAsset(library: AssetLibrary, query: FindQuery): Asset[] {
+  const candidates = Object.values(library.assets).filter((a) => {
+    if (a.status !== "active") return false;
+    if (query.aspectRatio !== undefined && a.aspectRatio !== query.aspectRatio) return false;
+    if (query.setting !== undefined && a.tags.setting !== query.setting) return false;
+    if (query.hasPeople !== undefined && a.tags.hasPeople !== query.hasPeople) return false;
+    if (query.usableContext === "generated-safe" && a.tags.hasPeople) return false;
+    if (query.minQuality !== undefined && QUALITY_ORDER[a.tags.quality] < QUALITY_ORDER[query.minQuality]) return false;
+    return true;
+  });
+
+  const useEmbedding = query.embedding && candidates.every((a) => a.tags.embedding);
+  candidates.sort((x, y) => {
+    if (useEmbedding && x.tags.embedding && y.tags.embedding) {
+      return cosine(y.tags.embedding, query.embedding!) - cosine(x.tags.embedding, query.embedding!);
+    }
+    return new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime();
+  });
+
+  return query.limit !== undefined ? candidates.slice(0, query.limit) : candidates;
+}
