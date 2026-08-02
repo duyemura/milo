@@ -4,7 +4,7 @@
 
 **Goal:** Add a post-build `inspectSite(opts) → SiteReport` pipeline that runs a battery of quality checks on any built site (clone, template, or bespoke) and produces a ship/no-ship verdict plus a punch-list HTML report.
 
-**Architecture:** A new `src/qa/` module in `@milo/clone-engine`. Each check is an independent function in `src/qa/checks/` — its own file, its own unit tests, its own fixtures. An orchestrator (`inspector.ts`) runs them all and merges issues into a `SiteReport`. A renderer (`render.ts`) produces `site-report.html` + `site-report.json`. `buildSiteAuto` in `orchestrate.ts` calls the inspector after assembly and writes the report to `full-site/`. Clone-fidelity checks (pixel diff, iframe preservation, SEO regression) only run when `opts.source.captureDir` is provided — the report format is identical either way.
+**Architecture:** A new `src/buildreport/` module in `@milo/clone-engine`. Each check is an independent function in `src/buildreport/checks/` — its own file, its own unit tests, its own fixtures. An orchestrator (`inspector.ts`) runs them all and merges issues into a `SiteReport`. A renderer (`render.ts`) produces `site-report.html` + `site-report.json`. `buildSiteAuto` in `orchestrate.ts` calls the inspector after assembly and writes the report to `full-site/`. Clone-fidelity checks (pixel diff, iframe preservation, SEO regression) only run when `opts.source.captureDir` is provided — the report format is identical either way.
 
 **Tech Stack:** Node 24 TypeScript, `@milo/clone-engine`, Playwright (render-based checks), `src/pixel.ts` (pixelDiff), `src/edit/snapshot.ts` (renderSnapshot/sectionListOf), `src/edit/verify.ts` (overlaps — export needed), Vitest.
 
@@ -13,7 +13,7 @@
 ## File structure
 
 ```
-packages/clone-engine/src/qa/
+packages/clone-engine/src/buildreport/
   types.ts                  # Issue, SiteReport, PageContext, InspectOpts — shared vocabulary
   html.ts                   # Dependency-free HTML parser helpers (getAttribute, queryAll, textContent)
   checks/
@@ -30,7 +30,7 @@ packages/clone-engine/src/qa/
   render.ts                 # SiteReport → HTML string + JSON
   index.ts                  # barrel
 
-packages/clone-engine/test/qa/
+packages/clone-engine/test/buildreport/
   fixtures.ts               # minimal hand-written site-dir + capture-dir builders
   broken-assets.test.ts
   content-blocks.test.ts
@@ -55,10 +55,10 @@ packages/clone-engine/test/qa/
 ## Task 0: Types + HTML helpers + test fixtures
 
 **Files:**
-- Create: `packages/clone-engine/src/qa/types.ts`
-- Create: `packages/clone-engine/src/qa/html.ts`
-- Create: `packages/clone-engine/src/qa/index.ts`
-- Create: `packages/clone-engine/test/qa/fixtures.ts`
+- Create: `packages/clone-engine/src/buildreport/types.ts`
+- Create: `packages/clone-engine/src/buildreport/html.ts`
+- Create: `packages/clone-engine/src/buildreport/index.ts`
+- Create: `packages/clone-engine/test/buildreport/fixtures.ts`
 - Modify: `packages/clone-engine/src/edit/verify.ts` (export overlaps + tolerance)
 
 - [ ] **Step 1 — write types.ts**
@@ -211,7 +211,7 @@ export const OVERLAP_TOLERANCE_PX = 2;
 export function overlaps(a: ...): boolean {
 ```
 
-- [ ] **Step 4 — write test/qa/fixtures.ts**
+- [ ] **Step 4 — write test/buildreport/fixtures.ts**
 
 ```ts
 import fs from "node:fs";
@@ -309,10 +309,10 @@ export type { SiteReport } from "./types.ts";
   - Run: `cd packages/clone-engine && node_modules/.bin/tsc --noEmit` → Expected: clean
   - Commit:
 ```bash
-git add packages/clone-engine/src/qa/types.ts \
-        packages/clone-engine/src/qa/html.ts \
-        packages/clone-engine/src/qa/index.ts \
-        packages/clone-engine/test/qa/fixtures.ts \
+git add packages/clone-engine/src/buildreport/types.ts \
+        packages/clone-engine/src/buildreport/html.ts \
+        packages/clone-engine/src/buildreport/index.ts \
+        packages/clone-engine/test/buildreport/fixtures.ts \
         packages/clone-engine/src/edit/verify.ts
 git commit -m "feat(qa): scaffold types + html helpers + fixtures; export overlaps (QA-T0)"
 ```
@@ -322,8 +322,8 @@ git commit -m "feat(qa): scaffold types + html helpers + fixtures; export overla
 ## Task 1: broken-assets check
 
 **Files:**
-- Create: `packages/clone-engine/src/qa/checks/broken-assets.ts`
-- Create: `packages/clone-engine/test/qa/broken-assets.test.ts`
+- Create: `packages/clone-engine/src/buildreport/checks/broken-assets.ts`
+- Create: `packages/clone-engine/test/buildreport/broken-assets.test.ts`
 
 - [ ] **Step 1 — write failing test**
 
@@ -331,7 +331,7 @@ git commit -m "feat(qa): scaffold types + html helpers + fixtures; export overla
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { checkBrokenAssets } from "../../src/qa/checks/broken-assets.ts";
+import { checkBrokenAssets } from "../../src/buildreport/checks/broken-assets.ts";
 import { makeSiteDir } from "./fixtures.ts";
 
 describe("checkBrokenAssets", () => {
@@ -406,8 +406,8 @@ export async function checkBrokenAssets(page: PageContext): Promise<CheckResult>
 - [ ] **Step 4 — run to verify it passes** → Expected: 4 passed
 - [ ] **Step 5 — typecheck + commit**
 ```bash
-git add packages/clone-engine/src/qa/checks/broken-assets.ts \
-        packages/clone-engine/test/qa/broken-assets.test.ts
+git add packages/clone-engine/src/buildreport/checks/broken-assets.ts \
+        packages/clone-engine/test/buildreport/broken-assets.test.ts
 git commit -m "feat(qa): broken-assets check (QA-T1)"
 ```
 
@@ -416,8 +416,8 @@ git commit -m "feat(qa): broken-assets check (QA-T1)"
 ## Task 2: content-blocks check
 
 **Files:**
-- Create: `packages/clone-engine/src/qa/checks/content-blocks.ts`
-- Create: `packages/clone-engine/test/qa/content-blocks.test.ts`
+- Create: `packages/clone-engine/src/buildreport/checks/content-blocks.ts`
+- Create: `packages/clone-engine/test/buildreport/content-blocks.test.ts`
 
 - [ ] **Step 1 — write failing test**
 
@@ -425,7 +425,7 @@ git commit -m "feat(qa): broken-assets check (QA-T1)"
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { checkContentBlocks } from "../../src/qa/checks/content-blocks.ts";
+import { checkContentBlocks } from "../../src/buildreport/checks/content-blocks.ts";
 import { makeSiteDir } from "./fixtures.ts";
 
 describe("checkContentBlocks", () => {
@@ -492,8 +492,8 @@ export async function checkContentBlocks(page: PageContext): Promise<CheckResult
 - [ ] **Step 4 — run to verify it passes** → Expected: 3 passed
 - [ ] **Step 5 — commit**
 ```bash
-git add packages/clone-engine/src/qa/checks/content-blocks.ts \
-        packages/clone-engine/test/qa/content-blocks.test.ts
+git add packages/clone-engine/src/buildreport/checks/content-blocks.ts \
+        packages/clone-engine/test/buildreport/content-blocks.test.ts
 git commit -m "feat(qa): content-blocks check (QA-T2)"
 ```
 
@@ -502,14 +502,14 @@ git commit -m "feat(qa): content-blocks check (QA-T2)"
 ## Task 3: dead-links check
 
 **Files:**
-- Create: `packages/clone-engine/src/qa/checks/dead-links.ts`
-- Create: `packages/clone-engine/test/qa/dead-links.test.ts`
+- Create: `packages/clone-engine/src/buildreport/checks/dead-links.ts`
+- Create: `packages/clone-engine/test/buildreport/dead-links.test.ts`
 
 - [ ] **Step 1 — write failing test**
 
 ```ts
 import { describe, it, expect } from "vitest";
-import { checkDeadLinks } from "../../src/qa/checks/dead-links.ts";
+import { checkDeadLinks } from "../../src/buildreport/checks/dead-links.ts";
 import { makeSiteDir } from "./fixtures.ts";
 import fs from "node:fs"; import path from "node:path";
 
@@ -579,8 +579,8 @@ export async function checkDeadLinks(page: PageContext): Promise<CheckResult> {
 - [ ] **Step 4 — run to verify it passes** → Expected: 3 passed
 - [ ] **Step 5 — commit**
 ```bash
-git add packages/clone-engine/src/qa/checks/dead-links.ts \
-        packages/clone-engine/test/qa/dead-links.test.ts
+git add packages/clone-engine/src/buildreport/checks/dead-links.ts \
+        packages/clone-engine/test/buildreport/dead-links.test.ts
 git commit -m "feat(qa): dead-links check (QA-T3)"
 ```
 
@@ -589,14 +589,14 @@ git commit -m "feat(qa): dead-links check (QA-T3)"
 ## Task 4: SEO check
 
 **Files:**
-- Create: `packages/clone-engine/src/qa/checks/seo.ts`
-- Create: `packages/clone-engine/test/qa/seo.test.ts`
+- Create: `packages/clone-engine/src/buildreport/checks/seo.ts`
+- Create: `packages/clone-engine/test/buildreport/seo.test.ts`
 
 - [ ] **Step 1 — write failing test**
 
 ```ts
 import { describe, it, expect } from "vitest";
-import { checkSeo } from "../../src/qa/checks/seo.ts";
+import { checkSeo } from "../../src/buildreport/checks/seo.ts";
 import { makeSiteDir, makeCaptureDir } from "./fixtures.ts";
 import fs from "node:fs"; import path from "node:path";
 
@@ -697,8 +697,8 @@ export async function checkSeo(ctx: SeoCtx): Promise<CheckResult> {
 - [ ] **Step 4 — run to verify it passes** → Expected: 4 passed
 - [ ] **Step 5 — commit**
 ```bash
-git add packages/clone-engine/src/qa/checks/seo.ts \
-        packages/clone-engine/test/qa/seo.test.ts
+git add packages/clone-engine/src/buildreport/checks/seo.ts \
+        packages/clone-engine/test/buildreport/seo.test.ts
 git commit -m "feat(qa): SEO check with source-regression detection (QA-T4)"
 ```
 
@@ -707,15 +707,15 @@ git commit -m "feat(qa): SEO check with source-regression detection (QA-T4)"
 ## Task 5: pagespeed check
 
 **Files:**
-- Create: `packages/clone-engine/src/qa/checks/pagespeed.ts`
-- Create: `packages/clone-engine/test/qa/pagespeed.test.ts`
+- Create: `packages/clone-engine/src/buildreport/checks/pagespeed.ts`
+- Create: `packages/clone-engine/test/buildreport/pagespeed.test.ts`
 
 - [ ] **Step 1 — write failing test**
 
 ```ts
 import { describe, it, expect } from "vitest";
 import fs from "node:fs"; import path from "node:path";
-import { checkPagespeed } from "../../src/qa/checks/pagespeed.ts";
+import { checkPagespeed } from "../../src/buildreport/checks/pagespeed.ts";
 import { makeSiteDir } from "./fixtures.ts";
 
 describe("checkPagespeed", () => {
@@ -764,8 +764,8 @@ export async function checkPagespeed(page: PageContext): Promise<CheckResult> {
 - [ ] **Step 4 — run to verify it passes** → Expected: 2 passed
 - [ ] **Step 5 — commit**
 ```bash
-git add packages/clone-engine/src/qa/checks/pagespeed.ts \
-        packages/clone-engine/test/qa/pagespeed.test.ts
+git add packages/clone-engine/src/buildreport/checks/pagespeed.ts \
+        packages/clone-engine/test/buildreport/pagespeed.test.ts
 git commit -m "feat(qa): pagespeed check — page weight + asset count (QA-T5)"
 ```
 
@@ -774,15 +774,15 @@ git commit -m "feat(qa): pagespeed check — page weight + asset count (QA-T5)"
 ## Task 6: iframes check (clone-only)
 
 **Files:**
-- Create: `packages/clone-engine/src/qa/checks/iframes.ts`
-- Create: `packages/clone-engine/test/qa/iframes.test.ts`
+- Create: `packages/clone-engine/src/buildreport/checks/iframes.ts`
+- Create: `packages/clone-engine/test/buildreport/iframes.test.ts`
 
 - [ ] **Step 1 — write failing test**
 
 ```ts
 import { describe, it, expect } from "vitest";
 import fs from "node:fs"; import path from "node:path";
-import { checkIframes } from "../../src/qa/checks/iframes.ts";
+import { checkIframes } from "../../src/buildreport/checks/iframes.ts";
 import { makeSiteDir, makeCaptureDir } from "./fixtures.ts";
 
 describe("checkIframes", () => {
@@ -870,8 +870,8 @@ export async function checkIframes(page: PageContext, captureDir: string | undef
 - [ ] **Step 4 — run to verify it passes** → Expected: 4 passed
 - [ ] **Step 5 — commit**
 ```bash
-git add packages/clone-engine/src/qa/checks/iframes.ts \
-        packages/clone-engine/test/qa/iframes.test.ts
+git add packages/clone-engine/src/buildreport/checks/iframes.ts \
+        packages/clone-engine/test/buildreport/iframes.test.ts
 git commit -m "feat(qa): iframes check — preserve+verify, same-domain note (QA-T6)"
 ```
 
@@ -880,14 +880,14 @@ git commit -m "feat(qa): iframes check — preserve+verify, same-domain note (QA
 ## Task 7: fidelity check (clone-only)
 
 **Files:**
-- Create: `packages/clone-engine/src/qa/checks/fidelity.ts`
-- Create: `packages/clone-engine/test/qa/fidelity.test.ts`
+- Create: `packages/clone-engine/src/buildreport/checks/fidelity.ts`
+- Create: `packages/clone-engine/test/buildreport/fidelity.test.ts`
 
 - [ ] **Step 1 — write failing test**
 
 ```ts
 import { describe, it, expect } from "vitest";
-import { computeFidelityPct } from "../../src/qa/checks/fidelity.ts";
+import { computeFidelityPct } from "../../src/buildreport/checks/fidelity.ts";
 import { TINY_PNG } from "./fixtures.ts";
 
 describe("computeFidelityPct", () => {
@@ -959,8 +959,8 @@ export async function checkFidelity(
 - [ ] **Step 4 — run to verify it passes (unit tests only)** → Expected: 3 passed
 - [ ] **Step 5 — commit**
 ```bash
-git add packages/clone-engine/src/qa/checks/fidelity.ts \
-        packages/clone-engine/test/qa/fidelity.test.ts
+git add packages/clone-engine/src/buildreport/checks/fidelity.ts \
+        packages/clone-engine/test/buildreport/fidelity.test.ts
 git commit -m "feat(qa): fidelity check — pixel diff + computeFidelityPct (QA-T7)"
 ```
 
@@ -969,8 +969,8 @@ git commit -m "feat(qa): fidelity check — pixel diff + computeFidelityPct (QA-
 ## Task 8: layout-breaks check (integration — needs Playwright)
 
 **Files:**
-- Create: `packages/clone-engine/src/qa/checks/layout-breaks.ts`
-- Create: `packages/clone-engine/test/qa/layout-breaks.test.ts`
+- Create: `packages/clone-engine/src/buildreport/checks/layout-breaks.ts`
+- Create: `packages/clone-engine/test/buildreport/layout-breaks.test.ts`
 
 - [ ] **Step 1 — write failing test**
 
@@ -979,7 +979,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { chromium, type Browser } from "playwright";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkLayoutBreaks } from "../../src/qa/checks/layout-breaks.ts";
+import { checkLayoutBreaks } from "../../src/buildreport/checks/layout-breaks.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const PKG = path.resolve(dir, "../../..");
@@ -1050,8 +1050,8 @@ Note: `renderSnapshot` returns a `RenderSnapshot` with `order: string[]`. The se
 - [ ] **Step 4 — run to verify it passes (or skips)** → Expected: 1 passed or skipped
 - [ ] **Step 5 — commit**
 ```bash
-git add packages/clone-engine/src/qa/checks/layout-breaks.ts \
-        packages/clone-engine/test/qa/layout-breaks.test.ts
+git add packages/clone-engine/src/buildreport/checks/layout-breaks.ts \
+        packages/clone-engine/test/buildreport/layout-breaks.test.ts
 git commit -m "feat(qa): layout-breaks check — reuses verify.ts overlaps() (QA-T8)"
 ```
 
@@ -1060,15 +1060,15 @@ git commit -m "feat(qa): layout-breaks check — reuses verify.ts overlaps() (QA
 ## Task 9: font-fallback check
 
 **Files:**
-- Create: `packages/clone-engine/src/qa/checks/font-fallback.ts`
-- Create: `packages/clone-engine/test/qa/font-fallback.test.ts`
+- Create: `packages/clone-engine/src/buildreport/checks/font-fallback.ts`
+- Create: `packages/clone-engine/test/buildreport/font-fallback.test.ts`
 
 - [ ] **Step 1 — write failing test**
 
 ```ts
 import { describe, it, expect } from "vitest";
 import fs from "node:fs"; import path from "node:path";
-import { checkFontFallback } from "../../src/qa/checks/font-fallback.ts";
+import { checkFontFallback } from "../../src/buildreport/checks/font-fallback.ts";
 import { makeSiteDir } from "./fixtures.ts";
 
 describe("checkFontFallback", () => {
@@ -1134,8 +1134,8 @@ export async function checkFontFallback(page: PageContext): Promise<CheckResult>
 - [ ] **Step 4 — run to verify it passes** → Expected: 3 passed
 - [ ] **Step 5 — commit**
 ```bash
-git add packages/clone-engine/src/qa/checks/font-fallback.ts \
-        packages/clone-engine/test/qa/font-fallback.test.ts
+git add packages/clone-engine/src/buildreport/checks/font-fallback.ts \
+        packages/clone-engine/test/buildreport/font-fallback.test.ts
 git commit -m "feat(qa): font-fallback check (QA-T9)"
 ```
 
@@ -1144,15 +1144,15 @@ git commit -m "feat(qa): font-fallback check (QA-T9)"
 ## Task 10: Inspector orchestrator
 
 **Files:**
-- Create: `packages/clone-engine/src/qa/inspector.ts`
-- Create: `packages/clone-engine/test/qa/inspector.test.ts`
+- Create: `packages/clone-engine/src/buildreport/inspector.ts`
+- Create: `packages/clone-engine/test/buildreport/inspector.test.ts`
 
 - [ ] **Step 1 — write failing test**
 
 ```ts
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { chromium, type Browser } from "playwright";
-import { inspectSite } from "../../src/qa/inspector.ts";
+import { inspectSite } from "../../src/buildreport/inspector.ts";
 import { makeSiteDir } from "./fixtures.ts";
 import fs from "node:fs"; import path from "node:path";
 
@@ -1268,8 +1268,8 @@ export async function inspectSite(opts: InspectOpts): Promise<SiteReport> {
 - [ ] **Step 4 — run to verify it passes** → Expected: 3 passed (some may require real browser)
 - [ ] **Step 5 — commit**
 ```bash
-git add packages/clone-engine/src/qa/inspector.ts \
-        packages/clone-engine/test/qa/inspector.test.ts
+git add packages/clone-engine/src/buildreport/inspector.ts \
+        packages/clone-engine/test/buildreport/inspector.test.ts
 git commit -m "feat(qa): inspector orchestrator — all checks → SiteReport + verdict (QA-T10)"
 ```
 
@@ -1278,15 +1278,15 @@ git commit -m "feat(qa): inspector orchestrator — all checks → SiteReport + 
 ## Task 11: HTML/JSON renderer
 
 **Files:**
-- Create: `packages/clone-engine/src/qa/render.ts`
-- Create: `packages/clone-engine/test/qa/render.test.ts`
+- Create: `packages/clone-engine/src/buildreport/render.ts`
+- Create: `packages/clone-engine/test/buildreport/render.test.ts`
 
 - [ ] **Step 1 — write failing test**
 
 ```ts
 import { describe, it, expect } from "vitest";
-import { renderSiteReport } from "../../src/qa/render.ts";
-import type { SiteReport } from "../../src/qa/types.ts";
+import { renderSiteReport } from "../../src/buildreport/render.ts";
+import type { SiteReport } from "../../src/buildreport/types.ts";
 
 const makeReport = (verdict: "SHIP" | "NEEDS_FIXES", blockers: number): SiteReport => ({
   verdict, blockerCount: blockers, noteCount: 0, infoCount: 2,
@@ -1391,8 +1391,8 @@ export function renderSiteReport(report: SiteReport): string {
 - [ ] **Step 4 — run to verify it passes** → Expected: 4 passed
 - [ ] **Step 5 — commit**
 ```bash
-git add packages/clone-engine/src/qa/render.ts \
-        packages/clone-engine/test/qa/render.test.ts
+git add packages/clone-engine/src/buildreport/render.ts \
+        packages/clone-engine/test/buildreport/render.test.ts
 git commit -m "feat(qa): HTML/JSON report renderer — verdict + punch-list (QA-T11)"
 ```
 
@@ -1461,7 +1461,7 @@ git commit -m "feat(qa): wire site build report into buildSiteAuto; export from 
 ## Task 13: Full suite green + tsc clean
 
 - [ ] **Step 1 — run full qa test suite**
-  - Run: `cd packages/clone-engine && pnpm vitest run --no-file-parallelism test/qa/`
+  - Run: `cd packages/clone-engine && pnpm vitest run --no-file-parallelism test/buildreport/`
   - Expected: all pass (integration tests with `skipIf(!ASTRO_MODULES)` either pass or skip)
 
 - [ ] **Step 2 — run full clone-engine suite**
