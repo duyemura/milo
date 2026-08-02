@@ -14,7 +14,7 @@
 
 **Verification commands (use throughout):**
 - Typecheck (real — the rtk proxy reports false-clean): `packages/clone-engine/node_modules/.bin/tsc --noEmit -p packages/clone-engine`
-- Unit tests (fast, non-browser): `pnpm --filter @milo/clone-engine vitest run --no-file-parallelism test/events.test.ts`
+- Unit tests (fast, non-browser): `pnpm --filter @milo/clone-engine exec vitest run --no-file-parallelism test/events.test.ts`
 
 ---
 
@@ -132,7 +132,7 @@ describe("event line serializer", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @milo/clone-engine vitest run --no-file-parallelism test/events.test.ts`
+Run: `pnpm --filter @milo/clone-engine exec vitest run --no-file-parallelism test/events.test.ts`
 Expected: FAIL — `Cannot find module '../src/events.ts'`.
 
 - [ ] **Step 3: Write the implementation**
@@ -260,7 +260,7 @@ export function parseEventLine(line: string): EngineEvent | null {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `pnpm --filter @milo/clone-engine vitest run --no-file-parallelism test/events.test.ts`
+Run: `pnpm --filter @milo/clone-engine exec vitest run --no-file-parallelism test/events.test.ts`
 Expected: PASS (all cases green).
 
 - [ ] **Step 5: Typecheck**
@@ -376,7 +376,7 @@ Expected: clean. (No new tests — emission is exercised by the acceptance run i
 
 - [ ] **Step 9: Run the existing orchestrate tests to confirm no regression**
 
-Run: `pnpm --filter @milo/clone-engine vitest run --no-file-parallelism test/orchestrate-label.test.ts`
+Run: `pnpm --filter @milo/clone-engine exec vitest run --no-file-parallelism test/orchestrate-label.test.ts`
 Expected: PASS (unchanged — the sink defaults to a no-op).
 
 - [ ] **Step 10: Commit**
@@ -457,7 +457,7 @@ Expected: clean.
 
 - [ ] **Step 4: Run existing discover tests (no regression)**
 
-Run: `pnpm --filter @milo/clone-engine vitest run --no-file-parallelism test/discover.test.ts`
+Run: `pnpm --filter @milo/clone-engine exec vitest run --no-file-parallelism test/discover.test.ts`
 Expected: PASS (unchanged — `onProgress` is optional).
 
 - [ ] **Step 5: Emit run/discover/completed in `buildSiteAuto`**
@@ -603,7 +603,7 @@ Expected: clean.
 
 - [ ] **Step 3: Run the events unit tests + the two regression suites**
 
-Run: `pnpm --filter @milo/clone-engine vitest run --no-file-parallelism test/events.test.ts test/discover.test.ts test/orchestrate-label.test.ts`
+Run: `pnpm --filter @milo/clone-engine exec vitest run --no-file-parallelism test/events.test.ts test/discover.test.ts test/orchestrate-label.test.ts`
 Expected: PASS across all three (events green; discover + orchestrate-label unchanged).
 
 - [ ] **Step 4: Live smoke — watch real events stream**
