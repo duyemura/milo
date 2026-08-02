@@ -42,3 +42,7 @@ export * as edit from "./edit/index.ts";
 // Subsystem F — Goal measurement: tracker injection + goal evaluation against GA4 data.
 export { evaluateGoal, injectTrackerIntoSite, TRACKER_MARKER } from "./pagegoal.ts";
 export type { GoalReport } from "./pagegoal.ts";
+// Site build report — ship/no-ship gate. Call inspectSite({ siteDir: fullSiteDir, browser })
+// after buildSiteAuto completes to produce a SiteReport + render it with renderSiteReport.
+export { inspectSite, renderSiteReport } from "./buildreport/index.ts";
+export type { SiteReport, Issue, PageReport as SitePageReport, IssueSeverity, InspectOpts } from "./buildreport/types.ts";

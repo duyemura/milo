@@ -373,6 +373,9 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
 
   // Inject the engagement tracker into every assembled HTML page (Subsystem F).
   injectTrackerIntoSite(fullSite);
+  // Site build report seam: call inspectSite({ siteDir: fullSite, browser }) here to produce
+  // a ship/no-ship verdict. Caller manages the browser instance; threading it through
+  // BuildSiteOpts is a follow-up (see src/buildreport/inspector.ts + src/index.ts exports).
 
   const totalWallMs = Date.now() - wallStart;
   console.log(
