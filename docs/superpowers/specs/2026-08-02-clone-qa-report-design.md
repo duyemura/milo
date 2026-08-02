@@ -4,7 +4,7 @@
 **Status:** Design — approved in brainstorming, pending written-spec review
 **Engine:** `@milo/clone-engine` (`packages/clone-engine`)
 **Replaces:** the build-metrics dump in `src/report.ts` (`generateHtmlReport` / `BuildReport`)
-**Depends on:** `buildSite()` (`src/orchestrate.ts`), the source captures (`capture.ts` → `capture.json` + `source-desktop.png`), the projected + built Astro `dist/` per page
+**Depends on:** `buildSite()` (`src/orchestrate.ts`), the source captures (`capture.ts` → `capture.json` + `source-desktop.png`), the projected + built Astro `dist/` per page, the live source origin (for the homepage Lighthouse before-run)
 **Reuses:** `src/pixel.ts` (pixel diff), `src/edit/snapshot.ts` (`renderSnapshot`, `sectionListOf`), `src/edit/verify.ts` (box-overlap logic), the astro-build plumbing in `orchestrate.ts`
 **Doctrine:** `packages/clone-engine/DOCTRINE.md`; eval rule: `feedback_never_regress_html_eval` memory
 **Admin contract:** extends `build-report.json` — the admin dashboard data contract (`2026-08-01-milo-admin-design.md`)
@@ -23,7 +23,7 @@ Everything that does not serve that decision is demoted or removed. Timing and c
 
 ## The verdict — a pragmatic bar
 
-**A clone is never pixel-identical to the live source, and that is expected, not a defect.** Fonts render differently on a fresh host, dynamic features (forms, booking widgets, maps, live chat) can't run in a static clone, and third-party embeds are intentionally not rehosted (`capture.ts` marks `iframe`/`embed`/`object` as `NO_REHOST`). So the bar is **"no blockers," not "pixel-perfect."** The verdict is derived mechanically from the Inspector's issue list:
+**A clone is never pixel-identical to the live source, and that is expected, not a defect.** Fonts render differently on a fresh host, and a form loses its backend in a static clone (it renders but submits nowhere). External embeds are a happier story: an `<iframe>` to external content (map, video, booking) **replicates for free** as long as the clone preserves its `src` — the external service serves it at runtime — so the model there is preserve-and-verify, not re-capture. So the bar is **"no blockers," not "pixel-perfect."** The verdict is derived mechanically from the Inspector's issue list:
 
 - **`✅ SHIP`** — zero blocker-severity issues. (Notes may exist; they don't block.)
 - **`⚠ NEEDS FIXES (N blockers)`** — one or more blocker issues; `N` = blocker count.
@@ -32,8 +32,8 @@ Everything that does not serve that decision is demoted or removed. Timing and c
 
 | Severity | Meaning | Kinds | Effect on verdict |
 |---|---|---|---|
-| **blocker** | The clone is materially broken vs. the source — a visitor (or a search crawler) would see something wrong that the source did not. | broken/missing images & logos; empty-or-missing section (present + non-empty in source, empty/absent in clone); dead internal link / broken nav target; layout break (section overlap / broken responsive); **SEO-element regression** (an SEO element the *source* had that the clone *dropped* — see Site Health) | **→ `NEEDS FIXES`** |
-| **note** | Expected static-clone divergence — flagged for awareness, never a defect. | fallback font (intended brand font didn't load); dynamic feature that can't run statically (form, booking/scheduling widget, iframe map, live chat, video embed) | **flagged, does not block** |
+| **blocker** | The clone is materially broken vs. the source — a visitor (or a search crawler) would see something wrong that the source did not. | broken/missing images & logos; empty-or-missing content block (present + non-empty in source, empty/absent in clone); **dropped iframe** (an `<iframe>` in the source that the clone stripped — lost embedded content); dead internal link / broken nav target; layout break (section overlap / broken responsive); **SEO-element regression** (an SEO element the *source* had that the clone *dropped* — see Site Health) | **→ `NEEDS FIXES`** |
+| **note** | Expected static-clone divergence — flagged for awareness, never a defect. | fallback font (intended brand font didn't load); a static-only form (submits nowhere without a backend); a **same-domain iframe** (its `src` pointed at the source's own domain — won't resolve on the clone's domain); a **referrer/domain-locked embed** (a preserved external iframe that may refuse to load off the original site) | **flagged, does not block** |
 
 Note the asymmetry that runs through the whole gate: **it blocks on *regressions vs. the source*, not on the source's own shortcomings.** A missing meta description that the source also lacked is the *gym's* SEO problem (informational); a meta description the source had and the clone lost is *our* fidelity bug (blocker). Same for any SEO element.
 
@@ -56,19 +56,19 @@ Each check below lists **what it detects**, **how**, **severity**, and **which e
 | Check | Detects | How | Severity | Reuses |
 |---|---|---|---|---|
 | **broken-assets** | `<img>` / CSS-background that 404s or renders at 0×0 in the built clone | In the clone render, query every `<img>` for `naturalWidth===0 \|\| naturalHeight===0` (broken/failed decode) and every element whose resolved `background-image` URL fails to load; **cross-reference** the astro build's asset-resolution warnings (assets that "didn't resolve at build time") captured from build stderr. Union of render-time 0×0 and build-time unresolved. | **blocker** | the per-page clone `renderSnapshot`; astro-build stderr already shelled from `orchestrate.ts` |
-| **empty/missing-sections** | A section present **and non-empty** in the source that is **empty or absent** in the clone | Enumerate source sections from the capture (`sectionListOf` mapping / the labeled `capture.json` tree) with a non-empty content signal (text length or child-element count above a floor). For each, find its counterpart in the clone render by `data-component`; flag if absent, or present but rendering with ~0 content height / no visible children. | **blocker** | `sectionListOf`; the clone `renderSnapshot` section map (keyed by `data-component`) |
+| **content-blocks** | Whether the page's HTML **content blocks** survived the clone present + intact — the merged "is the content there" check (subsumes the old empty/missing-sections). NOT a widget/JS-include hunt | For each content-bearing block/section in the source (`capture.json` tree / `sectionListOf` mapping, keyed by `data-component`) with a non-empty content signal (text length or child-element count above a floor), verify a counterpart exists in the clone render, present with equivalent structure + non-empty content — flag if **absent**, or present but rendering with ~0 content / no visible children. Deliberately about **content presence + integrity**, not visual layout. `<form>` blocks are checked for presence; a form that survived but has no backend is a **note** (`static-form`), not a blocker. **Explicitly out of v1: named chat/booking/video *widget* recognition** (brittle allow-list, low value) — see possible-future. | **blocker** if a source content block is dropped/emptied; **note** for static-only form | `sectionListOf`; source `capture.json` tree; the clone `renderSnapshot` section map (keyed by `data-component`) |
 | **dead-internal-links** | An internal `href` or nav target that doesn't resolve to a built page | Collect every internal link + nav target from the clone render (skip `mailto:`/`tel:`/external hosts/in-page `#anchor`s). Resolve each against the set of built routes (`buildSite`'s `links-site.json` / the assembled `full-site/` route set). Any internal target with no matching built page is dead. | **blocker** | `buildSite`'s route map (`links-site.json` / `full-site/` assembly); the clone render's DOM |
 | **layout-breaks** | Section bounding-box overlaps / broken responsive | **Reuse the exact overlap logic in `edit/verify.ts`** (`overlaps()` + `OVERLAP_TOLERANCE_PX`): any two section boxes overlapping beyond tolerance = layout break. Run at each capture width (1440 / 768 / 390 — the `WIDTHS` the engine already captures) to catch responsive breakage, not just desktop. | **blocker** | `edit/verify.ts` `overlaps()` + tolerance; `renderSnapshot` section boxes; `WIDTHS` |
+| **iframes** | An `<iframe>` in the source **preserved (with `src` intact)** in the clone — external embeds replicate for free at runtime | Model = **preserve-and-verify**, not re-capture: an external iframe (map, YouTube, booking embed) works on the clone as long as the clone kept the `<iframe src>` — the external service serves it. Check each source iframe (`capture.ts` marks `iframe`/`embed`/`object` `NO_REHOST`, so they're knowable) has a surviving clone iframe with the same `src`. **Dropped/stripped iframe = blocker** (lost content). Flag two caveats as **notes**: a **same-domain iframe** (src on the source's own domain → won't resolve on the clone's domain) and a **referrer/domain-locked embed** (external but may refuse off-origin). | **blocker** for a dropped iframe; **note** for same-domain / domain-locked | source `capture.json` (`NO_REHOST` set, tree, `src`s); clone render DOM |
 | **font-fallback** | An intended brand font that didn't load (computed family fell back) | For elements the brand doc / labels mark as using a brand font, read `getComputedStyle(...).fontFamily` in the clone render and detect that the resolved face is a generic/system fallback rather than the intended family (font not loaded → browser dropped to the next in the stack). | **note** | the clone `renderSnapshot` page; `brand.json` font slots |
-| **dynamic-features** | Forms, iframe maps, known booking/chat/video widgets present in source that are now static | Detect in the clone render (cross-checked against source `capture.json`): `<form>` elements, `<iframe>`s (maps/video/booking), and known third-party widget signatures (booking/scheduling, live-chat, video embeds). `capture.ts` already flags `iframe`/`embed`/`object` as `NO_REHOST`, so their presence in source is knowable. | **note** | source `capture.json` (`NO_REHOST` set, tree); clone render DOM |
-| **fidelity** | Per-page visual similarity source → clone | Diff `source-desktop.png` (already captured) against a fresh full-page screenshot of the clone render, via `pixel.ts` `pixelDiff`. Report a **match %** (`100 − pct`) per page. **NOT a blocker** — benign font/dynamic diffs are expected; this is the confidence signal + the before/after proof. | **fidelity signal** (never a blocker) | `pixel.ts` `pixelDiff`; the `source-desktop.png` capture; the clone render |
-| **seo** | SEO fundamentals per page + **SEO-element regressions** vs. source | Pure HTML parse of the **built** clone page: `<title>`, meta description, single `<h1>` + heading hierarchy, image `alt` coverage, `<link rel="canonical">`, JSON-LD / structured data, Open Graph + Twitter Card tags, `<html lang>`, robots meta + `sitemap.xml`/`robots.txt` presence. **Diff against the source `capture.json` head/tree:** an element present in source but absent in clone = **regression (blocker)**; a weak/missing element the source also lacked = informational (not a blocker). | **blocker** for a source→clone SEO regression; otherwise **informational** | source `capture.json` (`head`, `tree`) for the regression diff; the built `dist/` HTML |
-| **pagespeed** (lightweight, v1) | Page weight + request/asset load | Report built **page weight (KB)** and **asset/request count** per page, plus the largest assets. Uses data already collected during build (`pageWeightKb`, `assetCount`). Pure, no extra tooling. | **informational** (never a blocker) | existing `pageWeightKb` / `assetCount` in the build report; `capture.json` assets |
-| **pagespeed** (Lighthouse, v1.1 / opt-in) | Real Core-Web-Vitals + Lighthouse perf/a11y/SEO scores | Run **Lighthouse** headless against the served built `dist/` → LCP / CLS / TBT-style metrics + the performance/accessibility/SEO category scores. **Opt-in / heavy** — see Feasibility. | **informational** (never a blocker) | `lighthouse` npm (or PageSpeed Insights API) + a headless serve of `dist/` |
+| **fidelity** | Per-page visual similarity source → clone | Diff `source-desktop.png` (already captured) against a fresh full-page screenshot of the clone render, via `pixel.ts` `pixelDiff`. Report a **match %** (`100 − pct`) per page. **NOT a blocker** — benign diffs (fallback fonts, a static form shell, an off-origin embed) are expected; this is the confidence signal + the before/after proof. | **fidelity signal** (never a blocker) | `pixel.ts` `pixelDiff`; the `source-desktop.png` capture; the clone render |
+| **seo** | Per-factor **source (before) vs. clone (after)** + why-it-matters + improvement opportunity; **regressions** vs. source | Pure HTML parse of **both** the source (`capture.json` head/tree) and the **built** clone page, for every factor: `<title>`, meta description, single `<h1>` + heading hierarchy, image `alt` coverage, `<link rel="canonical">`, JSON-LD / structured data, Open Graph + Twitter Card, `<html lang>`, robots meta + `sitemap.xml`/`robots.txt`. For each: emit **before value, after value, good/bad + a short why-it-matters reason, and the improvement opportunity.** A factor **dropped** (in source, gone in clone) = **regression (blocker)**; a factor the **source never had** = **improvement opportunity** (informational, actionable — not a blocker). | **blocker** for a source→clone regression; otherwise **informational / opportunity** | source `capture.json` (`head`, `tree`); the built `dist/` HTML |
+| **pagespeed** (lightweight, ALL pages, v1) | Page weight + request/asset load | Report built **page weight (KB)** and **asset/request count** per page, plus the largest assets. Uses data already collected during build (`pageWeightKb`, `assetCount`). Pure, no extra tooling. | **informational** (never a blocker) | existing `pageWeightKb` / `assetCount` in the build report; `capture.json` assets |
+| **pagespeed** (Lighthouse, **homepage-only, both source + clone, v1**) | Real Core-Web-Vitals + Lighthouse Performance/SEO/Accessibility/Best-Practices scores, **before (live source) vs. after (clone)** | On **every build**, run Lighthouse headless twice — once against the **live source homepage** and once against the **clone homepage** (served `dist/`) — and show the before/after scorecard for the site's most important page. Bounded to ~2 runs (~20–60s/build). Clones are static Astro → the after-scores should **beat** the source (a headline selling point). A blocked/unreachable **source** run degrades gracefully: show the clone score + note source unavailable. | **informational** (never a blocker) | `lighthouse` npm (or PageSpeed Insights API); a headless serve of the clone `dist/` homepage; the live source origin |
 
 ### The fidelity signal
 
-Fidelity is deliberately **not** a pass/fail gate. Because fallback fonts and non-running dynamic features legitimately change pixels, a low match % is often *expected*, not *wrong* — a form that renders as a static shell will diff, and that's a note, not a blocker. So fidelity is reported as:
+Fidelity is deliberately **not** a pass/fail gate. Because fallback fonts, static form shells, and off-origin embeds legitimately change pixels, a low match % is often *expected*, not *wrong* — a form that renders as a static shell will diff, and that's a note, not a blocker. So fidelity is reported as:
 
 - **Overall fidelity %** — an aggregate (e.g. mean per-page match %) in the verdict bar, as a *confidence* number, not a threshold.
 - **Per-page match %** with a **source-vs-clone before/after slider**, sorted **worst pages first** — the operator's eyes are the final judge; the report just points them at the pages most worth looking at.
@@ -77,14 +77,28 @@ The slider is the existing before/after component already in `report.ts` (inline
 
 ### Site health — SEO + PageSpeed
 
-A section reporting the cloned site's **SEO and performance health**, distinct from visual fidelity. Two halves, deliberately of **different build cost**:
+A section reporting the cloned site's **SEO and performance health**, distinct from visual fidelity. The framing is dual: **the clone is faithful to the source AND an opportunity to improve the gym's SEO** — the report surfaces exactly where.
 
-- **SEO (cheap, deterministic, high-value).** Pure parse of the built HTML per page for the fundamentals (title, meta description, H1 + heading hierarchy, `alt` coverage, canonical, JSON-LD, OG/Twitter, `lang`, robots/sitemap). Report presence/quality per page and flag gaps. **QA tie-in — the regression rule is explicit and load-bearing:** if the clone *dropped* an SEO element the *source* had (e.g. lost the meta description or JSON-LD during capture/projection), that is a **fidelity regression → a blocker** (the `seo` check emits it, the verdict counts it). If the SEO element is weak or missing *and the source lacked it too*, that's the source's own issue → **informational/actionable, never a ship-blocker.** The regression is *ours*; the shortcoming is the *gym's*.
-- **PageSpeed (two tiers).**
-  - **(a) Lightweight — ships in v1.** Page weight (KB), request/asset count, largest assets. We already capture `assetCount` / `pageWeightKb` during build; this is free.
-  - **(b) Real — Lighthouse, opt-in / v1.1.** Actual performance + Core Web Vitals (LCP / CLS / TBT-style) and the Lighthouse accessibility/SEO category scores, run headless against the served `dist/`. **Honest feasibility (see Risks):** it's an added dependency (`lighthouse` npm, or the PageSpeed Insights API), adds meaningful build time, and needs a headless run against a *served* dist — so it is opt-in and may land in v1.1. The lightweight tier ships in v1 regardless.
+**SEO — before/after per factor, with reasons (cheap, deterministic, high-value).** For **each** factor (title, meta description, H1 + heading hierarchy, image `alt` coverage, canonical, JSON-LD / structured data, OG/Twitter, `<html lang>`, robots/sitemap), the report shows four things:
 
-PageSpeed (both tiers) is **informational** — it never blocks the verdict. Only an SEO *regression vs. source* blocks.
+1. **Source value (before)** — parsed from the source `capture.json` head/tree.
+2. **Clone value (after)** — parsed from the built clone HTML.
+3. **Good or bad, and WHY** — a short, educational, per-factor reason the operator (and the gym) can learn from (e.g. "meta description drives the search-result snippet; a missing one lets Google pick arbitrary page text").
+4. **Improvement opportunity** — the concrete next step if the factor is weak.
+
+The **rules that map onto the QA verdict** are load-bearing and asymmetric:
+
+- **Dropped** (source had it, clone lost it during capture/projection) → **fidelity regression → BLOCKER.** *Ours* to fix; the `seo` check emits it and the verdict counts it.
+- **Source gap** (source never had it) → **improvement opportunity — informational, actionable, never a ship-blocker.** The *gym's* pre-existing SEO gap, surfaced as a place the clone can do better than the original.
+
+Both the **source-SEO and the clone-SEO** are stored in `build-report.json` (per factor, per page) so the admin can render the same before/after table.
+
+**PageSpeed — two tiers, both shipping in v1, both informational (never block the verdict):**
+
+- **(a) Lightweight — ALL pages.** Page weight (KB), request/asset count, largest assets. Already captured (`assetCount` / `pageWeightKb`) at build — free.
+- **(b) Lighthouse — HOMEPAGE ONLY, source + clone, every build.** On every build, run Lighthouse twice: once against the **live source homepage** and once against the **clone homepage** (served `dist/`). The report shows a **before/after scorecard** — Performance, SEO, Accessibility, Best-Practices + Core Web Vitals (LCP / CLS / TBT-style) — for the site's most important page. Because clones are static Astro (inherently fast), the after-scores should **beat** the source — a headline selling point ("homepage: 54 → 96"). Cost is bounded to ~2 runs (~20–60s/build), which is acceptable. A blocked/unreachable **source** run degrades gracefully: show the clone score and note the source is unavailable (never fail the build on it).
+
+Only an SEO **regression vs. source** blocks; everything else in Site Health is informational.
 
 ## Report structure (top to bottom)
 
@@ -96,9 +110,12 @@ The HTML is restructured around the **decision**, not the build. Order is fixed:
    - `/ — hero — section empty`
    - `/ — nav — "Classes" link dead`
    - `/about — footer — overlaps content`
-3. **Noted (won't block)** — font fallbacks and static forms/maps/etc., same page+location framing, visually de-emphasized so they never read as failures.
+3. **Noted (won't block)** — font fallbacks, static-only forms, same-domain / domain-locked iframes, etc., same page+location framing, visually de-emphasized so they never read as failures.
 4. **Fidelity proof** — per-page **source-vs-clone** with match % and the before/after slider, **worst pages first.**
-5. **Site health — SEO + PageSpeed** — SEO fundamentals per page (dropped-vs-source elements also surface as blockers up in the punch-list, not only here), plus the lightweight PageSpeed table (weight / asset count / largest assets) and, when run, Lighthouse scores.
+5. **Site health — SEO + PageSpeed** —
+   - **SEO before/after table** per factor (source value | clone value | good/bad + why-it-matters | improvement opportunity). Dropped-vs-source elements also surface as blockers up in the punch-list, not only here; source gaps read as improvement opportunities.
+   - **Homepage Lighthouse scorecard** — before (live source) vs. after (clone): Performance, SEO, Accessibility, Best-Practices + Core Web Vitals, framed as the headline win ("54 → 96"); source-unavailable handled gracefully.
+   - **Lightweight PageSpeed table** — weight / asset count / largest assets, all pages.
 6. **Cost & Speed** — a real section (not a footnote): per-page **and** aggregate build cost + speed. **Reuse the honest cold-vs-warm accounting already in `report.ts`** (per-page capture fresh/cached-est + project + build ms; per-page LLM label cost; aggregate cold-build total vs. this-run wall; total LLM $, $/page, and $/site projection). It ranks below the verdict, blockers, fidelity, and site health — but it is kept in full, because the operator genuinely wants build cost + speed visibility.
 
 The report **leads with the QA decision** (verdict → blockers → notes → fidelity → site health); **Cost & Speed** lives at the bottom as its own full section, not a throwaway line.
@@ -110,9 +127,10 @@ The report **leads with the QA decision** (verdict → blockers → notes → fi
 ```ts
 type Severity = "blocker" | "note";
 type IssueKind =
-  | "broken-asset" | "empty-section" | "dead-link" | "layout-break"   // blockers
-  | "seo-regression"                                                  // blocker (dropped-vs-source)
-  | "font-fallback" | "dynamic-feature";                              // notes
+  | "broken-asset" | "content-block-dropped" | "dead-link" | "layout-break"  // blockers
+  | "iframe-dropped"                                                         // blocker (lost embed)
+  | "seo-regression"                                                         // blocker (dropped-vs-source)
+  | "font-fallback" | "static-form" | "iframe-same-domain" | "iframe-domain-locked"; // notes
 
 interface Issue {
   severity: Severity;
@@ -129,43 +147,56 @@ interface PageFidelity {
   cloneThumb: string;  // rel path — clone screenshot (after)
 }
 
-// SEO fundamentals parsed from the BUILT clone HTML, each tagged present/quality
-// AND whether the SOURCE had it (droppedFromSource === true → a blocker regression).
-interface SeoElement {
-  present: boolean;
-  droppedFromSource: boolean; // source had it, clone lost it → seo-regression blocker
-  detail?: string;            // value/quality note (e.g. title length, alt coverage %)
+// Per SEO factor: BEFORE (source) vs AFTER (clone), a good/bad judgement with an
+// educational reason, and the improvement opportunity. `dropped` (source had it,
+// clone lost it) drives the seo-regression blocker; `sourceGap` (source never had
+// it) is an informational improvement opportunity — never a blocker.
+interface SeoFactor {
+  sourceValue: string | null;  // BEFORE — parsed from source capture (null = absent in source)
+  cloneValue: string | null;   // AFTER  — parsed from built clone HTML (null = absent in clone)
+  status: "good" | "weak" | "missing";
+  why: string;                 // short educational reason this factor matters for SEO
+  opportunity: string | null;  // concrete improvement step, or null when already good
+  dropped: boolean;            // source had it, clone lost it → seo-regression BLOCKER
+  sourceGap: boolean;          // source never had it → improvement opportunity (informational)
 }
 interface PageSeo {
   page: string;
-  title: SeoElement;
-  metaDescription: SeoElement;
-  h1: SeoElement;              // + heading-hierarchy quality in detail
-  imageAlt: SeoElement;        // coverage % in detail
-  canonical: SeoElement;
-  jsonLd: SeoElement;
-  openGraph: SeoElement;
-  twitter: SeoElement;
-  lang: SeoElement;
-  robots: SeoElement;          // robots meta + sitemap.xml / robots.txt presence
+  title: SeoFactor;
+  metaDescription: SeoFactor;
+  headings: SeoFactor;         // single H1 + heading hierarchy
+  imageAlt: SeoFactor;         // coverage % in values
+  canonical: SeoFactor;
+  jsonLd: SeoFactor;           // structured data
+  openGraph: SeoFactor;
+  twitter: SeoFactor;
+  lang: SeoFactor;
+  robots: SeoFactor;           // robots meta + sitemap.xml / robots.txt presence
+}
+
+// Lighthouse scores for one target (source or clone). Absent if that run failed/was unreachable.
+interface LighthouseScores {
+  performance: number; seo: number; accessibility: number; bestPractices: number; // 0-100
+  lcpMs?: number; cls?: number; tbtMs?: number;   // core-web-vitals-ish
 }
 
 interface PageSpeed {
   page: string;
-  // Lightweight tier (v1) — from data already collected during build.
+  // Lightweight tier (v1, ALL pages) — from data already collected during build.
   pageWeightKb: number;
   assetCount: number;
   largestAssets: Array<{ url: string; kb: number }>;
-  // Real tier (Lighthouse, v1.1 / opt-in) — absent unless Lighthouse ran.
+  // Lighthouse tier (v1, HOMEPAGE ONLY) — before (live source) vs after (clone),
+  // present only on the homepage PageSpeed entry. `source` absent → source unreachable.
   lighthouse?: {
-    performance: number; accessibility: number; seo: number; // category scores 0-100
-    lcpMs?: number; cls?: number; tbtMs?: number;            // core-web-vitals-ish
+    source?: LighthouseScores;  // BEFORE — live source homepage (graceful-absent)
+    clone: LighthouseScores;    // AFTER  — clone homepage (served dist/)
   };
 }
 
 interface PageInspection {
   page: string;
-  issues: Issue[];         // this page's blockers + notes (incl. seo-regression)
+  issues: Issue[];         // this page's blockers + notes (incl. seo-regression, iframe-dropped)
   fidelity: PageFidelity;
   seo: PageSeo;
   pagespeed: PageSpeed;
@@ -197,39 +228,42 @@ A new **`src/qa/`** module. One orchestrator + one file per check + a types file
 
 ```
 packages/clone-engine/src/qa/
-  types.ts               # Issue, IssueKind, Severity, PageInspection, InspectionReport, PageFidelity, PageSeo, PageSpeed
+  types.ts               # Issue, IssueKind, Severity, PageInspection, InspectionReport, PageFidelity, PageSeo, SeoFactor, PageSpeed, LighthouseScores
   inspect.ts             # orchestrator: for each page → render clone once → run all checks → derive verdict
   checks/
     broken-assets.ts     # blocker — 0×0 imgs / failed bg-images + build-warning cross-ref
-    empty-sections.ts    # blocker — source section non-empty but clone empty/absent
+    content-blocks.ts    # blocker — source HTML content block dropped/emptied in clone; note — static-only form (NOT a widget hunt)
+    iframes.ts           # blocker — source iframe dropped (lost embed); note — same-domain / domain-locked embed. preserve-and-verify
     dead-links.ts        # blocker — internal href/nav → no built route
     layout-breaks.ts     # blocker — box overlaps (reuses edit/verify overlap) across WIDTHS
     font-fallback.ts     # note    — computed font-family fell back
-    dynamic-features.ts  # note    — forms / iframes / known widgets now static
     fidelity.ts          # signal  — pixelDiff source-desktop vs clone screenshot → match %
-    seo.ts               # blocker-on-regression + informational — pure built-HTML SEO parse, diffed vs source capture head/tree
-    pagespeed.ts         # informational — lightweight (weight/asset count/largest, pure) + optional Lighthouse (heavy, opt-in)
+    seo.ts               # blocker-on-regression + informational — BEFORE(source) vs AFTER(clone) per factor, with why + opportunity
+    pagespeed.ts         # informational — lightweight all-pages (pure) + homepage Lighthouse before/after (v1)
   verdict.ts             # pure: Issue[] → { verdict, blockerCount, blockers[], notes[] }
   index.ts               # inspect(site) → InspectionReport
 ```
 
-- **`seo.ts` is a pure HTML parser** over the built `dist/` HTML, plus a diff against the source `capture.json` `head`/`tree`. It emits an `seo-regression` **blocker** only when the source had an SEO element the clone dropped; a shortcoming shared with the source is reported **informational**, never as a blocker. No browser, no network — cheap and deterministic.
-- **`pagespeed.ts` has two independent paths.** The lightweight path is pure (reads the weight/asset data already gathered at build) and always runs in v1. The Lighthouse path is the heavy, **opt-in** path (gated behind an option/env flag) — it is the only part of the QA module that adds a dependency and needs a served `dist/`; it never blocks the verdict and can land in v1.1 without changing the schema (the `lighthouse` field is optional).
+- **`content-blocks.ts` checks HTML content-block presence + integrity, not widgets.** For each content-bearing block in the source it verifies a surviving, non-empty counterpart in the clone — a dropped/emptied block is a **blocker**. Forms are checked for presence; a surviving-but-backend-less form is a **note** (`static-form`). It deliberately does **NOT** carry a chat/booking/video widget allow-list (brittle, low value) — that removes the earlier false-negative worry and is only a possible-future item.
+- **`iframes.ts` is preserve-and-verify.** External iframes replicate for free when the clone keeps `<iframe src>`; the check confirms each source iframe survived with `src` intact. A **dropped** iframe = **blocker** (lost embedded content). Two caveats are **notes**: a **same-domain** iframe (won't resolve on the clone's domain) and a **referrer/domain-locked** external embed (may refuse off-origin). It reuses the source `capture.json` `NO_REHOST` set, which already marks `iframe`/`embed`/`object`.
+- **`seo.ts` is a pure HTML parser over BOTH sides** — the source `capture.json` head/tree (before) and the built `dist/` HTML (after) — emitting a `SeoFactor` per factor with before value, after value, a good/bad + educational reason, and an improvement opportunity. It emits an `seo-regression` **blocker** only for a **dropped** factor (in source, gone in clone); a **source gap** (never in source) is an informational improvement opportunity. No browser, no network — cheap and deterministic.
+- **`pagespeed.ts` has two paths, both v1.** The lightweight path is pure (weight/asset data already gathered at build) and runs for **all pages**. The Lighthouse path runs **only on the homepage**, twice per build — **live source** (before) and **clone** (after) — for the headline before/after scorecard. It adds the `lighthouse` dependency and needs a served clone `dist/` homepage + reachability to the live source; a blocked/unreachable **source** run degrades gracefully (clone score shown, source noted unavailable). Bounded to ~2 runs/build. It never blocks the verdict.
 
 - **`inspect(assembledSite) → InspectionReport`** is the one public entrypoint. It renders each built page once (shared `renderSnapshot` on the clone `dist`), fans the render + source capture + route map out to each check, unions the issues, and calls the pure `verdict()`.
 - **Reuse, don't reinvent:** the checks call into `pixel.ts` (fidelity), `edit/snapshot.ts` (`renderSnapshot`, `sectionListOf`), and `edit/verify.ts`'s overlap primitive. If the overlap primitive isn't already exported, promote it to a shared helper both `verify.ts` and `layout-breaks.ts` import — one implementation, two callers (leverage: the never-regress overlap logic and the QA overlap check can never drift).
 - **`report.ts` — RESTRUCTURE, not rewrite the shell.** Keep the self-contained inline-CSS/JS HTML approach, the existing before/after slider, **and the existing honest cold-vs-warm cost accounting** (per-page capture fresh/cached-est + project + build ms, LLM label cost, cold-build-total-vs-this-run-wall, $/page, $/site — all already in `report.ts`, reused verbatim). Change the *content order* to verdict → blockers → notes → fidelity → site health → Cost & Speed. `generateHtmlReport` takes the extended `BuildReport` (now carrying `inspection`) and renders the new structure; the cost math is repositioned, not deleted.
-- **Wire into `buildSite`:** after `full-site/` is assembled (`orchestrate.ts`), call `inspect(fullSite)` → attach `inspection` to the `BuildReport` → `generateHtmlReport`. The Inspector runs on the **assembled, built** output (real `dist/`), because that's what actually ships — inspecting anything earlier would miss build-stage breakage.
+- **Wire into `buildSite`:** after `full-site/` is assembled (`orchestrate.ts`), call `inspect(fullSite, { origin })` → attach `inspection` to the `BuildReport` → `generateHtmlReport`. The Inspector runs on the **assembled, built** output (real `dist/`), because that's what actually ships — inspecting anything earlier would miss build-stage breakage. `inspect` receives the live source `origin` so `pagespeed.ts` can Lighthouse the source homepage; it serves the clone `dist/` homepage locally for the clone run.
 
 ## The ONE thing to prove
 
 **On a real cloned site, the report produces a correct, trustworthy verdict and an actionable punch-list** — it catches a real broken asset (blocker), flags a static form (note, not a blocker), and shows per-page fidelity with the worst page surfaced first. Concretely, the acceptance bar:
 
 - A blocker the operator would agree is a blocker (e.g. a genuinely 404'd logo) appears in the punch-list, pinned to the right page + location, and flips the verdict to `NEEDS FIXES`.
-- An expected static-clone divergence (a booking form that can't run, a fallback font) appears **only in Notes** and does **not** flip the verdict.
-- An SEO element the **source had and the clone dropped** (e.g. a lost meta description or JSON-LD) appears as a **blocker** and flips the verdict; a weak-SEO element the source **also lacked** appears **informational only** and does **not** flip it.
+- An expected static-clone divergence (a static-only form, a fallback font) appears **only in Notes** and does **not** flip the verdict.
+- A **dropped content block** or a **stripped source iframe** flips the verdict to `NEEDS FIXES`; an external iframe that **survived with `src` intact** does **not** (it replicates for free), and a same-domain / domain-locked iframe appears **only in Notes**.
+- An SEO factor the **source had and the clone dropped** (e.g. a lost meta description or JSON-LD) appears as a **blocker** and flips the verdict; a factor the source **also lacked** appears as an **improvement opportunity (informational only)** and does **not** flip it — and the SEO section shows **before/after per factor with a why + an opportunity**.
 - Fidelity renders the source-vs-clone slider, worst page first, with a believable match %.
-- The Cost & Speed and Site Health sections render below the QA decision with real per-page + aggregate numbers.
+- Site Health shows the **homepage Lighthouse before/after scorecard** (source vs clone; clone expected to win) and the all-pages lightweight PageSpeed table; Cost & Speed renders below with real per-page + aggregate numbers.
 
 If the verdict and punch-list are correct and actionable on a real clone, the report has done its job. This is the never-regress rule (`DOCTRINE.md`, `feedback_never_regress_html_eval`) applied to the *report itself*: it must make the ship/no-ship call as well as a careful human eyeballing the clone would.
 
@@ -239,25 +273,28 @@ The dominant risk is the classic QA-gate failure mode: **a gate that cries wolf 
 
 - **False positives (crying wolf) → operators stop trusting the verdict.**
   - *broken-assets:* lazy-loaded / below-the-fold images may report 0×0 before they load. Mitigation: use `renderSnapshot`'s existing settle/wait behavior; only flag after the page has settled; treat truly-never-loaded as the blocker.
-  - *empty-sections:* a section legitimately shorter in the clone (a collapsed dynamic list) can look "empty." Mitigation: require a non-empty **source** signal AND a near-zero **clone** signal, with a content floor, not a strict equality.
+  - *content-blocks:* a block legitimately shorter in the clone (a collapsed dynamic list) can look "empty." Mitigation: require a non-empty **source** signal AND a near-zero **clone** signal, with a content floor, not strict equality.
   - *layout-breaks:* the 1–2px seam tolerance already tuned in `verify.ts` must be reused verbatim; sticky/fixed/absolutely-positioned overlays legitimately overlap and must be excluded from the overlap set.
   - *dead-links:* trailing-slash / index-route normalization must match `buildSite`'s own link map exactly, or every link false-fails. Reuse `links-site.json`, don't re-derive routes.
+  - *iframes:* a same-domain or domain-locked embed that legitimately won't load on the clone must land as a **note**, not a blocker — the blocker is only a *dropped* iframe, not one that survived but may not render off-origin.
 - **False negatives (missing real breaks) → the gate ships a broken site.**
   - *broken-assets:* a CSS `background-image` 404 renders as blank, not 0×0 — the render-only check can miss it; this is why the check **cross-references build-time asset-resolution warnings**, catching what the render alone can't.
-  - *dynamic-features vs. empty-sections boundary:* a form that fails to render at all (empty section) vs. one that renders static (note) must be disambiguated correctly, or a real break gets mislabeled a benign note.
+  - *content-blocks vs. static-form boundary:* a block that fails to render at all (dropped → blocker) vs. a form that renders but has no backend (static → note) must be disambiguated correctly, or a real break gets mislabeled a benign note.
 - **Fidelity misread as a gate.** Someone could wire the fidelity % into the verdict; that would immediately cry wolf on every clone with a fallback font. It is, by design, a signal only — this must stay true.
-- **SEO check over-blocking.** The blocker is *specifically* a source→clone regression, not weak SEO. If `seo.ts` ever blocks on a merely-missing element the source also lacked, the gate cries wolf on the gym's own SEO gaps. The regression diff (present-in-source, absent-in-clone) is the guard; the source-side comparison must be robust (e.g. a source meta description present but empty vs. genuinely absent). PageSpeed must **never** contribute a blocker — it is informational by construction.
-- **Lighthouse feasibility (the real PageSpeed tier).** Honestly: Lighthouse is (a) an added dependency (`lighthouse` npm, or the PageSpeed Insights API — network + quota), (b) meaningfully slow (headless run, multiple passes) — it would materially extend build time on every page, and (c) needs a **served** `dist/` (a local static server the run points at), not just files on disk. For those reasons it is **opt-in / v1.1**, gated behind a flag; the lightweight tier (weight/asset count, free from build data) ships in v1 and covers the common "is this page heavy" question without any of that cost. The schema already makes `lighthouse` optional so shipping it later is non-breaking.
+- **SEO check over-blocking.** The blocker is *specifically* a source→clone regression, not weak SEO. If `seo.ts` ever blocks on a merely-missing factor the source also lacked, the gate cries wolf on the gym's own SEO gaps. The `dropped` vs. `sourceGap` split is the guard; the source-side parse must be robust (e.g. a source meta description present-but-empty vs. genuinely absent). PageSpeed (both tiers) must **never** contribute a blocker — it is informational by construction.
+- **Homepage Lighthouse (now bounded, low risk).** Bounding Lighthouse to the **homepage only** (source + clone, ~2 runs, ~20–60s/build) resolves the earlier feasibility concern — it is no longer per-page, so it does not scale build time with page count. Residual risks, all handled: the run adds the `lighthouse` dependency and needs a **served** clone `dist/` homepage (a short-lived local static server) plus network reachability to the **live source**; a blocked/slow/unreachable source run must **degrade gracefully** (emit the clone score, mark source unavailable — never fail the build). Score variance between runs is expected; the before/after headline should be read as a range, not a guarantee. It never blocks the verdict.
+- **Content-block scope discipline (leverage of downscoping #1).** By checking **content-block presence + integrity** instead of chasing named chat/booking/video widgets, we removed a brittle maintained allow-list AND its false-negative surface. The residual risk is the opposite — a genuinely dynamic block that the source rendered server-side but the clone can't reproduce could read as "present but thin"; the content floor (shared with `content-blocks`) is the tuning knob, and test fixtures must cover both sides of it. Named-widget recognition is explicitly **possible-future**, not v1.
 - **Detectors of genuinely uncertain reliability (flagged honestly, not hand-waved):**
-  - **`dynamic-features` widget recognition** is the least deterministic check. Forms (`<form>`) and iframes are reliable structural signals. **Known booking/chat/video widget signatures are inherently a maintained allow-list** — a widget we don't recognize won't be flagged (false negative), and a heuristic match could over-flag (false positive). v1 should lean on the strong structural signals (`<form>`, `<iframe>`, the `NO_REHOST` set from `capture.ts`) and treat named-widget recognition as a best-effort layer. Because it's a **note**, a miss here degrades gracefully (an un-flagged static widget), unlike a blocker miss.
   - **`font-fallback`** depends on detecting that a computed family resolved to a fallback rather than the intended face. Distinguishing "loaded the brand font" from "fell back to a same-named system font" is not always crisp across platforms; this is why it's a **note**, not a blocker — a wrong call here is low-cost.
-  - **`empty-sections` content floor** is a tuned threshold; it will need calibration on real clones to sit between "collapsed-but-fine" and "genuinely empty." The unit test fixtures must include both sides of that line.
+  - **`content-blocks` content floor** is a tuned threshold; it will need calibration on real clones to sit between "collapsed-but-fine" and "genuinely dropped." The unit test fixtures must include both sides of that line.
+  - **`seo.ts` source-side comparison** — present-but-empty vs. genuinely-absent in the *source* is the crux of the dropped/regression call; a wrong read here either over-blocks (cries wolf) or misses a real drop. It is guarded by making the *regression* (not the shortcoming) the only blocker trigger, so a wrong call fails toward informational rather than toward a false ship-block.
 
 ## Out of scope (explicit YAGNI)
 
 - **Auto-fixing** any blocker. The Inspector reports; fixing is a separate edit-op flow (subsystem C). The report is a gate, not a remediator.
-- **The heavy Lighthouse PageSpeed tier in v1.** SEO fundamentals + the lightweight PageSpeed tier (weight/asset count) ship in v1; the real Lighthouse run (perf/CWV/a11y/SEO scores) is **opt-in / v1.1** for the feasibility reasons in Risks. (SEO + lightweight speed are *in* scope — only the Lighthouse dependency is deferred.)
-- **General site-quality opinions beyond source fidelity + SEO fundamentals.** The QA report is not a marketing/CRO audit; SEO here is fundamentals + regression-vs-source, not a growth recommendation engine (that's the keyword-brain's job).
+- **Per-page Lighthouse.** Lighthouse runs on the **homepage only** (source + clone) in v1 — the most important page, bounded to ~2 runs/build. Running it on every page is out of scope (it would scale build time with page count). The lightweight PageSpeed tier (weight/asset count) covers all pages.
+- **Named chat/booking/video widget recognition.** Deliberately dropped from v1 (brittle allow-list, low value). `content-blocks` checks HTML content presence + integrity instead; `iframes` handles external embeds via preserve-and-verify. A maintained widget-signature layer is only a **possible-future** item.
+- **General site-quality opinions beyond source fidelity + SEO fundamentals.** The QA report is not a marketing/CRO audit; SEO here is before/after fundamentals + regression-vs-source + improvement opportunities, not a growth recommendation engine (that's the keyword-brain's job).
 - **Cross-page / whole-site semantic checks** beyond internal-link resolution (e.g. "is the messaging consistent"). Per-page structural + visual + SEO fidelity only in v1.
 - **Content-correctness judgment** ("is this the right copy"). The Inspector checks that what the source had, the clone has — not whether the source was any good.
 - **Blocking the build.** `buildSite` still produces `full-site/`; the Inspector annotates it with a verdict. The *operator* decides not to ship; the engine doesn't refuse to assemble. (A future admin gate could refuse deploy on `needs-fixes`, but that's the admin's policy, not the engine's.)
@@ -265,8 +302,8 @@ The dominant risk is the classic QA-gate failure mode: **a gate that cries wolf 
 
 ## Self-review
 
-- **Placeholders:** none. Every check names concrete existing machinery it reuses (`pixel.ts`, `edit/snapshot.ts`, `edit/verify.ts` overlap, `capture.json` head/tree, `links-site.json`, `source-desktop.png`, `WIDTHS`, `pageWeightKb`/`assetCount`, astro-build stderr). The only *new* dependency is Lighthouse, and it is explicitly opt-in / v1.1, not a placeholder.
-- **Consistency with the codebase:** the module layout mirrors `src/edit/` (orchestrator + per-unit files + `types.ts`); the report stays self-contained inline-HTML per the existing `report.ts` convention; `build-report.json` is *extended* additively (the admin contract note in `report.ts` is honored — shape isn't broken, only widened with `inspection`).
-- **Consistency with approved decisions:** verdict = pragmatic ship/no-ship; the blocker/note split matches the owner's table (assets, empty sections, dead links, layout, **SEO-regression** = blockers; fonts, dynamic features = notes; PageSpeed always informational); full Inspector scope in v1; report leads with the QA decision (verdict → blockers → notes → fidelity → **site health** → **Cost & Speed as a real section**); fidelity is a signal, never a gate; SEO blocks **only** on a dropped-vs-source regression; Lighthouse is the honest heavy/opt-in tier. None re-opened.
-- **Scope:** additive to `buildSite`; does not touch the projection oracle, the edit subsystem's verifier semantics, or the capture pipeline (only *reads* its outputs). `report.ts` content is restructured; its HTML-shell + before/after-slider conventions are preserved. Cost & Speed is retained in full (not dropped), just ranked below the QA decision. Earlier-draft contradiction resolved: SEO + lightweight PageSpeed are **in** scope; only the Lighthouse dependency is deferred.
-- **Ambiguity honestly flagged:** the genuinely-uncertain calls are the `dynamic-features` named-widget allow-list, `font-fallback` cross-platform detection, the `empty-sections` content floor, and the **`seo.ts` source-side comparison** (present-but-empty vs. genuinely-absent) — all in Risks. The three note-severity ones degrade gracefully; the SEO one is guarded by making the *regression* (not the shortcoming) the sole blocker trigger, and Lighthouse's cost is called out as its own feasibility risk rather than hidden.
+- **Placeholders:** none. Every check names concrete existing machinery it reuses (`pixel.ts`, `edit/snapshot.ts`, `edit/verify.ts` overlap, `capture.json` head/tree + `NO_REHOST` set, `links-site.json`, `source-desktop.png`, `WIDTHS`, `pageWeightKb`/`assetCount`, astro-build stderr). The only *new* dependency is Lighthouse, now scoped to the homepage (source + clone) in v1 — a concrete, bounded addition, not a placeholder.
+- **Consistency with the codebase:** the module layout mirrors `src/edit/` (orchestrator + per-unit files + `types.ts`); the report stays self-contained inline-HTML per the existing `report.ts` convention; `build-report.json` is *extended* additively (the admin contract note in `report.ts` is honored — shape isn't broken, only widened with `inspection`, `SeoFactor` before/after, and homepage Lighthouse source+clone).
+- **Consistency with approved decisions (incl. the four refinements):** (1) `dynamic-features` downscoped to **content-block presence + integrity** (`content-blocks.ts`) — no widget allow-list in v1; (2) **iframes preserve-and-verify** (`iframes.ts`) — dropped iframe = blocker, same-domain / domain-locked = notes; (3) **SEO before/after per factor** with why + opportunity, source-SEO AND clone-SEO both persisted, dropped = blocker vs. source-gap = opportunity; (4) **homepage-only Lighthouse, source + clone, every build** in v1, graceful on source-unreachable. Verdict = pragmatic ship/no-ship; report leads with the QA decision (verdict → blockers → notes → fidelity → **site health** → **Cost & Speed**); fidelity is a signal, never a gate; PageSpeed never blocks. Nothing previously decided was re-opened.
+- **Scope:** additive to `buildSite`; does not touch the projection oracle, the edit subsystem's verifier semantics, or the capture pipeline (only *reads* its outputs, now including the live source origin for the homepage Lighthouse before-run). `report.ts` content is restructured; its HTML-shell + before/after-slider conventions are preserved; Cost & Speed retained in full, ranked below the QA decision. Earlier-draft contradictions resolved: SEO + both PageSpeed tiers are **in** v1; only per-page Lighthouse and named-widget recognition are out.
+- **Ambiguity honestly flagged:** the genuinely-uncertain calls now are `font-fallback` cross-platform detection, the `content-blocks` content floor, and the `seo.ts` source-side present-but-empty vs. absent read — all in Risks, all failing toward informational/note rather than a false ship-block. The two false-negative worries the refinements *removed* (named-widget allow-list; heavy per-page Lighthouse) are noted as resolved: widget-chasing is replaced by content-block + iframe checks, and Lighthouse is bounded to one page.
