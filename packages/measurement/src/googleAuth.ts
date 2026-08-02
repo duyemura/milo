@@ -15,6 +15,22 @@ export function loadServiceAccount(path: string): ServiceAccount {
   return { client_email: raw["client_email"], private_key: raw["private_key"], token_uri: raw["token_uri"] };
 }
 
+/**
+ * Load a service account from env vars — works in production where a file path isn't available.
+ * Priority: GOOGLE_SA_JSON (inline JSON string) → GOOGLE_SA_PATH (file path).
+ */
+export function loadServiceAccountFromEnv(): ServiceAccount {
+  const json = process.env.GOOGLE_SA_JSON;
+  if (json) {
+    const raw = JSON.parse(json) as Record<string, string>;
+    if (!raw["client_email"] || !raw["private_key"]) throw new Error("GOOGLE_SA_JSON is missing client_email/private_key");
+    return { client_email: raw["client_email"], private_key: raw["private_key"], token_uri: raw["token_uri"] };
+  }
+  const filePath = process.env.GOOGLE_SA_PATH;
+  if (filePath) return loadServiceAccount(filePath);
+  throw new Error("GA4 service account not configured — set GOOGLE_SA_JSON or GOOGLE_SA_PATH in env");
+}
+
 export type TokenFetchFn = (url: string, init: {
   method: string;
   headers: Record<string, string>;

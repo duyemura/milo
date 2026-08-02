@@ -1,4 +1,4 @@
-export { loadServiceAccount, accessToken, decodeUnverifiedJwt } from "./googleAuth.ts";
+export { loadServiceAccount, loadServiceAccountFromEnv, accessToken, decodeUnverifiedJwt } from "./googleAuth.ts";
 export type { ServiceAccount, TokenFetchFn } from "./googleAuth.ts";
 export { apiCall, requireOk, ApiError } from "./http.ts";
 export type { FetchLike, HttpResponse } from "./http.ts";
