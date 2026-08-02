@@ -693,9 +693,7 @@ export function removeSection(site: SiteRef, sectionName: string): OpResult {
   // 1. Resolve — throws TargetError if the section is not found.
   const { file: componentFile, name } = resolveSection(site, sectionName);
 
-  const idxPath = path.join(site.dir, "astro", "src", "pages", "index.astro");
   const manifestPath = path.join(site.dir, "site.json");
-
   const changedFiles: string[] = [];
 
   // 2. Delete the component file.
@@ -704,7 +702,14 @@ export function removeSection(site: SiteRef, sectionName: string): OpResult {
     changedFiles.push(componentFile);
   }
 
-  // 3. Strip import + include from index.astro.
+  // Resolve the owning page's .astro file from the manifest so we edit the right page.
+  // Falls back to index.astro for legacy callers where the section is on pages[0].
+  const ownerManifest = loadSite(site);
+  const ownerPage = ownerManifest.pages.find((p) => p.sections.some((s) => s.name === name));
+  const ownerSlug = ownerPage ? ownerPage.route.replace(/^\/+|\/+$/g, "") : "";
+  const idxPath = path.join(site.dir, "astro", "src", "pages", ownerSlug === "" ? "index.astro" : `${ownerSlug}.astro`);
+
+  // 3. Strip import + include from the owning page's .astro file.
   if (fs.existsSync(idxPath)) {
     let idx = fs.readFileSync(idxPath, "utf8");
 
@@ -1115,8 +1120,9 @@ export function addPage(
     templatePage = pickTemplatePage(manifest, route);
   }
 
-  // Namespace prefix for new components: capitalize the route segment (e.g. "about" → "About").
-  const prefix = cleanRoute.charAt(0).toUpperCase() + cleanRoute.slice(1);
+  // PascalCase prefix so hyphens (from nested routes) never break JS identifiers.
+  // "about" → "About"; "blog-best-crossfit-brooklyn" → "BlogBestCrossfit Brooklyn"
+  const prefix = cleanRoute.split("-").filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join("");
 
   const changedFiles: string[] = [];
   const addedSectionNames: string[] = [];

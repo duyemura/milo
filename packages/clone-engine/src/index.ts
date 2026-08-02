@@ -46,3 +46,6 @@ export type { GoalReport } from "./pagegoal.ts";
 // after buildSiteAuto completes to produce a SiteReport + render it with renderSiteReport.
 export { buildReport, renderSiteReport } from "./buildreport/index.ts";
 export type { SiteReport, Issue, PageReport as SitePageReport, IssueSeverity, InspectOpts } from "./buildreport/types.ts";
+// UGC content-page composition — composePage builds a full on-brand content page from a brief.
+export { composePage, BLUEPRINTS as UGC_BLUEPRINTS } from "./ugc/index.ts";
+export type { ComposePageArgs, ComposePageResult, ContentKind } from "./ugc/index.ts";
