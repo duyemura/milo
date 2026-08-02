@@ -92,6 +92,10 @@ const ROLE_KEYWORDS: Array<[string, string[]]> = [
 ];
 
 function inferSectionRole(node: TreeEl, isFirst: boolean): typeof SECTION_ROLES[number] {
+  // An h1 is the page's primary heading — it lives in the hero by definition.
+  // Check this BEFORE keyword matching so a hero with "Explore Our Locations" in
+  // its CTA text isn't mislabeled location-map.
+  if (findTag(node, "h1")) return "hero";
   const text = copyOf(node).join(" ").toLowerCase();
   for (const [role, keywords] of ROLE_KEYWORDS) {
     if (keywords.some((kw) => text.includes(kw))) return role as typeof SECTION_ROLES[number];

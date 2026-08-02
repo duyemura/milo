@@ -35,6 +35,26 @@ function fakeChat(responses: string[]): ChatFn {
   return async () => ({ content: responses[Math.min(i++, responses.length - 1)] });
 }
 
+describe("heuristicLabels — hero detection", () => {
+  // Regression: speakeasy's hero has "Explore Our Locations" in its text → was mislabeled
+  // location-map. sweatshed's hero was mislabeled testimonials. The h1 tag is the
+  // authoritative hero signal and must fire before keyword matching.
+  it("speakeasy: section containing h1 is labeled hero, not location-map", () => {
+    const cap = loadCapture("speakeasy");
+    const labels = heuristicLabels(cap);
+    // First section (id 108) has h1 "Awesome for Everyone." — must be hero
+    const first = labels.sections[0];
+    expect(first.role).toBe("hero");
+  });
+
+  it("sweatshed: section containing h1 is labeled hero, not testimonials", () => {
+    const cap = loadCapture("sweatshed");
+    const labels = heuristicLabels(cap);
+    const first = labels.sections[0];
+    expect(first.role).toBe("hero");
+  });
+});
+
 describe("heuristicLabels", () => {
   for (const site of SITES) {
     describe(site, () => {
