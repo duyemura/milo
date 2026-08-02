@@ -84,9 +84,12 @@ export async function plan(
       validateOpTarget(site, op);
       validated.push(op as EditOp);
     } catch (err) {
-      const reason = err instanceof TargetError ? err.message : String(err);
-      dropped.push({ op, reason });
-      console.warn(`[plan] dropped hallucinated op (${(op as { op: string }).op}): ${reason}`);
+      // Only a TargetError means the op referenced something not on the site (a hallucination
+      // to drop). Any other error — corrupt site.json, an fs failure — is infrastructure and
+      // must surface, not be misreported to the user as "I couldn't find the elements you described."
+      if (!(err instanceof TargetError)) throw err;
+      dropped.push({ op, reason: err.message });
+      console.warn(`[plan] dropped hallucinated op (${(op as { op: string }).op}): ${err.message}`);
     }
   }
 
@@ -148,8 +151,10 @@ function validateOpTarget(site: SiteRef, op: unknown): void {
       // target can be an element role or a section role/name — try both.
       try {
         resolveElement(site, parsed.target);
-      } catch {
-        // If resolveElement throws TargetError, try resolveSection.
+      } catch (e) {
+        // Only a TargetError (element not found) should fall through to the section lookup;
+        // an infra error must propagate rather than be masked by a subsequent section lookup.
+        if (!(e instanceof TargetError)) throw e;
         resolveSection(site, parsed.target);
       }
       break;
