@@ -17,3 +17,7 @@ export type { CaptureOpts } from "./capture.ts";
 export type { ProjectOpts, ProjectResult } from "./project.ts";
 export type { PageSpec, BuildSiteOpts, BuildSiteResult } from "./orchestrate.ts";
 // deploy is a CLI-only concern (needs env + AWS creds); intentionally not re-exported as a library API.
+// Crawl + report are build-tooling utilities.
+export { crawlSite } from "./crawl.ts";
+export type { BuildReport, PageReport, PageTiming, PageLlmUsage, PageIssues } from "./report.ts";
+export { generateHtmlReport } from "./report.ts";

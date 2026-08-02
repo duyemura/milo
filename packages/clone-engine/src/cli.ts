@@ -18,6 +18,7 @@ import { capture } from "./capture.ts";
 import { project } from "./project.ts";
 import { label } from "./labels.ts";
 import { buildSite } from "./orchestrate.ts";
+import { crawlSite } from "./crawl.ts";
 import { deploy } from "./deploy.ts";
 import { mjsCapture, mjsProject, mjsBuild } from "./run-mjs.ts";
 import path from "node:path";
@@ -94,7 +95,7 @@ const subcommand = findSubcommand();
 const engine = arg("engine", "ts");
 
 if (!subcommand) {
-  console.error("Usage: node src/cli.ts <capture|label|project|build|deploy> [--engine <ts|mjs>] [flags]");
+  console.error("Usage: node src/cli.ts <capture|label|project|build|build-site|deploy> [--engine <ts|mjs>] [flags]");
   process.exit(1);
 }
 
@@ -156,6 +157,31 @@ switch (subcommand) {
     break;
   }
 
+  case "build-site": {
+    // Crawl + build a whole site from an origin URL.
+    // node src/cli.ts build-site --site <origin> --out <report.html> [--cwd <dir>]
+    const site = requireArg("site");
+    const reportOut = requireArg("out");
+    const buildCwd = arg("cwd", process.cwd());
+
+    console.log(`[build-site] Crawling ${site}...`);
+    const routes = await crawlSite(site);
+    console.log(`[build-site] Discovered ${routes.length} routes: ${routes.join(", ")}`);
+
+    const sitePages = routes.map((r) => ({
+      route: r,
+      dir: "cap-" + (r === "/" ? "home" : r.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")),
+    }));
+
+    await buildSite({
+      origin: site,
+      pages: sitePages,
+      cwd: buildCwd,
+      reportOut,
+    });
+    break;
+  }
+
   case "deploy": {
     const dist = requireArg("dist");
     const slug = requireArg("slug");
@@ -169,7 +195,7 @@ switch (subcommand) {
 
   default: {
     console.error(`Unknown subcommand: ${subcommand}`);
-    console.error("Valid subcommands: capture, label, project, build, deploy");
+    console.error("Valid subcommands: capture, label, project, build, build-site, deploy");
     process.exit(1);
   }
 }
