@@ -9,3 +9,6 @@ export type { Ga4Asset } from "./ga4.ts";
 export { fetchPlaceMetrics } from "./places.ts";
 export type { PlaceMetrics } from "./places.ts";
 export { gbpStatus } from "./gbp.ts";
+export { injectTracker, trackerScript } from "./tracker.ts";
+export { fetchGa4Rollup, GA_READONLY } from "./ga4data.ts";
+export type { Ga4Rollup } from "./ga4data.ts";

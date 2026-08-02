@@ -3,6 +3,8 @@ import { decodeUnverifiedJwt, loadServiceAccount, accessToken } from "../src/goo
 import { ensureProperty as gscEnsureProperty } from "../src/gsc.ts";
 import { ensureAccount as ga4EnsureAccount, ensureSharedProperty as ga4EnsureSharedProperty, ensureStream as ga4EnsureStream, injectGtag, injectMeta } from "../src/ga4.ts";
 import { fetchPlaceMetrics } from "../src/places.ts";
+import { injectTracker, trackerScript } from "../src/tracker.ts";
+import { fetchGa4Rollup } from "../src/ga4data.ts";
 import type { FetchLike } from "../src/http.ts";
 import { generateKeyPairSync } from "node:crypto";
 
@@ -52,7 +54,7 @@ describe("gsc.ensureProperty (with scripted fetch)", () => {
     const calls: { url: string; method?: string }[] = [];
     const fetchFn: FetchLike = withToken(async (url, init) => {
       calls.push({ url, method: init?.method });
-      if (url.includes("siteverification.googleapis.com/v1/token") || url.includes("siteverification/v1/token")) {
+      if (url.toLowerCase().includes("siteverification/v1/token")) {
         return { ok: true, status: 200, json: async () => ({ token: "META-TAG-X" }) };
       }
       if (url.includes("webmasters/v3/sites") && init?.method === "PUT") {
@@ -67,7 +69,7 @@ describe("gsc.ensureProperty (with scripted fetch)", () => {
     expect(p.metaTagToken).toBe("META-TAG-X");
     expect(p.propertyUrl).toBe("https://gym-staging.mygymseo.com/");
     expect(p.verified).toBe(false);
-    expect(calls.some((c) => c.url.includes("siteverification.googleapis.com/v1/token") || c.url.includes("siteverification/v1/token"))).toBe(true);
+    expect(calls.some((c) => c.url.toLowerCase().includes("siteverification/v1/token"))).toBe(true);
   });
 });
 
@@ -159,5 +161,110 @@ describe("places metrics", () => {
       fetchFn: async () => ({ ok: true, status: 200, json: async () => ({ places: [] }) }),
     });
     expect(m).toBeNull();
+  });
+});
+
+describe("tracker injection", () => {
+  it("injectTracker is idempotent and anchors before </head>", () => {
+    const html = "<html><head><title>x</title></head><body>y</body></html>";
+    const once = injectTracker(html);
+    expect(once.changed).toBe(true);
+    expect(once.html).toContain(trackerScript().slice(0, 40));
+    expect(once.html.indexOf("milo-track")).toBeGreaterThan(html.indexOf("<head"));
+    expect(once.html.indexOf("</head>")).toBeGreaterThan(once.html.indexOf("milo-track"));
+    const twice = injectTracker(once.html);
+    expect(twice.changed).toBe(false);
+  });
+
+  it("leaves html unchanged when no </head> is present", () => {
+    const html = "<html><body>no head</body></html>";
+    const r = injectTracker(html);
+    expect(r.changed).toBe(false);
+    expect(r.html).toBe(html);
+  });
+});
+
+describe("ga4 data rollup", () => {
+  it("parses runReport responses into funnel + top pages/sources + active now", async () => {
+    const baseFn: FetchLike = async (url, init) => {
+      if (!init || init.method !== "POST") throw new Error("expected POST " + url);
+      if (url.includes(":runReport")) {
+        const body = init.body ? JSON.parse(init.body) : {};
+        const dimensions = (body.dimensions ?? []).map((d: { name: string }) => d.name);
+        if (!body.dateRanges) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              dimensionHeaders: [{ name: "streamName" }],
+              metricHeaders: [{ name: "activeUsers" }],
+              rows: [{ dimensionValues: [{ value: "properties/1/dataStreams/2" }], metricValues: [{ value: "2" }] }],
+            }),
+          };
+        }
+        if (dimensions.includes("eventName")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              dimensionHeaders: [{ name: "streamName" }, { name: "eventName" }],
+              metricHeaders: [{ name: "eventCount" }],
+              rows: [
+                { dimensionValues: [{ value: "properties/1/dataStreams/2" }, { value: "engaged_15s" }], metricValues: [{ value: "5" }] },
+                { dimensionValues: [{ value: "properties/1/dataStreams/2" }, { value: "intent_click" }], metricValues: [{ value: "3" }] },
+                { dimensionValues: [{ value: "properties/1/dataStreams/2" }, { value: "form_submit" }], metricValues: [{ value: "1" }] },
+              ],
+            }),
+          };
+        }
+        if (dimensions.includes("pagePath")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              dimensionHeaders: [{ name: "streamName" }, { name: "pagePath" }],
+              metricHeaders: [{ name: "screenPageViews" }],
+              rows: [{ dimensionValues: [{ value: "properties/1/dataStreams/2" }, { value: "/about" }], metricValues: [{ value: "12" }] }],
+            }),
+          };
+        }
+        if (dimensions.includes("sessionSource")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              dimensionHeaders: [{ name: "streamName" }, { name: "sessionSource" }],
+              metricHeaders: [{ name: "totalUsers" }],
+              rows: [{ dimensionValues: [{ value: "properties/1/dataStreams/2" }, { value: "Direct" }], metricValues: [{ value: "8" }] }],
+            }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            dimensionHeaders: [{ name: "streamName" }],
+            metricHeaders: [{ name: "totalUsers" }, { name: "screenPageViews" }, { name: "engagementRate" }, { name: "eventCount" }],
+            rows: [
+              {
+                dimensionValues: [{ value: "properties/1/dataStreams/2" }],
+                metricValues: [{ value: "10" }, { value: "25" }, { value: "0.636" }, { value: "40" }],
+              },
+            ],
+          }),
+        };
+      }
+      throw new Error("unexpected " + url + " " + JSON.stringify(init));
+    };
+
+    const rollup = await fetchGa4Rollup({ sa: SA, propertyName: "properties/1", streamName: "properties/1/dataStreams/2", fetchFn: withToken(baseFn) });
+    expect(rollup).not.toBeNull();
+    expect(rollup!.visitors).toBe(10);
+    expect(rollup!.pageviews).toBe(25);
+    expect(rollup!.engagementRate).toBe(0.636);
+    expect(rollup!.activeNow).toBe(2);
+    expect(rollup!.funnel).toEqual({ visited: 25, engaged: 5, intent: 3, converted: 1 });
+    expect(rollup!.topPages).toEqual([{ path: "/about", views: 12 }]);
+    expect(rollup!.topSources).toEqual([{ source: "Direct", users: 8 }]);
   });
 });
