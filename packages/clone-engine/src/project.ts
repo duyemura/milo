@@ -283,8 +283,19 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
     let nm: string;
     const labelName = labelNameOfSectionId.get(s.id);
     if (labelName) {
-      // Label names already include "Section" suffix (from heuristicLabels); use as-is.
-      nm = labelName;
+      // Sanitize to a valid PascalCase JS identifier. Heuristic labels are already valid
+      // (this is a no-op for them), but LLM labels are human-readable ("Header Navigation",
+      // "FAQ Section") and would otherwise be emitted verbatim as `import Header Navigation`
+      // — a syntax error that breaks the entire page's astro build.
+      nm = labelName
+        .replace(/[^a-zA-Z0-9]+/g, " ")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((w) => w[0].toUpperCase() + w.slice(1))
+        .join("");
+      if (!nm) nm = `Section${i}`;
+      if (/^[0-9]/.test(nm)) nm = "S" + nm;
     } else {
       // Existing copy-derived fallback (unchanged algorithm).
       const cp = copyOf(s);
