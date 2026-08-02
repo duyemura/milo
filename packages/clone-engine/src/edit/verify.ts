@@ -44,14 +44,30 @@ export interface EditIntent {
   op: EditOp;
   /** setBrand only: the before/after hex of the recolored slot (drives the delta-vector scope). */
   brandRecolor?: { oldHex: string; newHex: string };
+  /**
+   * Element-targeted ops (editCopy/styleTweak/swapAsset): a CSS selector for the edited ELEMENT
+   * (e.g. the manifest element selector, or `[data-copy="Key"]`). When present, the verifier
+   * sub-scopes the edited section to this element's box — changed pixels INSIDE the section but
+   * OUTSIDE the element box are flagged as intra-section collateral. Omit for a whole-section trust.
+   */
+  elementSelector?: string;
 }
 
 const OVERLAP_TOLERANCE_PX = 2; // sections may share a 1-2px seam (border collapse / sub-pixel).
 
-/** Diff two same-section crops (before vs after) → differing-pixel count. 0 == internally clean. */
-async function cropDiffPx(browser: Browser, aPng: Buffer, bPng: Buffer): Promise<number> {
+/**
+ * Diff two same-section crops (before vs after) → { px, dimChanged }. 0 px == internally clean.
+ *
+ * CRITICAL: pixelDiff only compares the top-left overlap rectangle (w=min widths, h=min heights),
+ * so a corruption that changes a section's OWN crop dimensions (content injection, text reflow,
+ * a font-size/padding bump that grows the box) would diff clean on the shared band and silently
+ * PASS. A dimension change of a section's own box IS an internal change, so we hard-fail it: we
+ * report the full crop area as changed pixels so it routes through the out-of-scope fail path.
+ */
+export async function cropDiffPx(browser: Browser, aPng: Buffer, bPng: Buffer): Promise<{ px: number; dimChanged: boolean }> {
   const r = await pixelDiff(browser, aPng, bPng);
-  return r.d;
+  if (!r.dimMatch) return { px: Math.max(r.total, 1), dimChanged: true }; // dim change = guaranteed internal change
+  return { px: r.d, dimChanged: false };
 }
 
 /**
@@ -117,6 +133,54 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
+/**
+ * Element-box sub-scope classifier (mode:"box" from verify-scoped.mjs), applied INSIDE a section
+ * crop. Both crops are the section's own box; `relBox` is the edited element's box expressed
+ * relative to the section-crop origin (with a small pad to absorb anti-aliasing at the edge).
+ * A changed pixel INSIDE relBox is intended (inScope); one OUTSIDE is intra-section collateral
+ * (outScope, a hard fail — the edit landed but broke the rest of the section's layout).
+ */
+async function classifyBoxInCrop(
+  browser: Browser,
+  aCrop: Buffer,
+  bCrop: Buffer,
+  relBox: { x0: number; y0: number; x1: number; y1: number },
+): Promise<{ changed: number; inScope: number; outScope: number }> {
+  const dp = await browser.newPage();
+  try {
+    return await dp.evaluate(async ([aB64, bB64, box]) => {
+      const b = box as { x0: number; y0: number; x1: number; y1: number };
+      const load = (s: string) =>
+        new Promise<HTMLImageElement>((res, rej) => {
+          const i = new Image();
+          i.onload = () => res(i);
+          i.onerror = () => rej(new Error("decode failed"));
+          i.src = "data:image/png;base64," + s;
+        });
+      const [ia, ib] = await Promise.all([load(aB64 as string), load(bB64 as string)]);
+      const w = Math.min(ia.width, ib.width), h = Math.min(ia.height, ib.height);
+      const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+      const ctx = cv.getContext("2d", { willReadFrequently: true })!;
+      ctx.drawImage(ia, 0, 0); const A = ctx.getImageData(0, 0, w, h).data;
+      ctx.clearRect(0, 0, w, h); ctx.drawImage(ib, 0, 0); const B = ctx.getImageData(0, 0, w, h).data;
+      const THRESH = 8;
+      let changed = 0, inScope = 0, outScope = 0;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          if (Math.abs(B[i] - A[i]) <= THRESH && Math.abs(B[i + 1] - A[i + 1]) <= THRESH && Math.abs(B[i + 2] - A[i + 2]) <= THRESH) continue;
+          changed++;
+          const inside = x >= b.x0 && x < b.x1 && y >= b.y0 && y < b.y1;
+          if (inside) inScope++; else outScope++;
+        }
+      }
+      return { changed, inScope, outScope };
+    }, [aCrop.toString("base64"), bCrop.toString("base64"), relBox] as const);
+  } finally {
+    await dp.close();
+  }
+}
+
 /** Resolve intent.editedSections (which may be roles or names) to the data-component NAMES present. */
 function resolveEditedNames(intent: EditIntent, snapshotNames: Set<string>, list: Array<{ name: string; role: string }>): Set<string> {
   const roleToNames = new Map<string, string[]>();
@@ -159,10 +223,12 @@ export async function verify(
   const width = opts.width ?? before.width;
 
   // Render the AFTER site (this also proves it builds; a build failure throws before here,
-  // so we treat a caught build failure as renderSane=false).
+  // so we treat a caught build failure as renderSane=false). Also measure the edited element's
+  // box when an elementSelector was provided (for the intra-section collateral sub-scope).
+  const extraSelectors = intent.elementSelector ? [intent.elementSelector] : [];
   let afterSnap: RenderSnapshot;
   try {
-    afterSnap = await renderSnapshot(browser, after, { width, assetsFallback: opts.assetsFallback });
+    afterSnap = await renderSnapshot(browser, after, { width, assetsFallback: opts.assetsFallback, extraSelectors });
   } catch (err) {
     return {
       pass: false,
@@ -177,6 +243,15 @@ export async function verify(
   const afterNames = new Set(afterSnap.sections.keys());
   const beforeNames = new Set(before.sections.keys());
   const edited = resolveEditedNames(intent, new Set([...beforeNames, ...afterNames]), afterList);
+
+  // ---- SETTLE diagnostic: surface a non-settled render so the apply-loop can tell a flaky
+  // render apart from a real diff (a non-settled AFTER frame can produce spurious out-of-scope px).
+  if (!afterSnap.settled) {
+    failures.push(
+      "render did not settle: the AFTER page never produced two byte-identical frames within the retry budget — " +
+        "any pixel diff below may be render flake, not a real change; re-run before trusting a fail",
+    );
+  }
 
   // ---- STRUCTURAL: expected section set given the intent ----
   // For removeSection the removed name should be gone; for addSection the clone should appear.
@@ -229,29 +304,55 @@ export async function verify(
     }
   } else {
     // editCopy / swapAsset / styleTweak: per-section box diffs.
+    // The edited element's box relative to its section crop (for the intra-section sub-scope).
+    const elBoxDoc = intent.elementSelector ? afterSnap.extraBoxes.get(intent.elementSelector) ?? null : null;
     for (const name of beforeNames) {
       if (!afterNames.has(name)) continue; // removed section — accounted for structurally, no diff
       const b = before.sections.get(name)!;
       const a = afterSnap.sections.get(name)!;
-      const px = await cropDiffPx(browser, b.cropPng, a.cropPng);
+      const { px, dimChanged } = await cropDiffPx(browser, b.cropPng, a.cropPng);
       const isEdited = edited.has(name);
-      const diff: SectionDiff = {
-        section: name,
-        changed: px > 0,
-        inScopePx: isEdited ? px : 0,
-        outScopePx: isEdited ? 0 : px,
-      };
-      sections.push(diff);
-      if (!isEdited && px > 0) {
-        failures.push(`section '${name}' changed ${px}px outside the edited target`);
+
+      if (!isEdited) {
+        // UNTOUCHED section: any internal change (including a dimension change) is out-of-scope.
+        sections.push({ section: name, changed: px > 0, inScopePx: 0, outScopePx: px });
+        if (px > 0) {
+          failures.push(
+            `section '${name}' changed ${px}px outside the edited target` +
+              (dimChanged ? " (changed dimensions — content/layout of an untouched section shifted)" : ""),
+          );
+        }
+        continue;
       }
-    }
-    // Every edited section that survives must actually have changed (the edit must LAND).
-    for (const name of edited) {
-      if (!afterNames.has(name)) continue;
-      const d = sections.find((s) => s.section === name);
-      if (d && !d.changed) {
-        failures.push(`edited section '${name}' shows no change (the edit did not land)`);
+
+      // EDITED section. A dimension change of the section itself is expected for some edits (a copy
+      // change can reflow the section taller), so a dim change here is treated as in-scope. Within
+      // the section, if we know the edited element's box, sub-scope to it: pixels inside the element
+      // box are intended; pixels outside are intra-section collateral (a hard fail).
+      if (elBoxDoc && !dimChanged) {
+        const PAD = 4;
+        const rel = {
+          x0: Math.max(0, Math.floor(elBoxDoc.x - a.box.x) - PAD),
+          y0: Math.max(0, Math.floor(elBoxDoc.y - a.box.y) - PAD),
+          x1: Math.ceil(elBoxDoc.x - a.box.x + elBoxDoc.w) + PAD,
+          y1: Math.ceil(elBoxDoc.y - a.box.y + elBoxDoc.h) + PAD,
+        };
+        const cls = await classifyBoxInCrop(browser, b.cropPng, a.cropPng, rel);
+        sections.push({ section: name, changed: cls.changed > 0, inScopePx: cls.inScope, outScopePx: cls.outScope });
+        if (cls.outScope > 0) {
+          failures.push(
+            `edited section '${name}' changed ${cls.outScope}px OUTSIDE the edited element box (intra-section collateral — the edit broke the rest of the section)`,
+          );
+        }
+        if (cls.inScope === 0) {
+          failures.push(`edited section '${name}' shows no change inside the edited element box (the edit did not land)`);
+        }
+      } else {
+        // No element selector (or the section's own dimensions changed): trust at section granularity.
+        sections.push({ section: name, changed: px > 0, inScopePx: px, outScopePx: 0 });
+        if (px === 0) {
+          failures.push(`edited section '${name}' shows no change (the edit did not land)`);
+        }
       }
     }
   }

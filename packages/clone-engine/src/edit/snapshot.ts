@@ -55,6 +55,19 @@ export interface RenderSnapshot {
   fullPng: Buffer;
   /** The section names in DOM order (structural comparison). */
   order: string[];
+  /**
+   * Whether the render deterministically SETTLED: two consecutive full-page frames were
+   * byte-identical within the attempt budget. When false, the fullPng may reflect a frame that
+   * raced an asset mid-decode — the verifier surfaces this so the apply-loop can distinguish a
+   * flaky render from a real diff instead of retrying blind.
+   */
+  settled: boolean;
+  /**
+   * Boxes of any extra selectors requested via opts.extraSelectors, in document coords. Keyed by
+   * the selector string; absent from the map if the selector matched nothing. Used by the verifier
+   * to sub-scope an edited section to its edited ELEMENT box (intra-section collateral check).
+   */
+  extraBoxes: Map<string, { x: number; y: number; w: number; h: number }>;
 }
 
 /** Locate a shared astro@^4 node_modules to symlink into the emitted project. */
@@ -122,9 +135,10 @@ function serveDist(dist: string, assetsFallback: string | null): http.Server {
  * Load a served page, settle it deterministically, then take a full-page screenshot.
  * Re-shoots until two consecutive screenshots are byte-identical (settled) or the attempt
  * budget is exhausted — under concurrent browser load the first frame can race an asset
- * mid-decode; the settled frame is the honest render. Returns the settled PNG.
+ * mid-decode; the settled frame is the honest render. Returns the frame + whether it settled
+ * (two consecutive identical frames were observed within the budget).
  */
-async function shootSettled(browser: Browser, url: string, width: number, assetsFallback: string | null): Promise<Buffer> {
+async function shootSettled(browser: Browser, url: string, width: number, assetsFallback: string | null): Promise<{ png: Buffer; settled: boolean }> {
   const settle = async (): Promise<Buffer> => {
     const p = await browser.newPage({ viewport: { width, height: 900 } });
     try {
@@ -164,10 +178,10 @@ async function shootSettled(browser: Browser, url: string, width: number, assets
   let prev = await settle();
   for (let attempt = 0; attempt < 3; attempt++) {
     const next = await settle();
-    if (next.equals(prev)) return next; // two identical frames → deterministically settled
+    if (next.equals(prev)) return { png: next, settled: true }; // two identical frames → settled
     prev = next;
   }
-  return prev;
+  return { png: prev, settled: false }; // budget exhausted without two identical frames
 }
 
 /**
@@ -226,6 +240,58 @@ async function measureSections(
   }
 }
 
+/** Measure arbitrary CSS selectors' boxes (document coords) on a settled page. */
+async function measureSelectors(
+  browser: Browser,
+  url: string,
+  width: number,
+  assetsFallback: string | null,
+  selectors: string[],
+): Promise<Map<string, { x: number; y: number; w: number; h: number }>> {
+  const result = new Map<string, { x: number; y: number; w: number; h: number }>();
+  if (selectors.length === 0) return result;
+  const p = await browser.newPage({ viewport: { width, height: 900 } });
+  try {
+    if (assetsFallback) {
+      await p.route("**/*", (route) => {
+        const u = route.request().url();
+        if (u.includes("/assets/")) {
+          const rel = decodeURIComponent(u.split("/assets/")[1].split("?")[0]);
+          const alt = path.join(assetsFallback, rel);
+          if (fs.existsSync(alt)) return route.fulfill({ path: alt }).catch(() => route.abort());
+        }
+        return route.continue();
+      });
+    }
+    await p.goto(url, { waitUntil: "networkidle" });
+    await p.evaluate(async () => {
+      const withTimeout = (pr: Promise<unknown>, ms: number) =>
+        Promise.race([pr.catch(() => {}), new Promise<void>((r) => setTimeout(r, ms))]);
+      if (document.fonts) await withTimeout(document.fonts.ready, 5000);
+      for (const img of Array.from(document.querySelectorAll("img"))) {
+        img.loading = "eager";
+        if (!(img.complete && img.naturalWidth > 0)) await withTimeout(img.decode(), 3000);
+      }
+    });
+    await p.waitForTimeout(200);
+    const boxes = await p.evaluate((sels) => {
+      const out: Record<string, { x: number; y: number; w: number; h: number } | null> = {};
+      for (const sel of sels) {
+        let el: Element | null = null;
+        try { el = document.querySelector(sel); } catch { el = null; }
+        if (!el) { out[sel] = null; continue; }
+        const r = el.getBoundingClientRect();
+        out[sel] = { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
+      }
+      return out;
+    }, selectors);
+    for (const [sel, box] of Object.entries(boxes)) if (box) result.set(sel, box);
+    return result;
+  } finally {
+    await p.close();
+  }
+}
+
 /** Crop a section's own box out of a full-page PNG, in a headless canvas. Returns a PNG buffer. */
 async function cropBox(
   browser: Browser,
@@ -269,7 +335,7 @@ async function cropBox(
 export async function renderSnapshot(
   browser: Browser,
   site: SiteRef,
-  opts: { width?: number; assetsFallback?: string | null } = {},
+  opts: { width?: number; assetsFallback?: string | null; extraSelectors?: string[] } = {},
 ): Promise<RenderSnapshot> {
   const width = opts.width ?? 1440;
   const assetsFallback = opts.assetsFallback ?? defaultAssetsFallback(site);
@@ -279,8 +345,9 @@ export async function renderSnapshot(
   const port = (server.address() as import("node:net").AddressInfo).port;
   const url = `http://127.0.0.1:${port}/`;
   try {
-    const fullPng = await shootSettled(browser, url, width, assetsFallback);
+    const { png: fullPng, settled } = await shootSettled(browser, url, width, assetsFallback);
     const measured = await measureSections(browser, url, width, assetsFallback);
+    const extraBoxes = await measureSelectors(browser, url, width, assetsFallback, opts.extraSelectors ?? []);
     const sections = new Map<string, SectionRender>();
     const order: string[] = [];
     for (const m of measured) {
@@ -288,7 +355,7 @@ export async function renderSnapshot(
       const cropPng = await cropBox(browser, fullPng, m.box);
       sections.set(m.name, { name: m.name, role: m.role, box: m.box, cropPng });
     }
-    return { width, sections, fullPng, order };
+    return { width, sections, fullPng, order, settled, extraBoxes };
   } finally {
     server.close();
     fs.rmSync(dist, { recursive: true, force: true });

@@ -29,7 +29,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { project } from "../../src/project.ts";
 import { editCopy, setBrand, styleTweak, swapAsset } from "../../src/edit/ops.ts";
-import { verify, renderSnapshot, currentBrandHex, type EditIntent } from "../../src/edit/verify.ts";
+import { verify, renderSnapshot, currentBrandHex, cropDiffPx as cropDiffPxForTest, type EditIntent } from "../../src/edit/verify.ts";
+import { pixelDiff } from "../../src/pixel.ts";
 import type { SiteRef } from "../../src/edit/types.ts";
 import type { SiteManifest } from "../../src/types.ts";
 
@@ -103,9 +104,15 @@ describe.skipIf(!ASTRO_MODULES)("edit verifier — negative controls", () => {
     cleanup.add(out);
     const before = await renderSnapshot(browser, site, { width: WIDTH });
 
-    // Edit copy inside S3StepsToSection (a mid-page content section).
-    editCopy(site, "S3StepsToSection.6", "VERIFIER CLEAN EDIT SENTINEL — this text changed");
-    const intent: EditIntent = { editedSections: ["S3StepsToSection"], op: { op: "editCopy", copyKey: "S3StepsToSection.6", text: "x" } };
+    // Edit copy inside S3StepsToSection (a mid-page content section). Keep the sentinel short so
+    // the copy element does NOT reflow the section (a same-height copy swap → element-box sub-scope).
+    editCopy(site, "S3StepsToSection.6", "Edited step");
+    const intent: EditIntent = {
+      editedSections: ["S3StepsToSection"],
+      op: { op: "editCopy", copyKey: "S3StepsToSection.6", text: "x" },
+      // The edited copy element carries the key in its space-separated data-copy list.
+      elementSelector: `[data-copy~="S3StepsToSection.6"]`,
+    };
 
     const report = await verify(browser, before, site, intent, { width: WIDTH });
 
@@ -115,6 +122,8 @@ describe.skipIf(!ASTRO_MODULES)("edit verifier — negative controls", () => {
 
     const edited = report.sections.find((s) => s.section === "S3StepsToSection")!;
     expect(edited.changed, "the edited section must show a change").toBe(true);
+    expect(edited.inScopePx, "the change must land inside the edited element box").toBeGreaterThan(0);
+    expect(edited.outScopePx, "no intra-section collateral outside the element box").toBe(0);
 
     // Every OTHER section is internally clean.
     for (const s of report.sections) {
@@ -222,4 +231,70 @@ describe.skipIf(!ASTRO_MODULES)("edit verifier — negative controls", () => {
       expect(s.outScopePx, `section ${s.section} leaked ${s.outScopePx}px after asset swap`).toBe(0);
     }
   }, 300_000);
+
+  // 6. CRITICAL negative control — a DIMENSION change of an UNTOUCHED section must FAIL.
+  //    pixelDiff only compares the top-left overlap band, so a corruption that grows a section's
+  //    height would diff clean on the shared band and silently PASS without the dimMatch hard-fail.
+  //    Here we grow StoriesOfGlorySection's height (top padding) while claiming the edit targeted a
+  //    DIFFERENT section → the untouched section's crop changes DIMENSIONS → outScopePx > 0 → FAIL.
+  it("dimension-change corruption of an untouched section FAILS (guards the overlap-band false-pass)", async () => {
+    const { out, site } = await projectFixture();
+    cleanup.add(out);
+    const before = await renderSnapshot(browser, site, { width: WIDTH });
+
+    // Grow the untouched section's height (padding reliably grows the integer crop height).
+    styleTweak(site, "StoriesOfGlorySection", "padding", "120px");
+
+    // ...but claim the edit only targeted a DIFFERENT section.
+    const intent: EditIntent = {
+      editedSections: ["ExploreProgramsAtSection"],
+      op: { op: "styleTweak", target: "ExploreProgramsAtSection", prop: "padding", value: "120px" },
+    };
+
+    const report = await verify(browser, before, site, intent, { width: WIDTH });
+
+    expect(report.pass, "a dimension change of an untouched section MUST make the verifier fail").toBe(false);
+    const grown = report.sections.find((s) => s.section === "StoriesOfGlorySection")!;
+    expect(grown.outScopePx, "the grown untouched section must report out-of-scope pixels").toBeGreaterThan(0);
+    // The failure is actionable and names the untouched section that changed out of scope.
+    expect(
+      report.failures.some((f) => /StoriesOfGlorySection/.test(f) && /outside the edited target/.test(f)),
+      `expected an out-of-scope failure naming the section, got: ${report.failures.join(" | ")}`,
+    ).toBe(true);
+  }, 300_000);
+
+  // 7. UNIT proof of the dimension-mismatch guard in isolation — the exact false-pass the review
+  //    reproduced: two crops that are BYTE-IDENTICAL on the shared top-left band but differ in
+  //    HEIGHT (100×100 vs 100×200) → pixelDiff reports d=0 on the band, but cropDiffPx must treat
+  //    the dimension change as a full internal change so the verifier hard-fails. This proves the
+  //    guard directly, without depending on a corruption that also shifts shared-band content.
+  it("cropDiffPx hard-fails on a pure dimension change (100×100 vs 100×200, identical shared band)", async () => {
+    // Build two solid-red PNGs where B is taller (extra rows appended at the bottom, so the
+    // overlapping 100×100 band is byte-identical). pixelDiff alone → d=0, dimMatch=false.
+    const mkPng = async (w: number, h: number): Promise<Buffer> => {
+      const p = await browser.newPage();
+      try {
+        const b64 = await p.evaluate(([ww, hh]) => {
+          const cv = document.createElement("canvas");
+          cv.width = ww as number; cv.height = hh as number;
+          const ctx = cv.getContext("2d")!;
+          ctx.fillStyle = "#ff0000"; ctx.fillRect(0, 0, ww as number, hh as number);
+          return cv.toDataURL("image/png").split(",")[1];
+        }, [w, h] as const);
+        return Buffer.from(b64, "base64");
+      } finally { await p.close(); }
+    };
+    const a = await mkPng(100, 100);
+    const b = await mkPng(100, 200);
+
+    // Sanity: the raw oracle sees ZERO diff on the shared band but a dimension mismatch.
+    const raw = await pixelDiff(browser, a, b);
+    expect(raw.d, "raw pixelDiff must report 0 on the identical shared band").toBe(0);
+    expect(raw.dimMatch, "the crops must differ in dimensions").toBe(false);
+
+    // The guarded diff must NOT report 0 — the dimension change is a real internal change.
+    const guarded = await cropDiffPxForTest(browser, a, b);
+    expect(guarded.dimChanged, "the guard must flag the dimension change").toBe(true);
+    expect(guarded.px, "the guard must report changed pixels, not a false 0").toBeGreaterThan(0);
+  }, 120_000);
 });
