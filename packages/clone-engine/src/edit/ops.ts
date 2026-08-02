@@ -1,13 +1,15 @@
 /**
  * ops.ts — deterministic edit operations over a PROJECTED out dir.
  *
- * These are the two primitives subsystem C (Task 1) rests on. They operate on
- * the already-projected Astro artifact (site.json + astro/), never on the live
- * capture, and they are pure/deterministic: given the same (site, target, value)
- * they produce the same bytes.
+ * These primitives are what subsystem C rests on. They operate on the already-
+ * projected Astro artifact (site.json + astro/), never on the live capture, and
+ * they are pure/deterministic: given the same (site, target, value) they produce
+ * the same bytes.
  *
- *   editCopy(site, copyKey, text)   — swap one editable copy string.
- *   setBrand(site, slot, value)     — recolor one brand slot everywhere.
+ *   editCopy(site, copyKey, text)         — swap one editable copy string.
+ *   setBrand(site, slot, value)           — recolor one brand slot everywhere.
+ *   swapAsset(site, alias, source)        — replace one rehosted asset file.
+ *   styleTweak(site, target, prop, value) — add/override a bounded CSS rule.
  *
  * setBrand REUSES the engine's own flattenRoot() (from brand.ts) rather than
  * re-implementing the cascade, so edits go through the exact same code path
@@ -17,9 +19,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { SiteRef, EditOp, OpResult } from "./types.ts";
-import { resolveCopy } from "./target.ts";
-import { flattenRoot } from "../brand.ts";
-import type { BrandDoc } from "../types.ts";
+import { STYLE_PROPS } from "./types.ts";
+import { resolveCopy, resolveAsset, resolveSection } from "./target.ts";
+import { flattenRoot, canon } from "../brand.ts";
+import type { BrandDoc, SiteManifest } from "../types.ts";
 
 // ---------------------------------------------------------------------------
 // editCopy
@@ -231,4 +234,325 @@ function extraLinesFromRoot(block: string, brand: BrandDoc): string[] {
     extra.push(line);
   }
   return extra;
+}
+
+// ---------------------------------------------------------------------------
+// swapAsset
+// ---------------------------------------------------------------------------
+
+/**
+ * Sniff the file type of a buffer by magic bytes. Returns a lowercase extension
+ * string, or null when the type is unknown/undetectable. This is the same
+ * algorithm capture.ts uses (extracted here so ops.ts doesn't need to import the
+ * full capture module, which has heavy playwright dependencies).
+ */
+function sniffExt(b: Buffer): string | null {
+  if (b.length < 4) return null;
+  const h = b.toString("latin1", 0, 4);
+  if (h === "wOFF") return "woff";
+  if (h === "wOF2") return "woff2";
+  if (h === "OTTO") return "otf";
+  if (b[0] === 0x89 && h.slice(1) === "PNG") return "png";
+  if (h === "GIF8") return "gif";
+  if (b[0] === 0xff && b[1] === 0xd8) return "jpg";
+  if (h === "RIFF" && b.toString("latin1", 8, 12) === "WEBP") return "webp";
+  if (b[0] === 0x00 && b[1] === 0x01 && b[2] === 0x00 && b[3] === 0x00) return "ttf";
+  const head = b.toString("latin1", 0, 200).replace(/^\xEF\xBB\xBF/, "").trim().toLowerCase();
+  if (head.startsWith("<!doctype html") || head.startsWith("<html")) return "html";
+  if (head.startsWith("<svg") || (head.startsWith("<?xml") && head.includes("<svg"))) return "svg";
+  return null;
+}
+
+/** Rewrite every `/assets/oldName` reference to `/assets/newName` across all .astro + global.css. */
+function rewriteAssetRefs(
+  site: SiteRef,
+  oldRel: string,   // e.g. "assets/a23.png"
+  newRel: string,   // e.g. "assets/a23.webp" (may equal oldRel)
+  changedFiles: string[],
+): void {
+  if (oldRel === newRel) return; // same name → no ref rewrites needed
+  const oldSlash = `/${oldRel}`; // "/assets/a23.png"
+  const newSlash = `/${newRel}`; // "/assets/a23.webp"
+
+  const componentsDir = path.join(site.dir, "astro", "src", "components");
+  const cssPath = path.join(site.dir, "astro", "src", "styles", "global.css");
+
+  const rewriteFile = (filePath: string) => {
+    if (!fs.existsSync(filePath)) return;
+    const src = fs.readFileSync(filePath, "utf8");
+    if (!src.includes(oldSlash)) return;
+    const updated = src.replaceAll(oldSlash, newSlash);
+    fs.writeFileSync(filePath, updated);
+    changedFiles.push(filePath);
+  };
+
+  // Rewrite all .astro component files.
+  if (fs.existsSync(componentsDir)) {
+    for (const name of fs.readdirSync(componentsDir)) {
+      if (name.endsWith(".astro")) rewriteFile(path.join(componentsDir, name));
+    }
+  }
+
+  // Rewrite global.css url() references.
+  rewriteFile(cssPath);
+}
+
+/**
+ * Replace a rehosted asset (identified by its semantic alias, e.g. "logo") with
+ * a new file sourced from a local path or a URL.
+ *
+ * If the new asset has the SAME file type (by magic bytes) as the existing one,
+ * the filename stays the same and all existing src/srcset/url() refs keep working
+ * without any rewriting. If the type differs, a new filename `aN.<newext>` is
+ * written and every `/assets/oldName` reference in .astro components and
+ * global.css is rewritten to `/assets/newName`.
+ *
+ * Both storage locations are updated:
+ *   - `<site.dir>/assets/<name>`              (the root rehost dir)
+ *   - `<site.dir>/astro/public/assets/<name>` (the Astro static-file dir)
+ */
+export async function swapAsset(
+  site: SiteRef,
+  alias: string,
+  source: string,
+): Promise<OpResult> {
+  // Resolve the current asset path from site.json.
+  const { file: currentFile } = resolveAsset(site, alias);
+  const oldRel = path.relative(site.dir, currentFile); // e.g. "assets/a23.png"
+  const oldExt = path.extname(currentFile).slice(1).toLowerCase(); // e.g. "png"
+
+  // Read the new asset bytes — from a URL or a local path.
+  let newBuf: Buffer;
+  const isUrl = /^https?:\/\//i.test(source);
+  if (isUrl) {
+    const FETCH_HEADERS = {
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36",
+      "accept": "*/*",
+    };
+    const res = await fetch(source, { signal: AbortSignal.timeout(30_000), headers: FETCH_HEADERS });
+    if (!res.ok) throw new Error(`swapAsset: fetch failed for ${source} (${res.status})`);
+    newBuf = Buffer.from(await res.arrayBuffer());
+  } else {
+    if (!fs.existsSync(source)) throw new Error(`swapAsset: source file not found: ${source}`);
+    newBuf = fs.readFileSync(source);
+  }
+
+  // Sniff the new asset's type.
+  const sniffedExt = sniffExt(newBuf);
+  const newExt = sniffedExt ?? (path.extname(source).slice(1).toLowerCase() || oldExt);
+  if (newExt === "html") {
+    throw new Error(`swapAsset: source resolved to an HTML document, not an asset file`);
+  }
+
+  // Determine the output filename — keep the same name when type matches.
+  const baseName = path.basename(currentFile, path.extname(currentFile)); // e.g. "a23"
+  const sameType = newExt === oldExt;
+  const newFileName = sameType ? path.basename(currentFile) : `${baseName}.${newExt}`;
+  const newRel = `assets/${newFileName}`; // relative to site.dir
+
+  // Write to both storage locations.
+  // The projected out dir stores assets only in astro/public/assets/ (the Astro static-file
+  // dir, served as /assets/<name>). Some layouts also keep a root assets/ copy (from the
+  // capture step). We write to whichever location exists; the public copy always wins.
+  const rootAssetsDir = path.join(site.dir, "assets");
+  const rootAssetPath = path.join(site.dir, newRel);
+  const publicAssetPath = path.join(site.dir, "astro", "public", newRel);
+  fs.mkdirSync(path.dirname(publicAssetPath), { recursive: true });
+  fs.writeFileSync(publicAssetPath, newBuf);
+  const changedFiles: string[] = [publicAssetPath];
+  if (fs.existsSync(rootAssetsDir)) {
+    // Root assets/ dir exists (capture + project combined layout) — update it too.
+    fs.writeFileSync(rootAssetPath, newBuf);
+    changedFiles.unshift(rootAssetPath);
+  }
+
+  // Rewrite refs if the filename changed.
+  rewriteAssetRefs(site, oldRel, newRel, changedFiles);
+
+  // Update site.json so future resolveAsset calls reflect the new path.
+  if (!sameType) {
+    const manifestPath = path.join(site.dir, "site.json");
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as SiteManifest;
+    for (const page of manifest.pages) {
+      for (const a of page.assets) {
+        if (a.alias === alias) a.file = newRel;
+      }
+    }
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+    changedFiles.push(manifestPath);
+  }
+
+  // Find the section(s) that reference this asset for targetSections.
+  const manifest = JSON.parse(fs.readFileSync(path.join(site.dir, "site.json"), "utf8")) as SiteManifest;
+  const targetSections: string[] = [];
+  for (const page of manifest.pages) {
+    const asset = page.assets.find((a) => a.alias === alias);
+    if (!asset) continue;
+    // Find any section whose component file contains a ref to this asset.
+    for (const section of page.sections) {
+      const sectionFile = path.join(site.dir, section.file);
+      if (fs.existsSync(sectionFile)) {
+        const src = fs.readFileSync(sectionFile, "utf8");
+        if (src.includes(`/assets/${newFileName}`) || src.includes(`/assets/${path.basename(currentFile)}`)) {
+          if (!targetSections.includes(section.name)) targetSections.push(section.name);
+        }
+      }
+    }
+  }
+
+  const op: EditOp = { op: "swapAsset", alias, source };
+  return { op, changedFiles, targetSections };
+}
+
+// ---------------------------------------------------------------------------
+// styleTweak
+// ---------------------------------------------------------------------------
+
+/** CSS props that are color-related (candidates for brand-token substitution). */
+const COLOR_PROPS = new Set(["color", "background-color"]);
+/** CSS props that are spacing-related (candidates for space-token substitution). */
+const SPACING_PROPS = new Set(["padding", "margin", "gap"]);
+
+/**
+ * Check whether `value` canon-equals a brand token value and return the
+ * corresponding CSS custom-property reference, or null if no token matches.
+ *
+ * For colors: compares via `canon()` (normalizes rgb/hex/rgba → "r,g,b,a").
+ * For spacing: checks exact string match against --space-* token values.
+ */
+function brandTokenFor(
+  prop: string,
+  value: string,
+  brand: BrandDoc,
+): string | null {
+  if (COLOR_PROPS.has(prop)) {
+    const valueCanon = canon(value);
+    // Check base brand color slots.
+    for (const [slot, slotObj] of Object.entries(brand.colors) as Array<[string, { value: string; variants: Record<string, string> }]>) {
+      if (canon(slotObj.value) === valueCanon) return `var(--color-${slot})`;
+      // Check variants.
+      for (const [varName, varValue] of Object.entries(slotObj.variants)) {
+        if (canon(varValue) === valueCanon) return `var(${varName})`;
+      }
+    }
+  } else if (SPACING_PROPS.has(prop)) {
+    // Exact string match against space tokens (values are simple like "8px", "16px").
+    for (const [k, v] of Object.entries(brand.space)) {
+      if (v === value) return `var(--space-${k})`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Look up the brand.json if it exists — returns null when the file is absent
+ * (some projected dirs might not have one yet, though all should).
+ */
+function loadBrandDoc(site: SiteRef): BrandDoc | null {
+  const brandPath = path.join(site.dir, "astro", "brand.json");
+  if (!fs.existsSync(brandPath)) return null;
+  return JSON.parse(fs.readFileSync(brandPath, "utf8")) as BrandDoc;
+}
+
+/**
+ * Find the `.pN` CSS class handle for a target that is either a data-role
+ * (element role) or a section name / section role. Returns `{ id, component }`.
+ *
+ * Strategy:
+ *   1. Try the manifest's elements[] by role — fast path for specific elements.
+ *   2. Fall back to resolveSection → read the section's .astro file to find the
+ *      root element's `class="pN"` — the first .pN class in the section component.
+ */
+function resolveTargetId(
+  site: SiteRef,
+  target: string,
+): { id: string; component: string } {
+  // Try as element role — walk the manifest directly to get the `id` field.
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(site.dir, "site.json"), "utf8"),
+  ) as SiteManifest;
+  for (const page of manifest.pages) {
+    const el = page.elements.find((e) => e.role === target);
+    if (el) return { id: el.id, component: el.component };
+  }
+
+  // Try as section role/name — take the first .pN class of the root element.
+  // resolveSection throws TargetError if not found (propagates to caller).
+  const { file, name } = resolveSection(site, target);
+  const src = fs.readFileSync(file, "utf8");
+  // The root element of every projected component carries class="pN ...".
+  // It is inside the template literal: `<tag class="pN"`.
+  const m = /class="(p\d+)"/.exec(src);
+  if (!m) {
+    throw new Error(`styleTweak: could not find a .pN handle in section ${name}`);
+  }
+  return { id: m[1], component: name };
+}
+
+/**
+ * Add or override a single CSS declaration scoped to the element identified by
+ * `target` (a data-role OR a section name/role).
+ *
+ * The rule is appended to global.css as a high-specificity override block:
+ *
+ *   /* styleTweak: <target> *\/
+ *   .<pN> { <prop>: <value>; }
+ *
+ * If a previous styleTweak override for the exact same `.<pN> { <prop> }` already
+ * exists in global.css, it is updated in place rather than duplicated.
+ *
+ * `prop` must be in the STYLE_PROPS bounded set — otherwise an error is thrown.
+ *
+ * Brand-token preference: if `prop` is a color or spacing prop and `value`
+ * canon-equals a brand token's value, the emitted CSS uses `var(--color-<slot>)`
+ * / `var(--space-<x>)` instead of the raw literal. Use a raw literal when no
+ * brand token matches.
+ */
+export function styleTweak(
+  site: SiteRef,
+  target: string,
+  prop: string,
+  value: string,
+): OpResult {
+  // Guard: prop must be in the bounded set.
+  if (!(STYLE_PROPS as readonly string[]).includes(prop)) {
+    throw new Error(`styleTweak: prop '${prop}' not in the bounded set`);
+  }
+
+  // Resolve the target to a .pN handle.
+  const { id, component } = resolveTargetId(site, target);
+
+  // Prefer a brand token if one matches.
+  const brand = loadBrandDoc(site);
+  const emitValue = brand ? (brandTokenFor(prop, value, brand) ?? value) : value;
+
+  // Build the rule line.
+  const selector = `.${id}`;
+  const ruleLine = `${selector} { ${prop}: ${emitValue}; }`;
+  const commentLine = `/* styleTweak: ${target} */`;
+
+  // Read global.css.
+  const cssPath = path.join(site.dir, "astro", "src", "styles", "global.css");
+  let css = fs.readFileSync(cssPath, "utf8");
+
+  // Check for an existing override for this exact selector + prop.
+  // Pattern: .<pN> { <prop>: ...; } (may be multi-prop block or single-prop).
+  // We search for a single-prop rule block emitted by a prior styleTweak call.
+  // Regex: `<selector> { <prop>: <anything>; }` on a single line.
+  const existingRe = new RegExp(
+    String.raw`${selector.replace(".", "\\.")} \{ ${prop.replace("-", "\\-")}: [^}]+; \}`,
+    "g",
+  );
+  if (existingRe.test(css)) {
+    // Update in place.
+    const updated = css.replace(existingRe, ruleLine);
+    fs.writeFileSync(cssPath, updated);
+  } else {
+    // Append a new override block.
+    const block = `\n${commentLine}\n${ruleLine}\n`;
+    fs.writeFileSync(cssPath, css + block);
+  }
+
+  const op: EditOp = { op: "styleTweak", target, prop, value };
+  return { op, changedFiles: [cssPath], targetSections: [component] };
 }

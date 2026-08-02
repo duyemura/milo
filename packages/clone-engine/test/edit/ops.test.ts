@@ -1,14 +1,18 @@
 /**
- * ops.test.ts — editCopy + setBrand over a real projected fixture.
+ * ops.test.ts — editCopy + setBrand + swapAsset + styleTweak over a real projected fixture.
  *
  * Each test projects the speakeasy golden to a fresh temp dir (the browser runs
  * once per describe block via a shared fixture), then mutates and asserts.
  *
  * Assertions:
- *   editCopy — the resolved component .astro now contains the sentinel at the
- *              correct content[] index; changedFiles + targetSections are right.
- *   setBrand — brand.json primary.value updated; global.css :root has the new
- *              token; a leftover non-brand token in :root is byte-identical.
+ *   editCopy   — the resolved component .astro now contains the sentinel at the
+ *                correct content[] index; changedFiles + targetSections are right.
+ *   setBrand   — brand.json primary.value updated; global.css :root has the new
+ *                token; a leftover non-brand token in :root is byte-identical.
+ *   swapAsset  — the logo asset file's bytes changed; the ref still resolves
+ *                (same filename if same type); changedFiles non-empty.
+ *   styleTweak — the CTA's .pN rule has the new declaration; brand-token
+ *                preference works; bounded-set guard throws on bad prop.
  *   TargetError — resolveCopy with a bogus key throws TargetError (no file write).
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -17,10 +21,20 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { project } from "../../src/project.ts";
-import { editCopy, setBrand } from "../../src/edit/ops.ts";
+import { editCopy, setBrand, swapAsset, styleTweak } from "../../src/edit/ops.ts";
 import { resolveCopy, TargetError } from "../../src/edit/target.ts";
 import type { SiteRef } from "../../src/edit/types.ts";
 import type { SiteManifest, BrandDoc } from "../../src/types.ts";
+
+/**
+ * A minimal valid 1×1 transparent PNG (67 bytes). Used as a test asset so we
+ * don't need any external files or network calls in swapAsset tests.
+ */
+const TINY_PNG_BUF = Buffer.from(
+  "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489" +
+  "0000000a49444154789c6260000000020001e221bc330000000049454e44ae426082",
+  "hex",
+);
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const GOLDEN = path.join(dir, "../golden/speakeasy");
@@ -190,6 +204,118 @@ describe("setBrand", () => {
     expect(result.changedFiles.some((f) => f.endsWith("brand.json"))).toBe(true);
     expect(result.changedFiles.some((f) => f.endsWith("global.css"))).toBe(true);
     expect(result.targetSections).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// swapAsset
+// ---------------------------------------------------------------------------
+
+describe("swapAsset", () => {
+  it("swaps logo with a local PNG (same type) — same filename, bytes changed", async () => {
+    // Write TINY_PNG_BUF to a temp file so we can pass a file path as source.
+    const tmpPng = path.join(os.tmpdir(), "milo-swap-test-logo.png");
+    fs.writeFileSync(tmpPng, TINY_PNG_BUF);
+
+    // Read the current logo bytes from the public assets location (projected out dir
+    // only has astro/public/assets/, not a root assets/ dir).
+    const asset = manifest.pages[0].assets.find((a) => a.alias === "logo");
+    expect(asset, "speakeasy fixture has no logo asset").toBeDefined();
+    const currentPublicFile = path.join(outDir, "astro", "public", asset!.file);
+    const before = fs.readFileSync(currentPublicFile);
+
+    const result = await swapAsset(site, "logo", tmpPng);
+
+    // changedFiles must be non-empty and always contain the astro/public asset copy.
+    expect(result.changedFiles.length).toBeGreaterThan(0);
+    const publicAsset = path.join(outDir, "astro", "public", asset!.file);
+    expect(result.changedFiles).toContain(publicAsset);
+
+    // The public asset bytes must now equal TINY_PNG_BUF (and differ from original).
+    expect(before.equals(TINY_PNG_BUF)).toBe(false); // original was not our sentinel
+    expect(fs.readFileSync(publicAsset).equals(TINY_PNG_BUF)).toBe(true);
+
+    // The filename in site.json is unchanged (same type — no ref rewrite needed).
+    const updatedManifest = JSON.parse(
+      fs.readFileSync(path.join(outDir, "site.json"), "utf8"),
+    ) as SiteManifest;
+    const updatedAsset = updatedManifest.pages[0].assets.find((a) => a.alias === "logo");
+    expect(updatedAsset?.file).toBe(asset!.file);
+
+    fs.rmSync(tmpPng, { force: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// styleTweak
+// ---------------------------------------------------------------------------
+
+describe("styleTweak", () => {
+  it("primary-cta element gets font-size: 24px in global.css", () => {
+    // Verify the fixture has a primary-cta element.
+    const ctaEl = manifest.pages[0].elements.find((e) => e.role === "primary-cta");
+    expect(ctaEl, "speakeasy fixture has no primary-cta element").toBeDefined();
+
+    styleTweak(site, "primary-cta", "font-size", "24px");
+
+    const css = fs.readFileSync(
+      path.join(outDir, "astro", "src", "styles", "global.css"),
+      "utf8",
+    );
+    // The CTA's .pN class must now have the font-size override.
+    expect(css).toContain(`.${ctaEl!.id} { font-size: 24px; }`);
+  });
+
+  it("idempotent: calling styleTweak again updates the rule in place (no duplicate)", () => {
+    const ctaEl = manifest.pages[0].elements.find((e) => e.role === "primary-cta")!;
+
+    styleTweak(site, "primary-cta", "font-size", "32px");
+
+    const css = fs.readFileSync(
+      path.join(outDir, "astro", "src", "styles", "global.css"),
+      "utf8",
+    );
+    // New value must appear.
+    expect(css).toContain(`.${ctaEl.id} { font-size: 32px; }`);
+    // Old value must NOT appear (it was overwritten, not duplicated).
+    expect(css).not.toContain(`.${ctaEl.id} { font-size: 24px; }`);
+  });
+
+  it("brand-token preference: background-color matching primary emits var(--color-primary)", () => {
+    // Read the CURRENT brand primary value from brand.json (may have been changed by
+    // setBrand tests above — we use whatever the current value is).
+    const brand = JSON.parse(
+      fs.readFileSync(path.join(outDir, "astro", "brand.json"), "utf8"),
+    ) as BrandDoc;
+    const primaryValue = brand.colors.primary.value; // e.g. "rgb(51, 65, 85)"
+
+    const ctaEl = manifest.pages[0].elements.find((e) => e.role === "primary-cta")!;
+
+    styleTweak(site, "primary-cta", "background-color", primaryValue);
+
+    const css = fs.readFileSync(
+      path.join(outDir, "astro", "src", "styles", "global.css"),
+      "utf8",
+    );
+    // Must emit the brand token ref, NOT the raw literal.
+    expect(css).toContain(`.${ctaEl.id} { background-color: var(--color-primary); }`);
+    // The raw literal must NOT appear as the emitted value.
+    expect(css).not.toContain(`.${ctaEl.id} { background-color: ${primaryValue}; }`);
+  });
+
+  it("changedFiles contains global.css; targetSections names the owning component", () => {
+    const ctaEl = manifest.pages[0].elements.find((e) => e.role === "primary-cta")!;
+    const result = styleTweak(site, "primary-cta", "font-weight", "700");
+
+    expect(result.changedFiles).toHaveLength(1);
+    expect(result.changedFiles[0]).toMatch(/global\.css$/);
+    expect(result.targetSections).toContain(ctaEl.component);
+  });
+
+  it("throws when prop is not in the bounded STYLE_PROPS set", () => {
+    expect(() => styleTweak(site, "primary-cta", "position", "absolute")).toThrow(
+      /styleTweak: prop 'position' not in the bounded set/,
+    );
   });
 });
 
