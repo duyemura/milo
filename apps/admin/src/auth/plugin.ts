@@ -56,6 +56,11 @@ export function registerAuth(app: FastifyInstance, config: AdminConfig): void {
     const session = req.cookies?.[SESSION_COOKIE];
     const user = session && workos ? await workos.authenticateCookie(session, reply) : null;
     if (!user) {
+      if (session) {
+        // Stale/foreign-workspace cookies (invalid_jwt) must not survive: clearing
+        // them lets the next login write a clean sealed session.
+        reply.clearCookie(SESSION_COOKIE, { path: "/" });
+      }
       if (req.url.startsWith("/api/")) {
         return reply.code(401).send({ error: "Sign in with your PushPress account." });
       }
