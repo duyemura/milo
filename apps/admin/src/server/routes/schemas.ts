@@ -12,14 +12,19 @@ export const createCompanyBody = z.object({
   name: z.string().min(1),
 });
 
-export const createSiteBody = z.object({
-  companyId: z.string().min(1),
-  seedType: z.enum(["clone", "template"]),
+// The seed inputs shared by "create + seed in one call" and "re-seed an existing site".
+// Kept as one source so a new seed field can't be added to one path and forgotten on the other.
+export const seedBody = z.object({
+  seedType: z.enum(["clone", "template", "none"]),
   sourceUrl: z.string().url().optional(),
   name: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   templateId: z.string().optional(),
+});
+
+export const createSiteBody = seedBody.extend({
+  companyId: z.string().min(1),
 });
 
 export const createJobBody = z.object({

@@ -15,7 +15,7 @@ export interface CompanyRow {
   createdAt: string;
 }
 
-export type SeedType = "clone" | "template";
+export type SeedType = "clone" | "template" | "none";
 export type SiteStatus = "registered" | "seeding" | "seeded" | "built" | "deployed" | "error";
 
 /**
