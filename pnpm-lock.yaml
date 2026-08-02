@@ -167,6 +167,9 @@ importers:
       '@milo/llm':
         specifier: workspace:*
         version: link:../llm
+      '@milo/measurement':
+        specifier: workspace:*
+        version: link:../measurement
       '@milo/publish':
         specifier: workspace:*
         version: link:../publish
