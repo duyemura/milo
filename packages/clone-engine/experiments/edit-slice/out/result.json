@@ -1,0 +1,85 @@
+{
+  "edit1": {
+    "req": "Change the hero headline to 'Serious Strength, Ridiculous Fun'",
+    "plan": {
+      "op": "editCopy",
+      "copyKey": "AwesomeForEveryoneSection.4",
+      "value": "Serious Strength, Ridiculous Fun"
+    },
+    "applied": {
+      "file": "/var/folders/9x/9ztsdt7128l8qc46qpg2hzx80000gp/T/edit-slice-demo-OrIWwj/astro/src/components/AwesomeForEveryoneSection.astro",
+      "component": "AwesomeForEveryoneSection",
+      "index": 4,
+      "before": "Awesome for Everyone.",
+      "after": "Serious Strength, Ridiculous Fun"
+    },
+    "usedFallback": false,
+    "verify": {
+      "editKind": "editCopy",
+      "width": 1440,
+      "elementBox": {
+        "x0": 206,
+        "y0": 332,
+        "x1": 852,
+        "y1": 587
+      },
+      "sectionBox": {
+        "x0": 0,
+        "y0": 132,
+        "x1": 1444,
+        "y1": 905
+      },
+      "element": {
+        "total": 8203680,
+        "changed": 80033,
+        "inScope": 58067,
+        "outScope": 21966,
+        "width": 1440,
+        "height": 5697
+      },
+      "section": {
+        "total": 8203680,
+        "changed": 80033,
+        "inScope": 80033,
+        "outScope": 0,
+        "width": 1440,
+        "height": 5697
+      },
+      "changed": 80033,
+      "inScope": 80033,
+      "outScope": 0,
+      "safe": true,
+      "intended": true
+    }
+  },
+  "edit2": {
+    "req": "Make the primary brand color a deep blue (#1e40af)",
+    "plan": {
+      "op": "setBrand",
+      "slot": "primary",
+      "value": "#1e40af"
+    },
+    "applied": {
+      "slot": "primary",
+      "beforeValue": "rgb(236, 0, 140)",
+      "afterValue": "rgb(30, 64, 175)",
+      "hex": "#1e40af",
+      "extraCount": 20,
+      "oldHex": "#ec008c"
+    },
+    "usedFallback": false,
+    "verify": {
+      "editKind": "setBrand",
+      "width": 1440,
+      "oldHex": "#ec008c",
+      "newHex": "#1e40af",
+      "total": 8203680,
+      "changed": 259506,
+      "inScope": 259506,
+      "outScope": 0,
+      "height": 5697,
+      "safe": true,
+      "intended": true
+    }
+  }
+}
