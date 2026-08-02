@@ -76,7 +76,7 @@ function insertGeneratedSection(
   componentName: string,
   rt: RenderedTemplate,
   afterSection?: string,
-  targetRoute = "/",
+  targetRoute: string | string[] | "all" = "/",
 ): { changedFiles: string[]; beforeOrder: string[] } {
   const componentsDir = path.join(site.dir, "astro", "src", "components");
   fs.mkdirSync(componentsDir, { recursive: true });
@@ -96,56 +96,7 @@ function insertGeneratedSection(
     changedFiles.push(cssPath);
   }
 
-  // 3. Target page's .astro: import + include. Record pre-insert order for the verifier.
-  const manifest = loadSite(site);
-  const targetPage = manifest.pages.find((p) => p.route === targetRoute) ?? manifest.pages[0];
-  const beforeOrder = targetPage.sections.map((s) => s.name);
-
-  // Resolve the page file using the SAME 4-step sanitizer addPage uses (ops.ts:1096-1100).
-  // Any divergence causes a path mismatch — the sanitizers must be byte-identical.
-  const routeSlug = targetRoute
-    .replace(/^\/+|\/+$/g, "")
-    .replace(/[^a-z0-9-]/gi, "-")
-    .toLowerCase()
-    .replace(/^-+|-+$/g, "");
-  const pageFile = routeSlug === "" ? "index.astro" : `${routeSlug}.astro`;
-  const idxPath = path.join(site.dir, "astro", "src", "pages", pageFile);
-  let idx = fs.readFileSync(idxPath, "utf8");
-  const importLine = `import ${componentName} from "../components/${newFileName}";`;
-  const lastImport = [...idx.matchAll(/^import\s+\S+\s+from\s+"[^"]+";/gm)];
-  if (lastImport.length > 0) {
-    const last = lastImport[lastImport.length - 1];
-    const at = last.index! + last[0].length;
-    idx = idx.slice(0, at) + "\n" + importLine + idx.slice(at);
-  } else {
-    const fmClose = idx.indexOf("\n---\n");
-    if (fmClose !== -1) idx = idx.slice(0, fmClose) + "\n" + importLine + idx.slice(fmClose);
-  }
-  // Insert after `afterSection`'s include tag if provided, else append after the last include.
-  const includeTag = `<${componentName} />`;
-  const allIncludes = [...idx.matchAll(/<([A-Z][A-Za-z0-9]*)\s*\/>/g)];
-  if (afterSection) {
-    const afterMatch = allIncludes.find((m) => m[1] === afterSection);
-    if (afterMatch && afterMatch.index !== undefined) {
-      const at = afterMatch.index + afterMatch[0].length;
-      idx = idx.slice(0, at) + " " + includeTag + idx.slice(at);
-    } else {
-      // afterSection not in the page — fall back to appending at end (matches addSection behaviour).
-      const last = allIncludes[allIncludes.length - 1];
-      idx = last
-        ? idx.slice(0, last.index! + last[0].length) + " " + includeTag + idx.slice(last.index! + last[0].length)
-        : idx.replace("</body>", ` ${includeTag} </body>`);
-    }
-  } else {
-    const last = allIncludes[allIncludes.length - 1];
-    idx = last
-      ? idx.slice(0, last.index! + last[0].length) + " " + includeTag + idx.slice(last.index! + last[0].length)
-      : idx.replace("</body>", ` ${includeTag} </body>`);
-  }
-  fs.writeFileSync(idxPath, idx);
-  changedFiles.push(idxPath);
-
-  // 4. site.json: sections[] + copy[] + elements[] entries for the new section.
+  // Build the new section + copy + element entries (shared across all target pages).
   const newSection: ManifestSection = {
     name: componentName,
     role: rt.sectionRole,
@@ -153,39 +104,82 @@ function insertGeneratedSection(
     copyKeys: rt.copyKeys,
     elementRoles: rt.elementRoles.map((er) => ({ role: er.role, id: er.id })),
   };
-  // Templates author content[] and elementRoles[] in the SAME order (index i's copy sits inside
-  // element i), so the owning role for copy slot i is elementRoles[i].role.
   const newCopy: ManifestCopyEntry[] = rt.copyKeys.map((key, index) => {
     const preview = String(rt.content[index] ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
     const owner = rt.elementRoles[index];
-    return {
-      key,
-      component: componentName,
-      index,
-      text: preview,
-      ...(owner ? { role: owner.role } : {}),
-    };
+    return { key, component: componentName, index, text: preview, ...(owner ? { role: owner.role } : {}) };
   });
   const newElements: ManifestElement[] = rt.elementRoles.map((er) => ({
-    role: er.role,
-    id: er.id,
-    component: componentName,
+    role: er.role, id: er.id, component: componentName,
     selector: `[data-component="${componentName}"] [data-role="${er.role}"]`,
   }));
 
-  const page = targetPage;
-  if (afterSection) {
-    const afterIdx = page.sections.findIndex((s) => s.name === afterSection || s.role === afterSection);
-    if (afterIdx !== -1) {
-      page.sections.splice(afterIdx + 1, 0, newSection);
-    } else {
-      page.sections.push(newSection); // afterSection not found — append at end
-    }
+  // 3. Resolve target pages: "all" → every page; string[] → those routes; string → one page.
+  const manifest = loadSite(site);
+  let targetPages: typeof manifest.pages;
+  if (targetRoute === "all") {
+    targetPages = manifest.pages;
+  } else if (Array.isArray(targetRoute)) {
+    targetPages = manifest.pages.filter((p) => (targetRoute as string[]).includes(p.route));
+    // Unknown routes → throw before writing any files (no half-written state).
+    const missing = (targetRoute as string[]).filter((r) => !manifest.pages.some((p) => p.route === r));
+    if (missing.length) throw new Error(`insertGeneratedSection: routes not found in site.json: ${missing.join(", ")}`);
+    if (targetPages.length === 0) throw new Error(`insertGeneratedSection: targetRoute [] resolved to no pages`);
   } else {
-    page.sections.push(newSection);
+    const found = manifest.pages.find((p) => p.route === targetRoute);
+    if (!found) throw new Error(`insertGeneratedSection: route "${targetRoute}" not found in site.json`);
+    targetPages = [found];
   }
-  page.copy.push(...newCopy);
-  page.elements.push(...newElements);
+  const beforeOrder = targetPages[0].sections.map((s) => s.name);
+
+  /** Insert import + include into one page's .astro file (same logic regardless of page count). */
+  const insertIntoPage = (pageRoute: string) => {
+    // Same 4-step sanitizer as addPage (ops.ts:1096-1100) — must match exactly.
+    const slug = pageRoute.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase().replace(/^-+|-+$/g, "");
+    const astroFile = slug === "" ? "index.astro" : `${slug}.astro`;
+    const astroPath = path.join(site.dir, "astro", "src", "pages", astroFile);
+    if (!fs.existsSync(astroPath)) return; // page file not yet created — skip
+    let src = fs.readFileSync(astroPath, "utf8");
+    const importLine = `import ${componentName} from "../components/${newFileName}";`;
+    const lastImport = [...src.matchAll(/^import\s+\S+\s+from\s+"[^"]+";/gm)];
+    if (lastImport.length > 0) {
+      const last = lastImport[lastImport.length - 1];
+      src = src.slice(0, last.index! + last[0].length) + "\n" + importLine + src.slice(last.index! + last[0].length);
+    } else {
+      const fmClose = src.indexOf("\n---\n");
+      if (fmClose !== -1) src = src.slice(0, fmClose) + "\n" + importLine + src.slice(fmClose);
+    }
+    const includeTag = `<${componentName} />`;
+    const allIncludes = [...src.matchAll(/<([A-Z][A-Za-z0-9]*)\s*\/>/g)];
+    if (afterSection) {
+      const afterMatch = allIncludes.find((m) => m[1] === afterSection);
+      if (afterMatch && afterMatch.index !== undefined) {
+        src = src.slice(0, afterMatch.index + afterMatch[0].length) + " " + includeTag + src.slice(afterMatch.index + afterMatch[0].length);
+      } else {
+        const last = allIncludes[allIncludes.length - 1];
+        src = last ? src.slice(0, last.index! + last[0].length) + " " + includeTag + src.slice(last.index! + last[0].length) : src.replace("</body>", ` ${includeTag} </body>`);
+      }
+    } else {
+      const last = allIncludes[allIncludes.length - 1];
+      src = last ? src.slice(0, last.index! + last[0].length) + " " + includeTag + src.slice(last.index! + last[0].length) : src.replace("</body>", ` ${includeTag} </body>`);
+    }
+    fs.writeFileSync(astroPath, src);
+    changedFiles.push(astroPath);
+  };
+
+  // 4. Insert into each target page's .astro + manifest.
+  for (const page of targetPages) {
+    insertIntoPage(page.route);
+    if (afterSection) {
+      const afterIdx = page.sections.findIndex((s) => s.name === afterSection || s.role === afterSection);
+      afterIdx !== -1 ? page.sections.splice(afterIdx + 1, 0, newSection) : page.sections.push(newSection);
+    } else {
+      page.sections.push(newSection);
+    }
+    page.copy.push(...newCopy);
+    page.elements.push(...newElements);
+  }
+
   const manifestPath = path.join(site.dir, "site.json");
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
   changedFiles.push(manifestPath);
@@ -206,8 +200,14 @@ export interface GenerateSectionArgs {
   brief: string;
   /** Insert the new section after this existing section name/role. Omit to append at the end. */
   afterSection?: string;
-  /** Route of the page to insert into (e.g. "/about/"). Defaults to "/" (homepage). */
-  targetRoute?: string;
+  /**
+   * Which page(s) to insert into.
+   * - Omit or "/" → homepage only (default)
+   * - "/about/" → a single named route
+   * - ["/", "/about/", "/contact/"] → a specific set of routes
+   * - "all" → every page in the site
+   */
+  targetRoute?: string | string[] | "all";
 }
 
 export interface GenerateSectionResult {
@@ -300,8 +300,15 @@ export async function generateSection(
   // invariant apply() upholds. Snapshot the editable subtree, restore it on any non-pass.
   const token = snapshot(site);
 
-  // Insert via the shared insertion path (mirrors addSection).
-  const { beforeOrder } = insertGeneratedSection(site, componentName, rt, args.afterSection, args.targetRoute);
+  // Insert via the shared insertion path. Wrapped so a throw (e.g. unknown route) triggers
+  // rollback before returning — preserves the "never leaves broken state" invariant.
+  let beforeOrder: string[];
+  try {
+    ({ beforeOrder } = insertGeneratedSection(site, componentName, rt, args.afterSection, args.targetRoute));
+  } catch (err) {
+    restore(site, token);
+    return { ok: false, sectionName: componentName, verifierReport: { pass: false, sections: [], structural: { expected: [], actual: [], ok: false }, renderSane: false, failures: [(err as Error).message] } };
+  }
 
   // Oracle-verify:
   // - Home page (targetRoute "/"): full pixel verify — addSection-style, every pre-existing
@@ -311,9 +318,11 @@ export async function generateSection(
   //   (same approach as addPage via apply()). Pre-existing homepage sections are unverified;
   //   a full multi-page render oracle is a future task.
   const targetRoute = args.targetRoute ?? "/";
+  // Homepage-only path: single route "/" string (not array, not "all").
+  const isHomepageOnly = targetRoute === "/";
   let verifierReport: VerifierReport;
 
-  if (targetRoute === "/") {
+  if (isHomepageOnly) {
     const intent: EditIntent = {
       editedSections: [componentName],
       op: { op: "addSection", cloneOf: componentName },
@@ -324,23 +333,28 @@ export async function generateSection(
       assetsFallback: opts.assetsFallback,
     });
   } else {
-    // Lightweight verify for non-home page insertions.
+    // Lightweight verify for non-home and all-pages insertions.
     const failures: string[] = [];
     const compFile = path.join(site.dir, "astro", "src", "components", `${componentName}.astro`);
     if (!fs.existsSync(compFile)) failures.push(`component file missing: ${compFile}`);
-    // Same sanitizer as addPage (ops.ts:1096-1100) — must match exactly.
-    const routeSlug2 = targetRoute.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase().replace(/^-+|-+$/g, "");
-    const pageFile = path.join(site.dir, "astro", "src", "pages", `${routeSlug2}.astro`);
-    if (!fs.existsSync(pageFile)) failures.push(`page file missing: ${pageFile}`);
-    else {
-      const pageContent = fs.readFileSync(pageFile, "utf8");
-      if (!pageContent.includes(componentName)) failures.push(`${componentName} not found in ${routeSlug2}.astro`);
-    }
+
     const updatedManifest = loadSite(site);
-    const targetManifestPage = updatedManifest.pages.find((p) => p.route === targetRoute);
-    if (!targetManifestPage?.sections.some((s) => s.name === componentName)) {
-      failures.push(`${componentName} not in site.json for route ${targetRoute}`);
+    const verifyPages = targetRoute === "all"
+      ? updatedManifest.pages
+      : Array.isArray(targetRoute)
+        ? updatedManifest.pages.filter((p) => (targetRoute as string[]).includes(p.route))
+        : updatedManifest.pages.filter((p) => p.route === targetRoute);
+
+    for (const vPage of verifyPages) {
+      // Same sanitizer as addPage (ops.ts:1096-1100).
+      const slug = vPage.route.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase().replace(/^-+|-+$/g, "");
+      const astroFile = slug === "" ? "index.astro" : `${slug}.astro`;
+      const pageFile = path.join(site.dir, "astro", "src", "pages", astroFile);
+      if (!fs.existsSync(pageFile)) failures.push(`page file missing: ${pageFile}`);
+      else if (!fs.readFileSync(pageFile, "utf8").includes(componentName)) failures.push(`${componentName} not found in ${astroFile}`);
+      if (!vPage.sections.some((s) => s.name === componentName)) failures.push(`${componentName} not in site.json for route ${vPage.route}`);
     }
+
     verifierReport = {
       pass: failures.length === 0,
       sections: [],

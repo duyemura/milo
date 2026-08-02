@@ -371,6 +371,47 @@ describe.skipIf(!ASTRO_MODULES)("generateSection — brand/voice context", () =>
   }, 120_000);
 });
 
+describe.skipIf(!ASTRO_MODULES)("generateSection — all pages", () => {
+  it("inserts the section into every page when targetRoute is 'all'", async () => {
+    const { out, site } = await projectFixture("gen-allpages-");
+    cleanup.add(out);
+
+    // Add a second page so we have two to insert into.
+    addPage(site, "about");
+    const manifestBefore = JSON.parse(fs.readFileSync(path.join(out, "site.json"), "utf8")) as SiteManifest;
+    expect(manifestBefore.pages.length).toBe(2);
+
+    const chat = fakeChat([JSON.stringify({ eyebrow: "", headline: "Join Us", subcopy: "Start today.", primaryCta: "Get started" })]);
+    const result = await generateSection(
+      site,
+      { role: "hero", brief: "A bold hero for every page.", targetRoute: "all" },
+      chat,
+      MODEL,
+      browser,
+      { width: WIDTH },
+    );
+    expect(result.ok, `generateSection all-pages failed: ${result.verifierReport.failures.join(" | ")}`).toBe(true);
+
+    const manifestAfter = JSON.parse(fs.readFileSync(path.join(out, "site.json"), "utf8")) as SiteManifest;
+
+    // Every page must have the new section in site.json.
+    for (const page of manifestAfter.pages) {
+      expect(page.sections.some((s) => s.name === result.sectionName),
+        `page ${page.route} missing ${result.sectionName} in site.json`).toBe(true);
+    }
+
+    // Every page's .astro file must reference the component.
+    const indexAstro = fs.readFileSync(path.join(out, "astro/src/pages/index.astro"), "utf8");
+    const aboutAstro = fs.readFileSync(path.join(out, "astro/src/pages/about.astro"), "utf8");
+    expect(indexAstro).toContain(result.sectionName);
+    expect(aboutAstro).toContain(result.sectionName);
+
+    // Only ONE component file created — same component shared across pages.
+    const compFile = path.join(out, "astro/src/components", `${result.sectionName}.astro`);
+    expect(fs.existsSync(compFile)).toBe(true);
+  }, 300_000);
+});
+
 describe.skipIf(!ASTRO_MODULES)("generateSection — multi-page target", () => {
   it("inserts into the specified targetRoute page, not the homepage", async () => {
     const { out, site } = await projectFixture("gen-multipage-");

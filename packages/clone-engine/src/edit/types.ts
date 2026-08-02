@@ -12,7 +12,7 @@ export type EditOp =
   | { op: "reorderSection"; section: string; toIndex: number }
   | { op: "addSection"; cloneOf: string; afterSection?: string }
   | { op: "addPage"; route: string; cloneOfPage?: string; pageType?: PageType }   // cloneOfPage optional → auto-pick nearest-type; pageType optional → classify from route
-  | { op: "generateSection"; role: string; brief: string; afterSection?: string; targetRoute?: string }; // role must be in TEMPLATE_LIBRARY; targetRoute defaults to "/" (homepage)
+  | { op: "generateSection"; role: string; brief: string; afterSection?: string; targetRoute?: string | string[] | "all" }; // role must be in TEMPLATE_LIBRARY; targetRoute: "/" | "/about/" | ["/","/about/"] | "all"
 
 export interface OpResult { op: EditOp; changedFiles: string[]; targetSections: string[]; }
 
@@ -155,7 +155,8 @@ export const EditOpSchema = z.discriminatedUnion("op", [
     role: z.string().min(1),
     brief: z.string().min(1),
     afterSection: z.string().optional(),
-    targetRoute: z.string().optional(),
+    // targetRoute: single route string, array of routes, or "all". Defaults to "/" (homepage).
+    targetRoute: z.union([z.string(), z.array(z.string())]).optional(),
   }),
   z.object({
     op: z.literal("addPage"),
