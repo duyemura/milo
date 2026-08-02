@@ -8,6 +8,13 @@ export interface FindQuery {
   minQuality?: "low" | "medium" | "high";
   embedding?: number[];
   limit?: number;
+  /**
+   * Free-text search across description, subjects, mood, and activity.
+   * ALL words must appear somewhere in the combined searchable text (case-insensitive).
+   * This bridges semantic gaps (e.g. "members celebrating" matches a description mentioning
+   * "members" and mood "celebratory") without requiring embeddings.
+   */
+  text?: string;
 }
 
 const QUALITY_ORDER = { low: 0, medium: 1, high: 2 } as const;
@@ -20,6 +27,15 @@ function cosine(a: number[], b: number[]): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
+function searchableText(tags: AssetTags): string {
+  return [tags.description, ...tags.subjects, ...tags.mood, tags.activity ?? ""].join(" ").toLowerCase();
+}
+
+function matchesText(tags: AssetTags, text: string): boolean {
+  const haystack = searchableText(tags);
+  return text.toLowerCase().split(/\s+/).filter(Boolean).every((word) => haystack.includes(word));
+}
+
 export function findAsset(library: AssetLibrary, query: FindQuery): Asset[] {
   const candidates = Object.values(library.assets).filter((a) => {
     if (a.status !== "active") return false;
@@ -28,6 +44,7 @@ export function findAsset(library: AssetLibrary, query: FindQuery): Asset[] {
     if (query.hasPeople !== undefined && a.tags.hasPeople !== query.hasPeople) return false;
     if (query.usableContext === "generated-safe" && a.tags.hasPeople) return false;
     if (query.minQuality !== undefined && QUALITY_ORDER[a.tags.quality] < QUALITY_ORDER[query.minQuality]) return false;
+    if (query.text !== undefined && !matchesText(a.tags, query.text)) return false;
     return true;
   });
 

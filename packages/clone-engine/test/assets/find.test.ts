@@ -62,3 +62,47 @@ describe("findAsset — ranking", () => {
     expect(findAsset(libOf(asset("ast_a", {}, { setting: "product" })), { setting: "food" })).toEqual([]);
   });
 });
+
+describe("findAsset — text search", () => {
+  it("matches description words", () => {
+    const a = asset("ast_a", {}, { description: "Two members high-fiving after a workout." });
+    expect(findAsset(libOf(a), { text: "members" }).map((x) => x.id)).toContain("ast_a");
+  });
+
+  it("matches subjects", () => {
+    const a = asset("ast_a", {}, { subjects: ["barbell", "squat rack"], description: "" });
+    expect(findAsset(libOf(a), { text: "barbell" }).map((x) => x.id)).toContain("ast_a");
+  });
+
+  it("matches mood terms", () => {
+    const a = asset("ast_a", {}, { mood: ["celebratory", "energetic"], description: "" });
+    expect(findAsset(libOf(a), { text: "celebratory" }).map((x) => x.id)).toContain("ast_a");
+  });
+
+  it("requires ALL query words to match somewhere in the searchable text", () => {
+    const happy = asset("ast_happy", {}, { description: "Members smiling after class." });
+    const unrelated = asset("ast_other", {}, { description: "A barbell on the floor." });
+    const lib = libOf(happy, unrelated);
+    // "members smiling" — both words in description → match
+    expect(findAsset(lib, { text: "members smiling" }).map((x) => x.id)).toContain("ast_happy");
+    expect(findAsset(lib, { text: "members smiling" }).map((x) => x.id)).not.toContain("ast_other");
+  });
+
+  it("is case-insensitive", () => {
+    const a = asset("ast_a", {}, { description: "A Barbell close-up." });
+    expect(findAsset(libOf(a), { text: "BARBELL" }).map((x) => x.id)).toContain("ast_a");
+  });
+
+  it("excludes an asset when a required word is absent", () => {
+    const highFive = asset("ast_hf", {}, { description: "Members high-fiving.", mood: ["energetic"] });
+    // "smiling" not in description/subjects/mood → no match
+    expect(findAsset(libOf(highFive), { text: "smiling" })).toHaveLength(0);
+  });
+
+  it("text search + hard filters stack — both must pass", () => {
+    const a = asset("ast_a", { aspectRatio: "16:9" }, { description: "A barbell." });
+    const b = asset("ast_b", { aspectRatio: "1:1" }, { description: "A barbell." });
+    // both match text, only "16:9" matches the filter
+    expect(findAsset(libOf(a, b), { text: "barbell", aspectRatio: "16:9" }).map((x) => x.id)).toEqual(["ast_a"]);
+  });
+});
