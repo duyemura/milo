@@ -33,9 +33,17 @@ function imageSizeFor(aspectRatio: GenerateAssetArgs["aspectRatio"]): string {
 export async function generateAsset(site: SiteRef, args: GenerateAssetArgs): Promise<GenerateAssetResult> {
   const { alias, brief } = args;
 
+  // Always run the UNSAFE_PATTERNS refusal check, even when a category is explicitly supplied.
+  // An explicit category only skips the classification step — not the safety check.
   let category: SafeImageCategory;
   try {
-    category = args.category ?? classifyBrief(brief);
+    if (args.category) {
+      // Explicit category: still run safety check but don't override the caller's category.
+      classifyBrief(brief); // throws UnsafeBriefError if brief is unsafe
+      category = args.category;
+    } else {
+      category = classifyBrief(brief); // classify + safety check in one call
+    }
   } catch (err) {
     if (err instanceof UnsafeBriefError) {
       return { ok: false, assetAlias: alias, failures: [`${err.message} Suggestion: ${err.suggestion}`] };

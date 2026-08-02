@@ -33,8 +33,10 @@ const UNSAFE_PATTERNS: RegExp[] = [
   /\bcoach(es)?\b/i, /\btrainers?\b/i, /\bteam\b/i, /\bfaces?\b/i,
   /\bbod(y|ies)\b/i, /\bhands?\b/i, /\bsomeone\b/i,
   /\bworkout pose/i, /\bmid-?workout\b/i,
-  /\b(interior|inside|our|the)\s+\w*\s*gym\b/i,
-  /\bgym\s+(interior|inside)\b/i,
+  // Block gym interior/inside when paired — allow possessives like "gym's barbell".
+  // "gym interior", "gym floor", "interior of our CrossFit gym", "inside the gym".
+  /\bgym\s+(interior|inside|floor|room|space)\b/i,
+  /\b(interior|inside)\b.{0,40}\bgym\b/i,
 ];
 
 const CATEGORY_SIGNALS: Array<[SafeImageCategory, RegExp[]]> = [

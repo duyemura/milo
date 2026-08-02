@@ -97,6 +97,14 @@ describe("generateAsset", () => {
     expect(tmpFilesUnder(os.tmpdir())).toEqual([]);
   });
 
+  it("explicit category still runs refusal check — unsafe brief refused even with category set", async () => {
+    const { fn } = stubFetch({ imageUrl: "https://cdn.fal.ai/out/x.png" });
+    const result = await generateAsset(site, { alias: "hero-image", brief: "a person lifting weights", category: "product" });
+    expect(result.ok).toBe(false);
+    expect(result.failures.join(" ")).toMatch(/people|bodies|not allowed/i);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
   it("maps aspectRatio 1:1 to square_hd", async () => {
     const { calls } = stubFetch({ imageUrl: "https://cdn.fal.ai/out/sq.png" });
     await generateAsset(site, { alias: "hero-image", brief: "a kettlebell", aspectRatio: "1:1" });

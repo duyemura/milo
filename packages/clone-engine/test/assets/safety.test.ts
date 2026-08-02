@@ -46,6 +46,12 @@ describe("classifyBrief", () => {
   it("falls back to 'product' for an unrecognized-but-safe brief", () => {
     expect(classifyBrief("a nondescript object on a plain surface")).toBe("product");
   });
+
+  // Regression: "the gym's barbell" and "our gym's kettlebells" must NOT be refused.
+  it("allows safe equipment briefs that mention 'gym' possessively", () => {
+    expect(() => classifyBrief("the gym's barbell rack close-up")).not.toThrow();
+    expect(() => classifyBrief("our gym's kettlebells on a shelf")).not.toThrow();
+  });
 });
 
 describe("classifyBrief refusals", () => {
