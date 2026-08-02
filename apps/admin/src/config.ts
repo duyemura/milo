@@ -62,7 +62,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AdminConfig {
   // .env (WorkOS keys, Places key, etc.) fills in anything still unset.
   loadDotEnv(path.join(ADMIN_DIR, ".env"), env);
   loadDotEnv(path.join(REPO_ROOT, ".env"), env);
-  return AdminConfigSchema.parse({
+  const parsed = AdminConfigSchema.parse({
     port: env["PORT"],
     host: env["HOST"],
     dbPath: env["DB_PATH"],
@@ -87,4 +87,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AdminConfig {
     googlePlacesApiKey: env["GOOGLE_PLACES_API_KEY"],
     repoRoot: REPO_ROOT,
   });
+  // dataDir is shared across a process boundary: the admin process creates the site tree
+  // (mkdir/serve) while the clone-engine subprocess — spawned with cwd=repoRoot — writes
+  // into it. A relative dataDir resolves against each process's cwd differently, so a build
+  // launched from apps/admin created apps/admin/admin-data/… while the engine wrote to
+  // repoRoot/admin-data/… → ENOENT. Anchor it to repoRoot so both agree regardless of the
+  // launch directory (an absolute DATA_DIR override is preserved as-is).
+  return { ...parsed, dataDir: path.resolve(REPO_ROOT, parsed.dataDir) };
 }
