@@ -417,7 +417,15 @@ function expectedSectionOrder(beforeOrder: string[], intent: EditIntent): string
     // op.section may be a role; the edited set resolves it to names. Drop any edited name.
     return beforeOrder.filter((n) => !intent.editedSections.includes(n) && n !== op.section);
   }
-  // editCopy/setBrand/swapAsset/styleTweak/addSection: order is unchanged by default
+  if (op.op === "reorderSection" || op.op === "addSection") {
+    // These ops change section order/membership — the caller MUST declare the intended
+    // post-edit order via intent.expectedSectionOrder (returned above). Without it the
+    // structural check would silently false-fail, so fail loudly instead of guessing.
+    throw new Error(
+      `verify: ${op.op} requires intent.expectedSectionOrder (the intended post-edit section order)`,
+    );
+  }
+  // editCopy/setBrand/swapAsset/styleTweak: order is unchanged by default
   // (the structural check still compares to the rendered DOM so a divergence is caught).
   return beforeOrder;
 }

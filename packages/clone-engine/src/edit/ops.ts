@@ -606,7 +606,7 @@ function stripImport(src: string, name: string): string {
 /**
  * Remove a section from a projected site.
  *
- * Steps (all or nothing before any file write):
+ * Steps (resolve throws before any write; file mutations are sequential, not transactional):
  *   1. Resolve the section via site.json (throws TargetError if absent).
  *   2. Delete the component .astro file.
  *   3. Strip the import statement + the `<Component />` include from index.astro.
@@ -663,15 +663,15 @@ export function removeSection(site: SiteRef, sectionName: string): OpResult {
 
     // Gather the copy keys owned by this section so we can drop them from copy[].
     const ownedKeys = new Set(section.copyKeys);
-    // Gather the element roles owned by this section so we can drop from elements[].
-    const ownedRoles = new Set(section.elementRoles.map((er) => er.role));
 
     page.sections = page.sections.filter((s) => s.name !== name);
     page.copy = page.copy.filter((c) => !ownedKeys.has(c.key));
-    // Remove element entries whose component is this section (or whose role was in elementRoles).
-    page.elements = page.elements.filter(
-      (e) => e.component !== name && !ownedRoles.has(e.role),
-    );
+    // Remove element entries owned by this section. Scope STRICTLY by component —
+    // an element's `component` already identifies its owning section. Do NOT also
+    // filter by role: roles are not globally unique (two sections can both have a
+    // "headline"/"cta"), so a role-based drop would delete a surviving section's
+    // elements. This matters once addSection (T5) clones a section's roles.
+    page.elements = page.elements.filter((e) => e.component !== name);
   }
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
   changedFiles.push(manifestPath);
@@ -726,19 +726,15 @@ export function reorderSection(site: SiteRef, sectionName: string, toIndex: numb
       tagStrings.splice(fromPos, 1);
       tagStrings.splice(clampedIndex, 0, movedTag);
 
-      // Replace the original token spans with the reordered tags.
-      // Walk backwards so earlier spans stay valid after each replacement.
-      let rebuilt = src;
-      // All tokens share the same source offsets; we need to rebuild from scratch.
-      // Strategy: remove all tokens (back to front), leaving placeholders, then re-insert.
-      // Simplest: collect all the text BETWEEN tokens and join with the reordered tags.
+      // Rebuild index.astro by collecting the text BETWEEN include tokens and
+      // re-joining it with the reordered tag strings (offset arithmetic-free).
       const segments: string[] = [];
       let cursor = 0;
       for (const tok of tokens) {
-        segments.push(rebuilt.slice(cursor, tok.start)); // text before this token
+        segments.push(src.slice(cursor, tok.start)); // text before this token
         cursor = tok.end;
       }
-      segments.push(rebuilt.slice(cursor)); // text after the last token
+      segments.push(src.slice(cursor)); // text after the last token
 
       // Interleave segments and reordered tags.
       let result = segments[0];
