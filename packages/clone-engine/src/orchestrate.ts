@@ -440,7 +440,9 @@ export async function buildSiteAuto(
   origin: string,
   opts: BuildSiteAutoOpts = {},
 ): Promise<BuildSiteAutoResult> {
-  const { mode = "core", ugcLimit, coreReportOut, ugcReportOut, ...buildOpts } = opts;
+  // onProgress is destructured out (buildSiteAuto builds its own for discoverPages);
+  // this keeps it from leaking into buildOpts → the inner buildSite() calls.
+  const { mode = "core", ugcLimit, coreReportOut, ugcReportOut, onProgress: _onProgress, ...buildOpts } = opts;
   const emit = makeEmit(opts.onEvent);
   emit({ type: "run.started", origin });
 
