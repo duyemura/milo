@@ -169,19 +169,23 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
     return null;
   }
   const FETCH_HEADERS = { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36", "referer": SRC_URL, "accept": "*/*" };
-  async function fetchAsset(u: string): Promise<{ buf: Buffer; ct: string; ext: string | null } | null> {
+  type AssetOk = { buf: Buffer; ct: string; ext: string | null };
+  type AssetFail = { reason: string };
+  const isAssetOk = (a: AssetOk | AssetFail | null): a is AssetOk => !!a && "buf" in a;
+
+  async function fetchAsset(u: string): Promise<AssetOk | AssetFail | null> {
     for (let attempt = 0; attempt < 2; attempt++) { // browser-like headers (CDNs reject bare fetch) + one retry on transient failure
       try {
         const res = await fetch(u, { signal: AbortSignal.timeout(15000), headers: FETCH_HEADERS });
-        if (!res.ok) { if (res.status >= 500 && attempt === 0) continue; return null; }
-        if (Number(res.headers.get("content-length") || 0) > 25_000_000) return null;
+        if (!res.ok) { if (res.status >= 500 && attempt === 0) continue; return { reason: `HTTP ${res.status}` }; }
+        if (Number(res.headers.get("content-length") || 0) > 25_000_000) return { reason: "too large (>25MB)" };
         const buf = Buffer.from(await res.arrayBuffer());
-        if (buf.length > 25_000_000) return null;
+        if (buf.length > 25_000_000) return { reason: "too large (>25MB)" };
         const ct = (res.headers.get("content-type") || "").split(";")[0].trim();
         const ext = sniffExt(buf);
-        if (ext === "HTML" || ct === "text/html") return null; // a document (embed/404 page), not an asset — don't rehost
+        if (ext === "HTML" || ct === "text/html") return { reason: "document/404 page" }; // embed/404 page, not an asset
         return { buf, ct, ext };
-      } catch { if (attempt === 0) continue; return null; }
+      } catch (err) { if (attempt === 0) continue; return { reason: `${(err as Error).message.slice(0, 60)}` }; }
     }
     return null;
   }
@@ -295,15 +299,20 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
     const sourceOrigins = new Set(urls.map((u) => { try { return new URL(u).host; } catch { return ""; } }));
     console.log(`  rehosting ${urls.length} assets from ${sourceOrigins.size} origins…`);
     const map = new Map<string, string>();
-    let n = 0, failed = 0;
+    let n = 0;
+    const failLog: string[] = [];
     await Promise.all(urls.map(async (u) => {
       const a = await fetchAsset(u);
-      if (!a) { failed++; return; }
+      if (!isAssetOk(a)) {
+        failLog.push(`    rehost failed: ${a ? (a as AssetFail).reason : "unknown"}  ${u}`);
+        return;
+      }
       const name = `a${n++}.${extFor(u, a.ct, a.ext)}`;
       fs.writeFileSync(path.join(ASSETS, name), a.buf);
       map.set(u, `assets/${name}`);
     }));
-    console.log(`  rehosted ${map.size}/${urls.length}${failed ? ` (${failed} failed)` : ""}`);
+    if (failLog.length) console.warn(`  ${failLog.length} asset(s) failed to rehost:\n${failLog.join("\n")}`);
+    console.log(`  rehosted ${map.size}/${urls.length}${failLog.length ? ` (${failLog.length} failed)` : ""}`);
     rewriteTree(tree, map);
     for (const w of WIDTHS) for (const id in styles[w]) for (const k in styles[w][id]) styles[w][id][k] = rewriteStyleVal(styles[w][id][k], map);
     const subUrl = (u: string) => map.get(absolutize(u)!) || u;
@@ -326,7 +335,7 @@ export async function capture(opts: CaptureOpts): Promise<{ capture: CaptureJson
     }));
     for (const m of [...fontCss.matchAll(URL_RE)]) {
       const abs = absolutize(m[2]); if (!abs) continue;
-      const a = await fetchAsset(abs); if (!a) continue;
+      const a = await fetchAsset(abs); if (!isAssetOk(a)) continue;
       const name = `f${n++}.${extFor(abs, a.ct, a.ext)}`;
       fs.writeFileSync(path.join(ASSETS, name), a.buf);
       fontCss = fontCss.replaceAll(m[2], `assets/${name}`);

@@ -15,6 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Browser } from "playwright";
 import { injectTrackerIntoSite } from "./pagegoal.ts";
+import { injectSeoFiles } from "./sitemap.ts";
 import { injectGtag } from "@milo/measurement";
 import { buildReport, renderSiteReport } from "./buildreport/index.ts";
 import type { SiteReport } from "./buildreport/types.ts";
@@ -394,6 +395,10 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
     fs.cpSync(astroDist, dest, { recursive: true });
     assembled.push(p);
   }
+
+  // Generate sitemap.xml + robots.txt for SEO indexing.
+  const assembledRoutes = assembled.map((p) => p.route);
+  injectSeoFiles(fullSite, origin, assembledRoutes);
 
   // Inject GA4 gtag config + engagement tracker into every assembled HTML page (Subsystem F).
   const measurementId = process.env.GA4_MEASUREMENT_ID;

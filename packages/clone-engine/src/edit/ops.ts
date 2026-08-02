@@ -24,6 +24,7 @@ import { resolveCopy, resolveAsset, resolveSection, loadSite, TargetError } from
 import { flattenRoot, canon } from "../brand.ts";
 import type { BrandDoc, BrandColorSlot, SiteManifest, ManifestSection, ManifestCopyEntry, ManifestPage, ManifestElement, PageType } from "../types.ts";
 import { classifyPage, GOAL_OF_TYPE } from "../pagemodel.ts";
+import { generatePageMeta } from "./seo-meta.ts";
 
 // ---------------------------------------------------------------------------
 // editCopy
@@ -1193,15 +1194,17 @@ export function addPage(
   const newPageType = pageType ?? classified.type;
   const newPageGoal = GOAL_OF_TYPE[newPageType];
 
-  // Emit a minimal page wrapper — we can't byte-copy index.astro because it references
-  // the original component names. Head meta from the template page would be stale
-  // (references the source route), so we emit a neutral wrapper with a placeholder title.
+  // Emit a minimal page wrapper with real SEO meta derived from the route.
   // data-page-role + data-goal are render-neutral attributes stamped on <body> (subsystem D).
+  const seoMeta = generatePageMeta(newRoute, "", prefix);
   const pageAstroContent =
     `---\nimport "../styles/global.css";\n${imports}\n---\n` +
     `<html lang="en">\n<head>\n<meta charset="utf-8" />\n` +
     `<meta name="viewport" content="width=device-width,initial-scale=1" />\n` +
-    `<title>${prefix} | Clone</title>\n</head>\n` +
+    `<title>${seoMeta.title}</title>\n` +
+    `<meta name="description" content="${seoMeta.description.replace(/"/g, "&quot;")}" />\n` +
+    `<link rel="canonical" href="${seoMeta.canonical}" />\n` +
+    `</head>\n` +
     `<body data-page-role="${newPageType}" data-goal="${newPageGoal}">\n${includes}\n</body>\n</html>\n`;
 
   const pagesDir = path.join(site.dir, "astro", "src", "pages");
