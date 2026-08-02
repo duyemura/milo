@@ -31,6 +31,7 @@ Edit-op set (all deterministic mutations over the Plan-2 contract; the LLM only 
 | `reorderSection` | move a section | reorder `index.astro` includes; update `site.json` |
 | `addSection` | add a section by **cloning an existing one** | duplicate a component, then `editCopy` its content |
 | `addPage` | add a page by **cloning a template page** | duplicate a page's route+components, then `editCopy` for the new topic |
+| `revert` | undo the last apply (or to a version) | restore the pre-edit snapshot / apply inverse ops |
 
 **Out (deferred):** from-scratch generation of new sections/pages (subsystem **E**); full brand-*kit* authoring — voice/imagery/positioning as first-class (a **B**-expansion; see Brand model); page types + goals (**D**); measurement (**F**); the chat UI (admin side).
 
@@ -39,18 +40,20 @@ Edit-op set (all deterministic mutations over the Plan-2 contract; the LLM only 
 A "site" = a projected Astro project (an `OUT` dir from `project()`: components + `site.json` + `brand.json`). Edits mutate those files; the verifier re-renders.
 
 ```
-admin router ──"make the CTAs blue"──▶ C.plan(site, nl)
-                                        │  LLM reads digest(site.json)+brand.json → ops[] + humanSummary
-                                        │  dry-run: apply ops to a THROWAWAY COPY, render → preview diff
-                                        ▼
-                               {ops, humanSummary, dryRunDiff}  ──▶ admin shows user → CONFIRM
-                                        │
-admin ──C.apply(site, confirmedOps)───▶ apply ops (deterministic) → verify (per-section)
-                                        │  PASS → commit; FAIL → feed verifierReport to LLM →
-                                        │  revise WITHIN confirmed intent → re-verify (bounded)
-                                        │  still FAIL → surface to human + diff (never silently deviate)
-                                        ▼
-                               {result, verifierReport, opsApplied}
+admin router ──"make it pop"──▶ C.plan(site, conversation)
+                                 │  planner LLM: clear enough? → produce ops.  vague? → ASK.
+                                 ▼
+                        {needsInfo, questions[]}  ──▶ admin asks user → answers ──▶ C.plan(...)  (loop)
+                                 │  (once intent + WHY are clear)
+                                 ▼
+                        {ready, ops[], summary}  ──▶ admin shows TEXTUAL summary → CONFIRM
+                                 │
+admin ──C.apply(site, ops)─────▶ apply ops (deterministic) → verify (per-section)
+                                 │  PASS → commit; FAIL → feed verifierReport to LLM →
+                                 │  revise WITHIN confirmed intent → re-verify (bounded)
+                                 │  still FAIL → surface to human + diff (never silently deviate)
+                                 ▼
+                        {result, verifierReport, opsApplied}  ──▶ user sees LIVE result → iterate / revert
 ```
 
 ## The verifier — per-section internal fidelity
@@ -64,13 +67,14 @@ Given the edit's intended target sections, for each `apply`:
 
 This is the never-regress rule (`DOCTRINE.md`) generalized from a static clone to a *mutable* site: an edit produces an intended diff on its target and 0-px on everything else.
 
-## Plan phase
+## Plan phase — clarifying dialogue, then a textual plan (no visual mock)
 
-`plan(site, nlRequest) → { ops, humanSummary, dryRunDiff }`:
-- Build a compact digest: `site.json` (sections/roles/copy-previews/element roles/assets) + `brand.json` + the NL request + the op schema.
-- LLM (via `@milo/llm` `llmJson`, forced to the op schema) returns `ops[]` + a human-readable summary. Every op's targets are validated against the real `site.json`/contract — a hallucinated target is dropped/rejected before it touches a file.
-- **Dry-run:** apply `ops` to a *throwaway copy* of the site, render, produce a preview before/after diff — so the admin can show the user a real preview **without touching the live site**.
-- **C owns the NL→ops LLM call** (it has the deep `site.json` knowledge). The admin's intent-router only decides "this is an edit request → forward the text to `C.plan`" — no overlapping edit-LLM on the admin side.
+Most edit requests are underspecified ("make it pop", "add a page"). So the plan phase is a **brainstorming-style clarifying dialogue**, not a one-shot guess. `plan(site, conversation) → { needsInfo, questions } | { ready, ops, summary }`:
+- Build a compact digest: `site.json` (sections/roles/copy-previews/element roles/assets) + `brand.json` + the conversation so far + the op schema.
+- The planner LLM (via `@milo/llm` `llmJson`) decides, like a brainstormer: **clear enough → produce `ops[]` + a plain-language `summary`; vague → return 1–3 targeted `questions`** to pin down *what* the user wants and *why* (e.g. "add a location page" → "Which location? Address & hours? Match your existing location pages?"). The admin chat presents the questions, collects answers, and calls `plan` again with the extended conversation — looping until intent is clear.
+- **No visual mock.** We deliberately do NOT render a preview image. Understanding intent via dialogue beats anchoring on a guessed mock; the user confirms the **textual `summary`** ("I'll change the hero headline to X, recolor primary to blue, add a Brooklyn page cloned from Hell's Kitchen"), then sees the **live result** after `apply` and iterates. (The verifier guarantees *safety*; the dialogue guarantees we build the *right* thing; `revert` covers *taste* — see below.)
+- Every op's targets are validated against the real `site.json`/contract — a hallucinated target is rejected before it touches a file.
+- **C owns the NL→ops LLM call** (deep `site.json` knowledge). The admin's intent-router only decides "this is an edit request → forward the conversation to `C.plan`" — no overlapping edit-LLM on the admin side.
 
 ## Apply phase + self-correction
 
@@ -79,6 +83,8 @@ This is the never-regress rule (`DOCTRINE.md`) generalized from a static clone t
 - Verify (per-section). PASS → commit.
 - FAIL → feed the specific verifier failure back to the LLM → it revises → re-verify. **Bounded retries.**
 - **Safety rule:** self-correction stays *within the confirmed intent* — it retries the same edit differently; it does NOT invent a new edit the user didn't approve. If it cannot make the confirmed edit pass within the retry budget, it **surfaces to the human** with the scoped-diff (never silently ships a partial/deviating result).
+- **What "confirm" means:** because `apply` self-corrects, the confirm is a contract on the **outcome/intent** (the textual summary), not on the byte-exact final ops — self-correction may change the *mechanism* to make the change land, but it preserves the confirmed *outcome* or surfaces. ("Yes, make it look like this" → the engine guarantees that outcome or asks.)
+- **Reversibility:** every `apply` is undoable. Before mutating, snapshot the site (or record inverse ops); a `revert(site)` (or `revert(site, toVersion)`) restores the prior state. This is the safety net for the no-mock "apply → see live result → iterate" flow — the user can always undo an edit they don't like.
 
 ## Brand model (from the "brand is more than color/logo" discussion)
 
@@ -96,9 +102,10 @@ A holistic request ("make my brand more premium") is decomposed by the planner i
 ## API seam (C ↔ admin)
 
 Typed entrypoints the admin chat calls:
-- `plan(siteRef, nlRequest) → { ops, humanSummary, dryRunDiff }`
-- `apply(siteRef, confirmedOps) → { result, verifierReport, opsApplied }`
-- (low-level ops + `verify` also exported for advanced/testing use)
+- `plan(siteRef, conversation) → { needsInfo, questions } | { ready, ops, summary }` — iterative clarifying dialogue → textual plan.
+- `apply(siteRef, ops) → { result, verifierReport, opsApplied }` — verify + self-correct.
+- `revert(siteRef, toVersion?) → { result }` — undo the last apply (or to a version).
+- (low-level ops + `verify` also exported for advanced/testing use; an optional convenience `applyRequest` wrapper can do `plan`+auto-`apply` for the no-confirm proactive case.)
 
 The admin owns: the chat UX, the confirm step, the ~2000-site plane. The engine owns: NL→ops planning, the ops, the verifier, self-correction, dry-run. No deploys of edited output without human authorization (shared-infra rule).
 
@@ -115,17 +122,19 @@ The admin owns: the chat UX, the confirm step, the ~2000-site plane. The engine 
 packages/clone-engine/src/edit/
   ops.ts          # editCopy, setBrand, swapAsset, styleTweak, removeSection, reorderSection, addSection, addPage — deterministic
   verify.ts       # per-section internal fidelity + structural + render-sanity + negative-control helpers
-  plan.ts         # NL → ops (llmJson + op schema) + dry-run preview
+  plan.ts         # clarifying dialogue → ops+summary OR questions (llmJson + op schema); NO visual mock
   apply.ts        # apply → verify → self-correct loop
+  revert.ts       # snapshot/restore (or inverse ops) — undo an apply
   digest.ts       # compact site digest for the planner
-  types.ts        # EditOp union, Plan, VerifierReport, etc.
-  index.ts        # plan(), apply(), + op/verify exports
-test/edit/        # scenario suite + negative controls (mocked LLM)
+  types.ts        # EditOp union, Plan, VerifierReport, PlanResult (needsInfo|ready), etc.
+  index.ts        # plan(), apply(), revert(), + op/verify exports
+test/edit/        # scenario suite + negative controls (mocked LLM) + revert round-trip
 ```
 
 ## Non-negotiable invariants
 
 - **The verifier is the gate and it is falsifiable.** No edit ships without passing per-section verification; the verifier is proven able to fail (negative controls).
 - **Per-site only.** No batch/fleet mutation op exists.
-- **Self-correction never deviates from confirmed intent.** It retries or surfaces — never silently does something else.
+- **Self-correction never deviates from confirmed intent.** It retries or surfaces — never silently does something else. Confirm is a contract on the *outcome*, not the literal ops.
+- **Every apply is reversible.** A snapshot (or inverse ops) is recorded before mutating; `revert` restores it. Enables the no-mock "apply → see → iterate" flow.
 - **Fidelity floor unchanged:** the un-edited projection still diffs 0-px (Plan 2 oracle); edits produce intended-diff-on-target + 0-px-elsewhere.
