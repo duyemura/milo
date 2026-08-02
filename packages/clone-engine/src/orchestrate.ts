@@ -16,6 +16,7 @@ import path from "node:path";
 import type { Browser } from "playwright";
 import { injectTrackerIntoSite } from "./pagegoal.ts";
 import { buildReport, renderSiteReport } from "./buildreport/index.ts";
+import type { SiteReport } from "./buildreport/types.ts";
 import { capture } from "./capture.ts";
 import { project } from "./project.ts";
 import { label, heuristicLabels } from "./labels.ts";
@@ -124,6 +125,14 @@ export interface BuildSiteResult {
   ok: PageSpec[];
   /** Pages that were skipped after a failure (logged, excluded from `full-site/`). */
   failed: PageSpec[];
+  /**
+   * The site build report produced after assembly (ship/no-ship gate).
+   * Always present — `buildSite` launches its own browser if none is supplied via `opts.browser`.
+   * The HTML version is written to `full-site/build-report.html`; the JSON to `full-site/build-report.json`.
+   */
+  siteReport?: SiteReport;
+  /** Absolute path to the written `full-site/build-report.html`. */
+  reportHtmlPath?: string;
 }
 
 export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
@@ -388,16 +397,20 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
   // Inject the engagement tracker into every assembled HTML page (Subsystem F).
   injectTrackerIntoSite(fullSite);
 
-  // Site build report — ship/no-ship gate. Runs when a browser is provided.
-  if (opts.browser) {
+  // Site build report — ship/no-ship gate. Always runs; launches its own browser if not supplied.
+  let siteReport: SiteReport | undefined;
+  let reportHtmlPath: string | undefined;
+  {
+    const { chromium } = await import("playwright");
+    const ownBrowser = opts.browser ?? await chromium.launch();
     try {
-      const siteReport = await buildReport({
+      siteReport = await buildReport({
         siteDir: fullSite,
-        browser: opts.browser,
+        browser: ownBrowser,
         source: opts.sourceCaptureDir ? { captureDir: opts.sourceCaptureDir } : undefined,
       });
       const siteReportHtml = renderSiteReport(siteReport);
-      const reportHtmlPath = path.join(fullSite, "build-report.html");
+      reportHtmlPath = path.join(fullSite, "build-report.html");
       const reportJsonPath = path.join(fullSite, "build-report.json");
       fs.writeFileSync(reportHtmlPath, siteReportHtml);
       fs.writeFileSync(reportJsonPath, JSON.stringify(siteReport, null, 2) + "\n");
@@ -405,6 +418,8 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       emit({ type: "report.done" as never, reportHtmlPath, reportJsonPath });
     } catch (err) {
       console.warn(`[build-report] warning: report generation failed: ${(err as Error).message}`);
+    } finally {
+      if (!opts.browser) await ownBrowser.close(); // only close a browser we launched
     }
   }
 
@@ -444,7 +459,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
     });
   }
 
-  return { ok, failed };
+  return { ok, failed, siteReport, reportHtmlPath };
 }
 
 // ---------------------------------------------------------------------------
