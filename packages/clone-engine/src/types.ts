@@ -45,19 +45,54 @@ export const SECTION_ROLES = [
 export const BRAND_COLOR_SLOTS = ["primary", "accent", "surface", "text", "muted"] as const;
 export const BRAND_FONT_SLOTS = ["display", "body"] as const;
 
+/**
+ * The closed vocabulary of element roles an LLM (subsystem C) may assign. This is the ONE
+ * spot the labeler lets a model emit a free role string, so we constrain it to a known set
+ * (repairLabels drops anything out-of-enum). Includes every role the deterministic heuristic
+ * emits (logo, headline, primary-cta) plus the common editable roles C will want.
+ */
+export const ELEMENT_ROLES = [
+  "logo", "headline", "subheadline", "primary-cta", "secondary-cta",
+  "nav-link", "social-link", "body-text", "image", "eyebrow", "list-item", "form-field",
+] as const;
+export type ElementRole = (typeof ELEMENT_ROLES)[number];
+
 export interface SectionLabel { id: number; name: string; role: string; }
-export interface ElementLabel { id: number; role: string; }
+export interface ElementLabel { id: number; role: ElementRole; }
 export interface AssetLabel { file: string; alias: string; }
 export interface BrandSlotColor { slot: string; canon: string; }  // canon = "r,g,b,a"
 export interface BrandSlotFont { slot: string; family: string; }
 
 /**
- * The global brand document (`brand.json`) — mirrors `@milo/schema`'s `BrandTokens`
- * shape so the brand is editable from one place. Colors are `#rrggbb` hex (the
- * editable form); the byte-exact CSS cascade lives in the emitted `:root` block.
+ * One editable brand color slot. `value` is the EXACT captured CSS literal the `:root`
+ * `--color-<slot>` uses (alpha-preserving — e.g. `rgba(175, 175, 175, 0.1)`), so editing it
+ * recolors byte/pixel-exactly. `hex` is a convenience `#rrggbb` (alpha dropped) for editors
+ * that want an opaque swatch; it is NOT what `:root` emits. `variants` maps each derived
+ * opacity/tint token NAME (e.g. `--color-primary-40`) to its exact captured literal.
+ */
+export interface BrandColorSlot {
+  /** Exact captured CSS literal used verbatim by `:root --color-<slot>` (alpha preserved). */
+  value: string;
+  /** Convenience opaque `#rrggbb` for editors — derived from value, not used by `:root`. */
+  hex: string;
+  /** Derived variant token name → exact captured literal (e.g. `"--color-primary-40": "rgba(...,0.4)"`). */
+  variants: Record<string, string>;
+}
+
+/**
+ * The global brand document (`brand.json`) — the GENUINE editable source of the canonical
+ * `:root` brand cascade. `project()` flattens THIS document into the `--color-<slot>` /
+ * `--color-<slot>-<NN>` / `--font-<slot>` custom properties, so editing a slot's `value`
+ * here recolors every `var(--color-<slot>)` reference in the site.
+ *
+ * BYTE-PRESERVING: each `colors[slot].value` (and each `variants[name]`) is the EXACT captured
+ * literal, so the first emit is pixel-identical to the capture and any alpha is preserved.
  */
 export interface BrandDoc {
-  colors: { primary: string; accent: string; surface: string; text: string; muted: string };
+  colors: {
+    primary: BrandColorSlot; accent: BrandColorSlot; surface: BrandColorSlot;
+    text: BrandColorSlot; muted: BrandColorSlot;
+  };
   fonts: { display: string; body: string };
   space: { sm: string; md: string; lg: string };
   radius: { button: string; card: string };
@@ -72,11 +107,28 @@ export interface Labels {
 
 // ---- site.json manifest (Plan 2, Task 4) ----
 
-/** One section entry: the region name, its semantic role, and the component filename (e.g. "HeroSection.astro"). */
-export interface ManifestSection { name: string; role: string; file: string; }
+/**
+ * One section entry. `file` is the EXPLICIT, editable path relative to OUT
+ * (e.g. `astro/src/components/HeroSection.astro`) so C never guesses which file to open.
+ * `copyKeys`/`elementRoles` pre-join the copy + element handles that live in this section,
+ * so C doesn't re-derive them from the copy[]/elements[] arrays (Task 4).
+ */
+export interface ManifestSection {
+  name: string;
+  role: string;
+  file: string;
+  /** copy[] keys owned by this section (component-scoped join, ready to look up in copy[]). */
+  copyKeys: string[];
+  /** Labeled element roles + their p<n> handles that live inside this section. */
+  elementRoles: Array<{ role: string; id: string }>;
+}
 
-/** One addressable element: the semantic role, the CSS class handle (e.g. "p42"), and the data-role selector. */
-export interface ManifestElement { role: string; id: string; selector: string; }
+/**
+ * One addressable element: the semantic role, the CSS class handle (e.g. "p42"), and a
+ * SECTION-SCOPED selector `[data-component=<Comp>] [data-role=<role>]` so a role that appears
+ * in two sections isn't ambiguous (Task 5). `component` names the owning section component.
+ */
+export interface ManifestElement { role: string; id: string; component: string; selector: string; }
 
 /** One rehosted asset: the semantic alias (e.g. "logo") and its disk path relative to OUT (e.g. "assets/a1.png"). */
 export interface ManifestAsset { alias: string; file: string; }
@@ -116,4 +168,8 @@ export interface ManifestCopyEntry {
   component: string;
   /** Zero-based index into that component's content[] array. */
   index: number;
+  /** Truncated preview (~60 chars) of the slot's text, so C can locate copy from site.json alone. */
+  text: string;
+  /** The element role this text sits inside, when the containing element is labeled (else omitted). */
+  role?: string;
 }

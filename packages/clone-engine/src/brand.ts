@@ -16,7 +16,7 @@
  * canon equals the slot/variant canon, and there is exactly one captured repr per canon
  * (computed styles are normalized by the browser), so the mapping is lossless.
  */
-import type { CaptureJson, Labels, BrandDoc } from "./types.ts";
+import type { Labels, BrandDoc, BrandColorSlot } from "./types.ts";
 // Color canonicalizer lives in tree.ts (shared with labels.ts / project.ts). Re-export
 // so existing importers of `brand.canon` keep working.
 export { canon } from "./tree.ts";
@@ -41,6 +41,11 @@ function rgbPrefix(canonStr: string): string {
 
 const BRAND_COLOR_ORDER = ["primary", "accent", "surface", "text", "muted"] as const;
 
+/** Neutral fallbacks for a slot the labeler didn't assign (no captured repr to preserve). */
+const SLOT_FALLBACK: Record<(typeof BRAND_COLOR_ORDER)[number], string> = {
+  primary: "#000000", accent: "#000000", surface: "#ffffff", text: "#111111", muted: "#888888",
+};
+
 /** Look up a slot's canon in the labels (or undefined if the labeler didn't assign it). */
 function slotCanon(labels: Labels, slot: string): string | undefined {
   return labels.brand.colors.find((c) => c.slot === slot)?.canon;
@@ -52,25 +57,52 @@ function fontFamily(labels: Labels, slot: string): string | undefined {
 }
 
 /**
- * Build the editable brand document in `BrandTokens` shape.
- * Colors resolve each labeled slot's canon → `#rrggbb`; a slot the labeler didn't
- * assign falls back to a sensible neutral so the doc always type-checks. Fonts fall
- * back body→display when the labeler found only one family. space/radius are defaults.
+ * Build the editable brand document — the GENUINE source of the `:root` brand cascade.
+ *
+ * Each color slot's `value` is the EXACT captured literal of its labeled canon (alpha
+ * preserved: a slot whose canon carried alpha keeps its `rgba(...)` form, never collapsed to
+ * opaque hex), so `flattenRoot` can emit `--color-<slot>: <value>` byte-identically to the
+ * capture. `variants` carries each derived opacity token (name → exact literal). A slot the
+ * labeler didn't assign has no captured repr; it falls back to a neutral hex (best-effort).
+ *
+ * @param reprOfCanon canon → exact captured literal (from the tokenizer in project.ts).
+ * @param variantMap  variant canon → derived var NAME (e.g. `--color-primary-40`), from
+ *        `deriveVariants` — the SAME map project.ts uses to rewrite literals, so the variant
+ *        token names in brand.json match the `var(--color-<slot>-<NN>)` refs in the CSS.
  */
-export function buildBrand(labels: Labels, _cap: CaptureJson): BrandDoc {
-  const hexOf = (slot: string, fallback: string): string => {
+export function buildBrand(
+  labels: Labels,
+  reprOfCanon: Map<string, string>,
+  variantMap: Map<string, string>,
+): BrandDoc {
+  const slotOf = brandSlotOfCanon(labels); // base canon → --color-<slot>
+  const varToCanon = new Map([...variantMap].map(([c, name]) => [name, c] as const));
+  const slotVar = (slot: string) => `--color-${slot}`;
+
+  const colorSlot = (slot: (typeof BRAND_COLOR_ORDER)[number]): BrandColorSlot => {
     const c = slotCanon(labels, slot);
-    return c ? canonToHex(c) : fallback;
+    const value = (c && reprOfCanon.get(c)) ?? SLOT_FALLBACK[slot];
+    const hex = c ? canonToHex(c) : SLOT_FALLBACK[slot];
+    // Variants for this slot: every derived token whose name is --color-<slot>-<NN>.
+    const variants: Record<string, string> = {};
+    for (const [name, canonStr] of varToCanon) {
+      if (name === slotVar(slot) || name.startsWith(`${slotVar(slot)}-`)) {
+        const repr = reprOfCanon.get(canonStr);
+        if (repr) variants[name] = repr;
+      }
+    }
+    return { value, hex, variants };
   };
+
   const display = fontFamily(labels, "display") ?? "sans-serif";
   const body = fontFamily(labels, "body") ?? display;
   return {
     colors: {
-      primary: hexOf("primary", "#000000"),
-      accent: hexOf("accent", "#000000"),
-      surface: hexOf("surface", "#ffffff"),
-      text: hexOf("text", "#111111"),
-      muted: hexOf("muted", "#888888"),
+      primary: colorSlot("primary"),
+      accent: colorSlot("accent"),
+      surface: colorSlot("surface"),
+      text: colorSlot("text"),
+      muted: colorSlot("muted"),
     },
     fonts: { display, body },
     space: { sm: "8px", md: "16px", lg: "32px" },
@@ -127,31 +159,23 @@ export function deriveVariants(labels: Labels, usedCanons: Iterable<string>): Ma
 }
 
 /**
- * Flatten the brand + derived variants into a `:root` block of canonical custom
- * properties. Base slot colors and variants use the EXACT captured repr (byte-preserving);
- * fonts/space/radius come from the brand doc.
+ * Flatten the brand document into a `:root` block of canonical custom properties.
  *
- * @param reprOfCanon canon → exact captured literal (so `--color-<slot>` resolves to the
- *        identical bytes the literal had). Required for every canon in `variants` and for
- *        every assigned slot; a slot whose canon has no captured repr (labeler-only) uses
- *        the brand-doc hex as a best-effort fallback.
+ * THIS is the connection that makes `brand.json` a live editable source: `--color-<slot>` and
+ * `--color-<slot>-<NN>` come from `brand.colors[slot].value` / `.variants`, so editing a
+ * value in brand.json and re-flattening recolors the `:root` (and every `var()` ref). Fonts /
+ * space / radius come from the brand doc too. On first emit the values ARE the exact captured
+ * literals (buildBrand seeds them that way), so it is byte-identical to the capture (0-px).
+ *
  * @param extra additional `  --name: value;` lines to emit INSIDE the same `:root` block
- *        (e.g. the non-brand leftover per-literal tokens) — keeps all custom properties in
- *        one valid rule.
+ *        (the non-brand leftover per-literal color/font tokens) — keeps all custom properties
+ *        in one valid rule.
  */
-export function flattenRoot(
-  labels: Labels,
-  brand: BrandDoc,
-  variants: Map<string, string>,
-  reprOfCanon: Map<string, string>,
-  extra: string[] = [],
-): string {
+export function flattenRoot(brand: BrandDoc, extra: string[] = []): string {
   const lines: string[] = [];
-  // Base slot colors — byte-exact repr when the slot's canon was actually captured.
+  // Base slot colors — the exact `value` from the brand doc (alpha-preserving).
   for (const slot of BRAND_COLOR_ORDER) {
-    const c = slotCanon(labels, slot);
-    const value = (c && reprOfCanon.get(c)) ?? brand.colors[slot];
-    lines.push(`  --color-${slot}: ${value};`);
+    lines.push(`  --color-${slot}: ${brand.colors[slot].value};`);
   }
   // Fonts.
   lines.push(`  --font-display: ${brand.fonts.display};`);
@@ -159,10 +183,11 @@ export function flattenRoot(
   // Space + radius (from the editable brand doc / defaults).
   for (const [k, v] of Object.entries(brand.space)) lines.push(`  --space-${k}: ${v};`);
   for (const [k, v] of Object.entries(brand.radius)) lines.push(`  --radius-${k}: ${v};`);
-  // Derived opacity/tint variants — byte-exact captured repr (this is the coupling guard).
-  for (const [c, name] of variants) {
-    const repr = reprOfCanon.get(c);
-    if (repr) lines.push(`  ${name}: ${repr};`);
+  // Derived opacity/tint variants — exact captured literal from the brand doc (coupling guard).
+  for (const slot of BRAND_COLOR_ORDER) {
+    for (const [name, value] of Object.entries(brand.colors[slot].variants)) {
+      lines.push(`  ${name}: ${value};`);
+    }
   }
   // Non-brand leftover tokens (already formatted as `  --name: value;`).
   for (const l of extra) if (l.trim()) lines.push(l);

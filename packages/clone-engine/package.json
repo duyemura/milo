@@ -10,7 +10,7 @@
     "./orchestrate": "./src/orchestrate.ts"
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --no-file-parallelism",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

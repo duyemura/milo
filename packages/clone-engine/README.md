@@ -108,11 +108,11 @@ A **projection** dir (from `project()`) additionally contains:
 ```
 <out>/
 ├── index.html      # assembled self-contained page (the 0-px parity gate)
-├── components/      # one lean .astro per section, data-* stamped
 ├── tokens.css       # :root cascade — brand slots + per-literal color/font tokens
-├── brand.json       # editable global brand document (colors/fonts/space/radius)
 ├── site.json        # the agent-addressable site manifest (see below)
 └── astro/           # a real Astro project (src/pages, src/components, public/assets)
+    ├── brand.json   # editable global brand document — the SOURCE of the :root cascade
+    └── src/components/  # one lean .astro per section, data-* + data-copy stamped
 ```
 
 ## The semantic layer (Plan 2 / A+B)
@@ -123,9 +123,16 @@ The projection is faithful **and** addressable. Three artifacts + a `data-*` con
 
 The semantic annotation of the capture (from `label()`). Sections → roles, brand colors/fonts → slots, key elements → roles, assets → aliases. Deterministic by default; LLM-enhanced when configured. Metadata only.
 
-### `brand.json`
+### `brand.json` (ships at `astro/brand.json`)
 
-The editable global brand document (mirrors `@milo/schema`'s `BrandTokens`): `colors` (`primary`/`accent`/`surface`/`text`/`muted` as `#rrggbb`), `fonts` (`display`/`body`), plus `space`/`radius`. The projector rewrites each captured color literal that maps to a brand slot into a canonical `var(--color-<slot>)` (opacity variants → `--color-<slot>-<NN>`), so editing one slot in the emitted `:root` recolors every reference. **Byte-preserving:** a canonical var resolves to the exact captured literal, so the rewrite is 0-px.
+The editable global brand document — **the genuine source of the canonical `:root` cascade**, not an inert side-file. `project()` flattens `brand.json` into the emitted `--color-<slot>` / `--color-<slot>-<NN>` / `--font-<slot>` custom properties, so editing a slot here recolors every `var(--color-<slot>)` reference (this is the knob subsystem C's `setBrand` turns).
+
+Each color slot is `{ value, hex, variants }`:
+- **`value`** — the EXACT captured CSS literal `:root` emits, **alpha-preserving** (e.g. a translucent muted stays `rgba(175, 175, 175, 0.1)`, never collapsed to opaque `#afafaf`). This is what makes the first emit 0-px and any edit byte-faithful.
+- **`hex`** — a convenience opaque `#rrggbb` swatch for editors; NOT what `:root` uses.
+- **`variants`** — derived opacity/tint tokens (`--color-<slot>-<NN>` → exact captured literal).
+
+Plus `fonts` (`display`/`body`), `space`, `radius`. **Byte-preserving:** every `value`/`variant` is the exact captured literal, so the flatten is 0-px.
 
 ### `site.json` — the interface downstream subsystems consume
 
@@ -133,19 +140,26 @@ The machine-readable site map. **This is the contract that subsystems C/D/E/F bu
 
 ```jsonc
 {
-  "brand": "brand.json",
+  "brand": "astro/brand.json",
   "pages": [{
     "route": "/",
-    "component": "index.astro",
-    "sections": [{ "name": "HeroSection", "role": "hero", "file": "HeroSection.astro" }],
-    "elements": [{ "role": "primary-cta", "id": "p42", "selector": "[data-role=primary-cta]" }],
+    "component": "astro/src/pages/index.astro",
+    "sections": [{
+      "name": "HeroSection", "role": "hero",
+      "file": "astro/src/components/HeroSection.astro",
+      "copyKeys": ["HeroSection.0"],
+      "elementRoles": [{ "role": "headline", "id": "p42" }]
+    }],
+    "elements": [{ "role": "primary-cta", "id": "p42", "component": "HeroSection",
+                   "selector": "[data-component=HeroSection] [data-role=primary-cta]" }],
     "assets":   [{ "alias": "logo", "file": "assets/a1.png" }],
-    "copy":     [{ "key": "HeroSection.0", "component": "HeroSection", "index": 0 }]
+    "copy":     [{ "key": "HeroSection.0", "component": "HeroSection", "index": 0,
+                   "text": "Train harder. Recover smarter.", "role": "headline" }]
   }]
 }
 ```
 
-Every handle resolves (verified by test on all 3 goldens): section → component file, role → element (class + `data-role`), alias → on-disk asset, copy-key → a component's editable `content[]` slot.
+Every handle resolves (verified by test on all 3 goldens): section → component file (explicit `astro/src/…` path), role → element (class + section-scoped `data-role`), alias → on-disk asset, copy-key → a component's editable `content[]` slot. Each section pre-joins its `copyKeys` + `elementRoles`, and each copy entry carries a `text` preview + owning `role`, so C can locate and edit copy from `site.json` alone. Whitespace-only slots are omitted from `copy[]` (kept in `content[]` for render fidelity).
 
 ### The `data-*` contract
 
@@ -159,7 +173,7 @@ The projection stamps these render-neutral attributes so the site is addressable
 | `data-asset="<alias>"` | element referencing an asset | the asset alias (`logo`, `hero-image`) |
 | `data-copy="<key> …"` | element with direct text | space-separated copy keys → `content[]` slots for editable text |
 
-To edit copy: find the element by its `data-copy` key (or by `data-role` + `data-section` context), look the key up in `site.json`'s `copy[]` to get `{ component, index }`, then edit `content[index]` in that component's `.astro` file.
+To edit copy: find the slot in `site.json`'s `copy[]` by its `text` preview (or by `data-copy` key / `data-role` + `data-section` context), read `{ component, index }`, then edit `content[index]` in `astro/src/components/<component>.astro`. To recolor: edit a slot's `value` in `astro/brand.json` and re-project — the `:root` cascade regenerates from it.
 
 ## Fidelity gates
 

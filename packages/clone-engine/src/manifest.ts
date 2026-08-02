@@ -11,18 +11,26 @@
  */
 import type { Labels, SiteManifest, ManifestSection, ManifestElement, ManifestAsset, ManifestCopyEntry } from "./types.ts";
 
+/** The editable brand doc + component + page files ship inside the astro/ project. */
+const BRAND_PATH = "astro/brand.json";
+const COMPONENT_DIR = "astro/src/components";
+const PAGE_PATH = "astro/src/pages/index.astro";
+
 export interface BuildManifestArgs {
   /** BASE path for the site (empty string = root "/"). */
   base: string;
   /** Ordered region list produced by project.ts after dedup; each entry has a deduped file name. */
   regions: Array<{ name: string; file: string; sectionRole: string }>;
-  /** labels.elements — semantic element labels. */
-  elements: Labels["elements"];
+  /**
+   * labels.elements — semantic element labels, each augmented with `component` (the owning
+   * section component name) so elements can be section-scoped and joined into sections[].
+   */
+  elements: Array<{ id: number; role: string; component?: string }>;
   /** labels.assets — asset alias→file map (file = "assets/aN.ext" on disk). */
   assets: Labels["assets"];
   /**
    * Copy map entries collected by buildTpl across all regions.
-   * Each entry: { key: "<ComponentName>.<index>", component, index }.
+   * Each entry: { key: "<ComponentName>.<index>", component, index, text, role? }.
    */
   copy: ManifestCopyEntry[];
 }
@@ -39,22 +47,37 @@ export function buildManifest(args: BuildManifestArgs): SiteManifest {
   // Route: BASE with trailing slash stripped; "/" when empty.
   const route = base ? `${base}/` : "/";
 
-  // Sections: every region (Navbar, content sections, Footer) gets an entry.
-  // The `role` comes from the label system for content sections; for Navbar/Footer
-  // we synthesise it directly from the region name (nav → "nav", footer → "footer").
-  const sections: ManifestSection[] = regions.map((r) => ({
-    name: r.name,
-    role: r.sectionRole,
-    file: `${r.file}.astro`,
-  }));
-
   // Elements: each labeled element becomes an addressable handle.
   // id = "p<n>" (the CSS class stamped on the element in the HTML).
-  // selector = "[data-role=<role>]" (the data-* attribute stamped by project.ts).
+  // selector is SECTION-SCOPED — "[data-component=<Comp>] [data-role=<role>]" — so a role that
+  // recurs across sections isn't ambiguous. Falls back to the bare "[data-role]" when the
+  // element's owning component is unknown (shouldn't happen for in-region elements).
   const manifestElements: ManifestElement[] = elements.map((e) => ({
     role: e.role,
     id: `p${e.id}`,
-    selector: `[data-role=${e.role}]`,
+    component: e.component ?? "",
+    selector: e.component
+      ? `[data-component=${e.component}] [data-role=${e.role}]`
+      : `[data-role=${e.role}]`,
+  }));
+
+  // Sections: every region (Navbar, content sections, Footer) gets an entry with the EXPLICIT
+  // editable file path + its owned copy keys and element roles pre-joined (so C never re-derives
+  // the join or guesses the path).
+  const copyKeysByComponent = new Map<string, string[]>();
+  for (const c of copy) {
+    const arr = copyKeysByComponent.get(c.component) ?? [];
+    arr.push(c.key);
+    copyKeysByComponent.set(c.component, arr);
+  }
+  const sections: ManifestSection[] = regions.map((r) => ({
+    name: r.name,
+    role: r.sectionRole,
+    file: `${COMPONENT_DIR}/${r.file}.astro`,
+    copyKeys: copyKeysByComponent.get(r.file) ?? [],
+    elementRoles: manifestElements
+      .filter((e) => e.component === r.file)
+      .map((e) => ({ role: e.role, id: e.id })),
   }));
 
   // Assets: map alias → rehosted file path ("assets/aN.ext").
@@ -66,11 +89,11 @@ export function buildManifest(args: BuildManifestArgs): SiteManifest {
   }));
 
   return {
-    brand: "brand.json",
+    brand: BRAND_PATH,
     pages: [
       {
         route,
-        component: "index.astro",
+        component: PAGE_PATH,
         sections,
         elements: manifestElements,
         assets: manifestAssets,

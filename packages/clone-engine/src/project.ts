@@ -41,14 +41,13 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   // kill FOUT: source uses font-display:swap (fallback → swap = visible flicker). block paints the correct font once ready (self-hosted → instant).
   CAP.fontCss = (CAP.fontCss || "").replace(/font-display\s*:\s*[a-z-]+/gi, "font-display:block");
   const OUT = path.resolve(opts.out ?? "out-project-page");
-  const COMP = path.join(OUT, "components");
   const TRIM = opts.trim !== false;
   const BASE = typeof opts.base === "string" ? opts.base.replace(/\/$/, "") : "";
   const linkMap: Record<string, string> = typeof opts.links === "string" ? JSON.parse(fs.readFileSync(path.resolve(opts.links), "utf8")) : {};
   const normUrl = (u: string) => { try { const x = new URL(u); return (x.origin + x.pathname).replace(/\/$/, "") || x.origin; } catch { return u; } };
   const normMap: Record<string, string> = {}; for (const [k, v] of Object.entries(linkMap)) normMap[normUrl(k)] = v;
   const rewriteHref = (h: string) => normMap[normUrl(h)] ?? h;
-  fs.mkdirSync(COMP, { recursive: true });
+  fs.mkdirSync(OUT, { recursive: true });
 
   const VOID = new Set(["img", "br", "hr", "input", "source", "use", "path", "circle", "rect", "line", "polygon", "polyline", "ellipse", "col", "area"]);
   const SVG = new Set(["svg", "path", "g", "circle", "rect", "line", "polygon", "polyline", "ellipse", "use", "defs", "text", "tspan", "clippath", "lineargradient", "radialgradient", "stop", "mask", "symbol", "marker", "pattern", "filter", "image"]);
@@ -172,10 +171,13 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   // BYTE-PRESERVING: a canonical var's value = the EXACT captured literal (repr) of its canon,
   // and a literal is only rewritten to a canonical var if its canon equals the slot/variant
   // canon — so it resolves to identical bytes. Non-brand colors keep their per-literal token.
-  const brandDoc = buildBrand(labels, CAP);
   const reprOfCanon = new Map<string, string>([...colorTok].map(([c, { repr }]) => [c, repr] as const));
   const brandMap = brandSlotOfCanon(labels);        // base canon → --color-<slot>
   const variantMap = deriveVariants(labels, colorTok.keys()); // variant canon → --color-<slot>-<NN>
+  // brand.json IS the source of the canonical :root: buildBrand seeds every slot's value +
+  // variants from the EXACT captured reprs (alpha preserved), and flattenRoot emits :root from
+  // it — so editing brand.json recolors the site, and first emit is byte-identical (0-px).
+  const brandDoc = buildBrand(labels, reprOfCanon, variantMap);
   // canon → canonical var name (base slot wins over variant; both preferred over per-literal token)
   const canonicalName = new Map<string, string>([...variantMap, ...brandMap]);
   // Brand fonts: map the exact display/body family strings to --font-display/--font-body.
@@ -201,7 +203,7 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   // font tokens (families not promoted to a canonical --font-<slot>) — ALL in one valid rule.
   const leftoverColors = [...colorTok].filter(([c]) => !canonicalName.has(c)).map(([, { token, repr }]) => `  ${token}: ${repr};`);
   const leftoverFonts = [...fontTok].filter(([f]) => !canonicalFont.has(f)).map(([f, t]) => `  ${t}: ${f};`);
-  const tokenRoot = flattenRoot(labels, brandDoc, variantMap, reprOfCanon, [...leftoverColors, ...leftoverFonts]);
+  const tokenRoot = flattenRoot(brandDoc, [...leftoverColors, ...leftoverFonts]);
 
   // ---- css: trimmed base + responsive deltas (deltas from full styles) ----
   function cssFor(ids: number[]) {
@@ -234,11 +236,13 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
     // Collect indices for text nodes that are DIRECT children of this element (not descendants).
     // These are the indices each text child will occupy in content[] when processed in order.
     // We scan ahead to know the keys BEFORE recursing, so we can stamp data-copy on this element.
-    const directTextIndices: number[] = [];
+    // Pure-whitespace/empty slots stay in content[] (render fidelity) but are NOT addressable
+    // copy — we skip them for both the copy[] map and the data-copy attribute.
+    const directText: Array<{ idx: number; text: string }> = [];
     let nextIdx = content.length;
     for (const child of el.children) {
       if ((child as { t?: string }).t !== undefined) {
-        directTextIndices.push(nextIdx++);
+        directText.push({ idx: nextIdx++, text: (child as { t: string }).t });
       } else {
         // non-text child: count how many text nodes (at any depth) it contributes to content[]
         // so our nextIdx tracking stays in sync. We do a quick pre-count pass.
@@ -248,10 +252,13 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
         })(child);
       }
     }
-    // Build data-copy attribute from direct text indices (empty string = no direct text children).
-    const copyKeys = directTextIndices.map((i) => `${compName}.${i}`);
-    for (const idx of directTextIndices) {
-      copyEntries.push({ key: `${compName}.${idx}`, component: compName, index: idx });
+    // Only real (non-whitespace) text slots are addressable copy.
+    const addressable = directText.filter((d) => d.text.trim().length > 0);
+    const role = roleOfElId.get(el.id);
+    const copyKeys = addressable.map((d) => `${compName}.${d.idx}`);
+    for (const d of addressable) {
+      const preview = d.text.trim().replace(/\s+/g, " ").slice(0, 60);
+      copyEntries.push({ key: `${compName}.${d.idx}`, component: compName, index: d.idx, text: preview, ...(role ? { role } : {}) });
     }
     const dataCopy = copyKeys.length ? ` data-copy="${escA(copyKeys.join(" "))}"` : "";
     let a = "";
@@ -295,12 +302,11 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
     let name = r.name, i = 2; while (seen.has(name)) name = r.name + i++; seen.add(name); r.file = name;
     // region root carries data-component (owning .astro) + data-section (role, for content sections).
     componentNameOfRegionId.set(r.node.id, name);
-    fs.writeFileSync(path.join(COMP, `${name}.astro`), `---\n// ${name}.astro — projected from page-clone (LOSSLESS, lean). Imports brand tokens.\nimport "../tokens.css";\nconst content = ${JSON.stringify(copyOf(r.node), null, 2)};\n---\n<style>\n${cssFor(idsOf(r.node))}</style>\n${renderP(r.node)}\n`);
   }
   fs.writeFileSync(path.join(OUT, "tokens.css"), tokenRoot);
-  // Editable global brand document (single source of truth for the brand slots).
-  fs.writeFileSync(path.join(OUT, "brand.json"), JSON.stringify(brandDoc, null, 2));
   // copy[] is populated during the Astro region loop (buildTpl) below; manifest is written after.
+  // (The real editable component tree lives in astro/src/components — emitted below. There is
+  // no separate OUT/components tree: it was a dead renderP-based copy with no data-copy wiring.)
 
   // ---- assemble whole page ----
   const head = CAP.head;
@@ -358,8 +364,18 @@ ${interCss}</style></head><body class="p${CAP.tree.id}">${CAP.tree.children.map(
   for (const f of fs.readdirSync(path.join(DIR, "assets"))) fs.copyFileSync(path.join(DIR, "assets", f), path.join(AST, "public/assets", f));
   const absA = (s: string) => s.replace(/(^|[^/])assets\/([af]\d+\.[a-z0-9]+)/g, `$1${BASE}/assets/$2`); // scoped to OUR rehosted filenames — won't corrupt foreign URLs containing "assets/"
   fs.writeFileSync(path.join(AST, "src/styles/global.css"), absA(`html{margin:0;padding:0}\n${CAP.fontCss || ""}\n${tokenRoot}\n${cssFor(idsOf(CAP.tree))}\n${interCss}`));
+  // brand.json ships INSIDE the astro project (part of the editable artifact) and IS the
+  // source of the canonical :root — flattenRoot(brandDoc) above already produced the emitted
+  // tokens from it, so editing brand.json + re-projecting recolors the site.
+  fs.writeFileSync(path.join(AST, "brand.json"), JSON.stringify(brandDoc, null, 2));
   const regionIds = new Set(regions.map((r) => r.node.id));
   const compOf: Record<number, string> = {}; regions.forEach((r) => (compOf[r.node.id] = r.file!));
+  // element id → owning component: walk each region subtree, tag every element with its region's file.
+  const componentOfElId = new Map<number, string>();
+  for (const r of regions) (function tag(n: TreeNode): void {
+    if ((n as { t?: string }).t !== undefined) return;
+    const el = n as TreeEl; componentOfElId.set(el.id, r.file!); el.children.forEach(tag);
+  })(r.node);
   // allCopyEntries: all data-copy key → content[] slot mappings across every region.
   const allCopyEntries: ManifestCopyEntry[] = [];
   for (const r of regions) {
@@ -378,7 +394,7 @@ ${interCss}</style></head><body class="p${CAP.tree.id}">${CAP.tree.children.map(
       file: r.file!,
       sectionRole: sectionRoleOfRegionId.get(r.node.id) ?? r.name.toLowerCase(),
     })),
-    elements: labels.elements,
+    elements: labels.elements.map((e) => ({ ...e, component: componentOfElId.get(e.id) })),
     assets: labels.assets,
     copy: allCopyEntries,
   });
@@ -415,7 +431,8 @@ ${interCss}</style></head><body class="p${CAP.tree.id}">${CAP.tree.children.map(
     const r = await pdiff(`clone-${w}.png`, `assembled-${w}.png`);
     console.log(`  @${w}w  drift ${r.pct}%  (${r.d}/${r.total})  dims ${r.dimMatch ? "match" : `MISMATCH ${r.ah}/${r.bh}`}  ${r.pct === 0 ? "✓ LOSSLESS" : "✗"}`);
   }
-  const sizes = fs.readdirSync(COMP).map((f) => fs.statSync(path.join(COMP, f)).size);
+  const compDir = path.join(AST, "src/components");
+  const sizes = fs.readdirSync(compDir).map((f) => fs.statSync(path.join(compDir, f)).size);
   console.log(`\n  ${regions.length} components, total ${(sizes.reduce((a, b) => a + b, 0) / 1048576).toFixed(2)}MB (largest ${(Math.max(...sizes) / 1024).toFixed(0)}KB)`);
 
   return { indexHtml: assembled, outDir: OUT, astroDir: AST, components: regions.length };

@@ -69,7 +69,7 @@ describe("component names from labels (Task 2)", () => {
 
       // For each labeled section, find the emitted data-component value in the HTML and verify
       // that a matching .astro file exists in the components dir.
-      const compDir = path.join(out.outDir, "components");
+      const compDir = path.join(out.astroDir, "src/components");
       const emittedFiles = new Set(fs.readdirSync(compDir));
 
       // Build id→name map from labels (same logic as project.ts).
@@ -114,7 +114,7 @@ describe("component names from labels (Task 2)", () => {
       // Sections that have a label name should NOT produce S<digit>Something component names.
       // (S<digit> prefix only appears for copy-derived fallback on sections whose text starts with a digit.)
       const labeledIds = new Set(labels.sections.map((s) => s.id));
-      const compDir = path.join(out.outDir, "components");
+      const compDir = path.join(out.astroDir, "src/components");
       const emittedFiles = fs.readdirSync(compDir).filter((f) => f.endsWith(".astro"));
 
       // For this check: get all data-component values from sections that ARE labeled.
@@ -220,7 +220,8 @@ describe("site.json manifest (Task 4)", () => {
       // Must parse to SiteManifest shape.
       const manifest = JSON.parse(fs.readFileSync(siteJsonPath, "utf8")) as SiteManifest;
       expect(typeof manifest.brand).toBe("string");
-      expect(manifest.brand).toBe("brand.json");
+      expect(manifest.brand).toBe("astro/brand.json");
+      expect(fs.existsSync(path.join(out.outDir, manifest.brand)), "brand.json missing inside astro/").toBe(true);
       expect(Array.isArray(manifest.pages)).toBe(true);
       expect(manifest.pages.length).toBeGreaterThan(0);
 
@@ -233,8 +234,9 @@ describe("site.json manifest (Task 4)", () => {
 
       // route must be "/" or a BASE-relative path.
       expect(page.route).toMatch(/^\//);
-      // component is always "index.astro" for a single-page project.
-      expect(page.component).toBe("index.astro");
+      // component is the explicit page path for a single-page project.
+      expect(page.component).toBe("astro/src/pages/index.astro");
+      expect(fs.existsSync(path.join(out.outDir, page.component)), "index.astro missing").toBe(true);
 
       // sections: non-empty, each entry has name/role/file.
       expect(page.sections.length).toBeGreaterThan(0);
@@ -243,10 +245,10 @@ describe("site.json manifest (Task 4)", () => {
         expect(sec.name.length).toBeGreaterThan(0);
         expect(typeof sec.role).toBe("string");
         expect(sec.role.length).toBeGreaterThan(0);
-        // file must end in .astro and match an emitted component.
-        expect(sec.file).toMatch(/\.astro$/);
-        const compName = sec.file.replace(/\.astro$/, "");
-        const compPath = path.join(out.outDir, "components", sec.file);
+        // file is the EXPLICIT editable path (astro/src/components/<Name>.astro) — resolve on disk.
+        expect(sec.file).toMatch(/^astro\/src\/components\/[A-Za-z][A-Za-z0-9]*\.astro$/);
+        const compName = path.basename(sec.file, ".astro");
+        const compPath = path.join(out.outDir, sec.file);
         expect(
           fs.existsSync(compPath),
           `sections[].file "${sec.file}" has no matching component on disk`,
@@ -267,8 +269,18 @@ describe("site.json manifest (Task 4)", () => {
         expect(el.role.length).toBeGreaterThan(0);
         // id must be "p<numeric>".
         expect(el.id).toMatch(/^p\d+$/);
-        // selector must be "[data-role=<role>]".
-        expect(el.selector).toBe(`[data-role=${el.role}]`);
+        // selector is SECTION-SCOPED when the element lives in a section component
+        // ("[data-component=<Comp>] [data-role=<role>]"); an element outside every region
+        // (rendered via the page-level fallback) has no owning component → bare "[data-role]".
+        if (el.component) {
+          expect(el.selector).toBe(`[data-component=${el.component}] [data-role=${el.role}]`);
+          expect(
+            out.indexHtml.includes(`data-component="${el.component}"`),
+            `elements[].component "${el.component}" not stamped in HTML`,
+          ).toBe(true);
+        } else {
+          expect(el.selector).toBe(`[data-role=${el.role}]`);
+        }
         // The HTML must contain class="... p<n> ..." OR class="p<n>" for this element.
         expect(
           out.indexHtml.includes(`class="p${el.id.slice(1)}"`),
@@ -336,7 +348,7 @@ describe("data-copy keys (Task 5)", () => {
       expect(Array.isArray(page.copy), "pages[0].copy is not an array").toBe(true);
       expect(page.copy.length, "copy[] is empty — no text slots wired").toBeGreaterThan(0);
 
-      // Each entry must have a valid shape.
+      // Each entry must have a valid shape + enriched (Task 3) text preview, and resolve.
       for (const entry of page.copy) {
         const e = entry as ManifestCopyEntry;
         expect(typeof e.key).toBe("string");
@@ -347,6 +359,10 @@ describe("data-copy keys (Task 5)", () => {
         expect(e.component.length).toBeGreaterThan(0);
         expect(typeof e.index).toBe("number");
         expect(e.index).toBeGreaterThanOrEqual(0);
+        // Enriched (Task 3): a non-empty text preview (≤60 chars) that C can read from site.json.
+        expect(typeof e.text, `copy "${e.key}" must carry a text preview`).toBe("string");
+        expect(e.text.trim().length, `copy "${e.key}" preview must be non-empty`).toBeGreaterThan(0);
+        expect(e.text.length).toBeLessThanOrEqual(60);
 
         // The component must exist on disk.
         const compPath = path.join(out.astroDir, "src/components", `${e.component}.astro`);
@@ -355,9 +371,9 @@ describe("data-copy keys (Task 5)", () => {
           `copy key "${e.key}" references component "${e.component}" but ${e.component}.astro not found`,
         ).toBe(true);
 
-        // The index must be within the component's content[] bounds.
+        // The index must be within the component's content[] bounds AND point at non-whitespace
+        // text (whitespace slots are dropped from copy[], kept in content[] for render fidelity).
         const astroSrc = fs.readFileSync(compPath, "utf8");
-        // Extract content array from the astro component's frontmatter.
         const contentMatch = /^const content = (\[[\s\S]*?\]);/m.exec(astroSrc);
         expect(contentMatch, `No content[] found in ${e.component}.astro`).not.toBeNull();
         const contentArr = JSON.parse(contentMatch![1]) as string[];
@@ -365,6 +381,10 @@ describe("data-copy keys (Task 5)", () => {
           e.index < contentArr.length,
           `copy key "${e.key}": index ${e.index} out of bounds (content.length=${contentArr.length})`,
         ).toBe(true);
+        expect(
+          contentArr[e.index]?.trim().length,
+          `copy "${e.key}" points at a whitespace-only slot (should be dropped from copy[])`,
+        ).toBeGreaterThan(0);
 
         // The data-copy attribute must appear in the component HTML (the template literal).
         // The key may appear as part of a space-separated list (multi-text elements).
@@ -476,27 +496,39 @@ describe("manifest completeness — all handles resolve (Task 7 G)", () => {
         fs.readFileSync(path.join(out.outDir, "site.json"), "utf8"),
       ) as SiteManifest;
       const page = manifest.pages[0];
-      const compDir = path.join(out.outDir, "components");
+      const compDir = path.join(out.astroDir, "src/components");
       const emittedComponents = new Set(fs.readdirSync(compDir));
 
-      // brand → brand.json
-      expect(manifest.brand).toBe("brand.json");
-      expect(fs.existsSync(path.join(out.outDir, "brand.json")), "brand.json missing").toBe(true);
+      // brand → astro/brand.json (ships inside the editable astro project)
+      expect(manifest.brand).toBe("astro/brand.json");
+      expect(fs.existsSync(path.join(out.outDir, manifest.brand)), "brand.json missing").toBe(true);
 
-      // section → component
+      // section → component (file is the explicit astro/src/components/<Name>.astro path)
       expect(page.sections.length).toBeGreaterThan(0);
       for (const sec of page.sections) {
-        expect(sec.file, `section "${sec.name}" file must be .astro`).toMatch(/\.astro$/);
+        expect(sec.file, `section "${sec.name}" file must be .astro`).toMatch(/^astro\/src\/components\/.+\.astro$/);
         expect(
-          emittedComponents.has(sec.file),
+          emittedComponents.has(path.basename(sec.file)),
           `section→component unresolved: ${sec.file} not on disk`,
+        ).toBe(true);
+        expect(
+          fs.existsSync(path.join(out.outDir, sec.file)),
+          `section→component unresolved: ${sec.file} not resolvable from OUT`,
         ).toBe(true);
       }
 
-      // role → element
+      // role → element (section-scoped selector when in a component; bare data-role otherwise)
       for (const el of page.elements) {
         expect(el.id).toMatch(/^p\d+$/);
-        expect(el.selector).toBe(`[data-role=${el.role}]`);
+        if (el.component) {
+          expect(el.selector).toBe(`[data-component=${el.component}] [data-role=${el.role}]`);
+          expect(
+            out.indexHtml.includes(`data-component="${el.component}"`),
+            `role→element unresolved: data-component="${el.component}" not stamped in HTML`,
+          ).toBe(true);
+        } else {
+          expect(el.selector).toBe(`[data-role=${el.role}]`);
+        }
         expect(
           out.indexHtml.includes(`class="p${el.id.slice(1)}"`),
           `role→element unresolved: class "p${el.id.slice(1)}" (role ${el.role}) not in HTML`,

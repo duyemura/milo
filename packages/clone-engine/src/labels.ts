@@ -20,9 +20,9 @@ import type {
   CaptureJson, TreeEl, TreeNode, StyleMap,
 } from "./types.ts";
 import {
-  SECTION_ROLES, BRAND_COLOR_SLOTS, BRAND_FONT_SLOTS,
+  SECTION_ROLES, BRAND_COLOR_SLOTS, BRAND_FONT_SLOTS, ELEMENT_ROLES,
 } from "./types.ts";
-import type { Labels } from "./types.ts";
+import type { Labels, ElementLabel } from "./types.ts";
 import { canon, COLOR_RE, isEl, elKids, findTag, partitionRegions } from "./tree.ts";
 
 // ---- Zod schema (validates the Labels shape; also used by the future LLM path) ----
@@ -46,7 +46,9 @@ export const LabelSchema = z.object({
   })),
   elements: z.array(z.object({
     id: z.number(),
-    role: z.string(),
+    // Constrained to the known vocabulary — this is the one spot an LLM emits a free role
+    // string, so an out-of-enum role is a repair signal (dropped by repairLabels).
+    role: z.enum(ELEMENT_ROLES),
   })),
   assets: z.array(z.object({
     file: z.string(),
@@ -304,8 +306,8 @@ function assignFontSlots(stats: Map<string, FontStats>): Array<{ slot: string; f
 
 // ---- Element labeling ----
 
-function labelElements(tree: TreeEl, tagOf: Record<number, string>, primaryCanon: string | null, S1: StyleMap): Array<{ id: number; role: string }> {
-  const elements: Array<{ id: number; role: string }> = [];
+function labelElements(tree: TreeEl, tagOf: Record<number, string>, primaryCanon: string | null, S1: StyleMap): ElementLabel[] {
+  const elements: ElementLabel[] = [];
 
   // logo: first <img> inside a <header>
   const header = findTag(tree, "header");
@@ -693,8 +695,11 @@ function repairLabels(llm: Labels, cap: CaptureJson): Labels {
     return true;
   });
 
-  // Elements: drop ids that aren't real captured elements.
-  const elements = llm.elements.filter((e) => validElementIds.has(e.id));
+  // Elements: drop ids that aren't real captured elements, and any role outside the known
+  // ELEMENT_ROLES vocabulary (the schema already enforces the enum on the LLM path; this keeps
+  // the invariant if repairLabels is ever handed labels from another source).
+  const validRoles = new Set<string>(ELEMENT_ROLES);
+  const elements = llm.elements.filter((e) => validElementIds.has(e.id) && validRoles.has(e.role));
 
   // Assets: drop files not in the capture; de-dupe by file.
   const seenFile = new Set<string>();
