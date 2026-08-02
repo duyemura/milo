@@ -15,6 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Browser } from "playwright";
 import { injectTrackerIntoSite } from "./pagegoal.ts";
+import { injectGtag } from "@milo/measurement";
 import { buildReport, renderSiteReport } from "./buildreport/index.ts";
 import type { SiteReport } from "./buildreport/types.ts";
 import { capture } from "./capture.ts";
@@ -394,7 +395,22 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
     assembled.push(p);
   }
 
-  // Inject the engagement tracker into every assembled HTML page (Subsystem F).
+  // Inject GA4 gtag config + engagement tracker into every assembled HTML page (Subsystem F).
+  const measurementId = process.env.GA4_MEASUREMENT_ID;
+  if (measurementId) {
+    // Walk every .html file and inject the gtag initialization before </head>.
+    const walkHtml = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const abs = path.join(dir, entry.name);
+        if (entry.isDirectory()) { walkHtml(abs); continue; }
+        if (!entry.name.endsWith(".html")) continue;
+        const html = fs.readFileSync(abs, "utf8");
+        const { html: injected, changed } = injectGtag(html, measurementId);
+        if (changed) fs.writeFileSync(abs, injected);
+      }
+    };
+    walkHtml(fullSite);
+  }
   injectTrackerIntoSite(fullSite);
 
   // Site build report — ship/no-ship gate. Always runs; launches its own browser if not supplied.
