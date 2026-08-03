@@ -377,25 +377,25 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
   await store.putText("business.md", businessToMarkdown(opts.gymName, business));
 
   // Mirror asset files to the storage backend (MinIO in production).
-  // Assets are always written locally first by the asset library; this step
-  // syncs them to gyms/<slug>/library/ so they're visible in the object browser.
+  // Assets are written locally first by the asset library; this step syncs
+  // them to gyms/<slug>/images/ so they're visible in the object browser.
   const allAssets = [...gmbAssets, ...socialAssets];
   if (allAssets.length > 0) {
-    const gymKey = (rel: string) => `gyms/${slug}/${rel}`;
     let uploaded = 0;
     for (const asset of allAssets) {
       const localPath = path.join(businessDir, asset.file);
-      if (fs.existsSync(localPath)) {
-        await store.storage.put(gymKey(asset.file), fs.readFileSync(localPath));
-        uploaded++;
+      if (!fs.existsSync(localPath)) {
+        logger.warn(`[learn] asset file missing locally, skipping upload: ${localPath}`);
+        continue;
       }
+      // asset.file = "library/ast_uuid.jpg" → store under images/ast_uuid.jpg
+      const filename = path.basename(asset.file);
+      const remoteKey = `gyms/${slug}/images/${filename}`;
+      await store.storage.put(remoteKey, fs.readFileSync(localPath));
+      logger.verbose(`[learn] uploaded ${remoteKey}`);
+      uploaded++;
     }
-    // Also sync library.json so the asset index follows the images
-    const libraryJsonPath = path.join(businessDir, "library.json");
-    if (fs.existsSync(libraryJsonPath)) {
-      await store.storage.put(gymKey("library.json"), fs.readFileSync(libraryJsonPath));
-    }
-    if (uploaded > 0) logger.verbose(`[learn] Uploaded ${uploaded} asset(s) to ${store.storage.constructor.name}`);
+    if (uploaded > 0) logger.info(`[learn] Uploaded ${uploaded} asset(s) to gyms/${slug}/images/`);
   }
 
   logger.info(`[learn] Done — ${pageDocs.length} page(s) of context, GMB data, brand + voice docs at ${store.uri()}`);
