@@ -89,7 +89,27 @@ node src/cli.ts <capture|label|project|build|deploy> [--engine ts|mjs] <flags>
 | `build`   | (no flags; whole-site orchestrator, runs from cwd — defaults to the built-in Speakeasy page list) |
 | `deploy`  | `--dist <distDir> --slug <slug>` — `--engine ts` only; writes to S3, needs AWS creds |
 
-`deploy` is intentionally CLI-only (it needs env + AWS creds) and is **not** exported from the library.
+`deploy` is intentionally CLI-only (it needs env + AWS creds) and is **not** exported from the library. After a successful push the dist dir is removed — the site lives in S3/CloudFront from that point on.
+
+## Storage (capture cache)
+
+Captured pages are cached through a storage seam so local dev and production share one code path: **S3 in prod, MinIO (or plain disk) locally.** Keys look like `capture/<url-slug>.json`.
+
+| Env var | Purpose |
+|---|---|
+| `STORAGE_BUCKET` | S3 bucket. When set, the S3 backend is used. |
+| `STORAGE_ENDPOINT` | Custom endpoint for MinIO (e.g. `http://localhost:9000`). Path-style addressing is forced on when set. |
+| `STORAGE_KEY` / `STORAGE_SECRET` | Credentials. Omit to use the AWS default credential chain. |
+| `STORAGE_REGION` | Optional; defaults to `us-east-1`. |
+| `CAPTURE_CACHE_DIR` | Local-backend root override (no `STORAGE_BUCKET` set). Defaults to `$TMPDIR/milo-storage`. |
+
+MinIO locally (Docker):
+
+```bash
+docker run -p 9000:9000 -p 9001:9001 minio/minio server /data --console-address ":9001"
+```
+
+Then `STORAGE_BUCKET=milo STORAGE_ENDPOINT=http://localhost:9000 STORAGE_KEY=minioadmin STORAGE_SECRET=minioadmin` (create the `milo` bucket once in the console at http://localhost:9001). With no `STORAGE_*` vars at all, the cache falls back to local disk — tests use this path and never need MinIO running.
 
 ## What an OUT dir contains
 
