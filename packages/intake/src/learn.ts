@@ -376,30 +376,34 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
   await store.putText("context.md", contextToMarkdown(opts.gymName, context));
   await store.putText("business.md", businessToMarkdown(opts.gymName, business));
 
-  // Mirror asset files to the storage backend (MinIO in production).
-  // Assets are written locally first by the asset library; this step syncs
-  // them to gyms/<slug>/images/ so they're visible in the object browser.
-  // Mirror assets to storage backend: gyms/<slug>/assets/images/ for image files,
-  // gyms/<slug>/assets/library.json for the index.
-  const allAssets = [...gmbAssets, ...socialAssets];
-  if (allAssets.length > 0) {
+  // Mirror assets to storage backend by source folder so the object browser is readable:
+  //   gyms/<slug>/assets/gmb/     — Google My Business photos
+  //   gyms/<slug>/assets/social/  — Instagram / social post images
+  //   gyms/<slug>/assets/library.json — full asset index
+  const uploadAssets = async (assets: Asset[], subfolder: string): Promise<number> => {
     let uploaded = 0;
-    for (const asset of allAssets) {
+    for (const asset of assets) {
       const localPath = path.join(businessDir, asset.file);
       if (!fs.existsSync(localPath)) {
         logger.warn(`[learn] asset file missing locally, skipping upload: ${localPath}`);
         continue;
       }
-      const remoteKey = `gyms/${slug}/assets/images/${path.basename(asset.file)}`;
+      const remoteKey = `gyms/${slug}/assets/${subfolder}/${path.basename(asset.file)}`;
       await store.storage.put(remoteKey, fs.readFileSync(localPath));
       logger.verbose(`[learn] uploaded ${remoteKey}`);
       uploaded++;
     }
+    return uploaded;
+  };
+  const gmbUploaded = gmbAssets.length > 0 ? await uploadAssets(gmbAssets, "gmb") : 0;
+  const socialUploaded = socialAssets.length > 0 ? await uploadAssets(socialAssets, "social") : 0;
+  const totalUploaded = gmbUploaded + socialUploaded;
+  if (totalUploaded > 0) {
     const libraryJsonPath = path.join(businessDir, "library.json");
     if (fs.existsSync(libraryJsonPath)) {
       await store.storage.put(`gyms/${slug}/assets/library.json`, fs.readFileSync(libraryJsonPath));
     }
-    if (uploaded > 0) logger.info(`[learn] Uploaded ${uploaded} asset(s) to gyms/${slug}/assets/images/`);
+    logger.info(`[learn] Uploaded ${totalUploaded} asset(s): ${gmbUploaded} GMB → assets/gmb/, ${socialUploaded} social → assets/social/`);
   }
 
   logger.info(`[learn] Done — ${pageDocs.length} page(s) of context, GMB data, brand + voice docs at ${store.uri()}`);
