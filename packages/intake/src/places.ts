@@ -82,21 +82,30 @@ export function placesToIdentity(raw: unknown, supplied?: PlacesSuppliedInputs):
     : undefined;
 
   const reviews = Array.isArray(p.reviews)
-    ? p.reviews.map((review: any) => ({
-        name: review.name,
-        relativePublishTimeDescription: review.relativePublishTimeDescription,
-        rating: review.rating,
-        text: review.text
-          ? { text: review.text.text, languageCode: review.text.languageCode }
-          : undefined,
-        authorAttribution: review.authorAttribution
-          ? {
-              displayName: review.authorAttribution.displayName,
-              uri: review.authorAttribution.uri,
-              photoUri: review.authorAttribution.photoUri,
-            }
-          : undefined,
-      }))
+    ? p.reviews
+        .map((review: any) => ({
+          name: review.name,
+          publishTime: review.publishTime as string | undefined,
+          relativePublishTimeDescription: review.relativePublishTimeDescription,
+          rating: review.rating,
+          text: review.text
+            ? { text: review.text.text, languageCode: review.text.languageCode }
+            : undefined,
+          authorAttribution: review.authorAttribution
+            ? {
+                displayName: review.authorAttribution.displayName,
+                uri: review.authorAttribution.uri,
+                photoUri: review.authorAttribution.photoUri,
+              }
+            : undefined,
+        }))
+        .sort((a, b) => {
+          // Newest-first — undefined publishTime sorts to end
+          if (!a.publishTime && !b.publishTime) return 0;
+          if (!a.publishTime) return 1;
+          if (!b.publishTime) return -1;
+          return a.publishTime < b.publishTime ? 1 : a.publishTime > b.publishTime ? -1 : 0;
+        })
     : undefined;
 
   identity.photos = photos;

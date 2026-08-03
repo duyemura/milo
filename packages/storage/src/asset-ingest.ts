@@ -124,6 +124,20 @@ export async function ingestAsset(businessDir: string, opts: IngestOpts): Promis
   return ingestBuffer(businessDir, buf, opts);
 }
 
+export type IngestFromBufferOpts = Omit<IngestOpts, "file" | "contentHash">;
+
+/**
+ * Ingest pre-fetched image bytes directly — no download needed.
+ * Content-hash dedup: returns the existing asset if identical bytes were seen before.
+ */
+export function ingestFromBuffer(businessDir: string, buf: Buffer, opts: IngestFromBufferOpts): IngestResult {
+  const hash = crypto.createHash("sha256").update(buf).digest("hex");
+  const lib0 = loadLibrary(businessDir, opts.businessId ?? "biz_unknown");
+  const dup = findByHash(lib0, hash);
+  if (dup) return { assetId: dup.id, asset: dup, library: lib0, cached: true };
+  return ingestBuffer(businessDir, buf, { ...opts, contentHash: hash });
+}
+
 /**
  * Download a URL and ingest into the library. Two-level dedup:
  *  1. sourceRef match (pre-download, skips both API call and fetch)

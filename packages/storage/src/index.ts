@@ -27,8 +27,8 @@ export {
   updateAssetTags, archiveAsset, recordUsage, findByHash, findBySourceRef,
 } from "./asset-library.ts";
 export type { Asset, AssetTags, AssetUsage, AssetLibrary } from "./asset-library.ts";
-export { ingestAsset, ingestFromUrl, sniffImage } from "./asset-ingest.ts";
-export type { IngestOpts, IngestResult, IngestFromUrlOpts } from "./asset-ingest.ts";
+export { ingestAsset, ingestFromUrl, ingestFromBuffer, sniffImage } from "./asset-ingest.ts";
+export type { IngestOpts, IngestResult, IngestFromUrlOpts, IngestFromBufferOpts } from "./asset-ingest.ts";
 export { findAsset } from "./asset-find.ts";
 export type { FindQuery } from "./asset-find.ts";
 

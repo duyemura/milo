@@ -1,6 +1,6 @@
 import os from "node:os";
 import path from "node:path";
-import { type StorageAdapter, type Asset, ingestFromUrl, loadLibrary, findBySourceRef, slugFromUrl } from "@milo/storage";
+import { type StorageAdapter, type Asset, ingestFromUrl, ingestFromBuffer, loadLibrary, findBySourceRef, slugFromUrl } from "@milo/storage";
 import { resolveDocStore } from "./doc-store.ts";
 import { consoleLogger, type MiloLogger } from "./logger.ts";
 import { PageDocument, BrandCrawl, IdentityCrawl } from "@milo/schema";
@@ -154,23 +154,52 @@ async function ingestSocialImages(
 ): Promise<Asset[]> {
   const assets: Asset[] = [];
   for (const profile of profiles) {
-    const urls: { url: string; type: "profile" | "post" }[] = [];
-    if (profile.profileImage) urls.push({ url: profile.profileImage, type: "profile" });
-    for (const imgUrl of (profile.postImages ?? []).slice(0, maxPostImages)) {
-      urls.push({ url: imgUrl, type: "post" });
-    }
-    for (const { url, type } of urls) {
+    // Profile image: always URL-based
+    if (profile.profileImage) {
       try {
-        const { asset, cached } = await ingestFromUrl(businessDir, url, {
+        const { asset, cached } = await ingestFromUrl(businessDir, profile.profileImage, {
           source: "upload",
           siteOrigin: slug,
-          altText: `${profile.platform} ${type} — @${profile.handle}`,
+          altText: `${profile.platform} profile — @${profile.handle}`,
           fetchFn,
         });
-        logger?.verbose(`[learn] social ${type} @${profile.handle} → ${cached ? "cached" : "ingested"}`);
+        logger?.verbose(`[learn] social profile @${profile.handle} → ${cached ? "cached" : "ingested"}`);
         assets.push(asset);
       } catch (e) {
-        logger?.verbose(`[learn] social ${type} @${profile.handle} failed: ${(e as Error).message}`);
+        logger?.verbose(`[learn] social profile @${profile.handle} failed: ${(e as Error).message}`);
+      }
+    }
+
+    // Post images: use pre-fetched bytes when available (avoids second download + expired CDN tokens)
+    if ((profile.capturedImages?.length ?? 0) > 0) {
+      for (const { buffer, altText } of (profile.capturedImages ?? []).slice(0, maxPostImages)) {
+        try {
+          const { asset, cached } = ingestFromBuffer(businessDir, buffer, {
+            source: "upload",
+            siteOrigin: slug,
+            altText: altText ?? `${profile.platform} post — @${profile.handle}`,
+          });
+          logger?.verbose(`[learn] social post @${profile.handle} → ${cached ? "cached" : "ingested"} (intercepted, ${buffer.length}B)`);
+          assets.push(asset);
+        } catch (e) {
+          logger?.verbose(`[learn] social post @${profile.handle} failed: ${(e as Error).message}`);
+        }
+      }
+    } else {
+      // Fallback: download from postImages URLs
+      for (const imgUrl of (profile.postImages ?? []).slice(0, maxPostImages)) {
+        try {
+          const { asset, cached } = await ingestFromUrl(businessDir, imgUrl, {
+            source: "upload",
+            siteOrigin: slug,
+            altText: `${profile.platform} post — @${profile.handle}`,
+            fetchFn,
+          });
+          logger?.verbose(`[learn] social post @${profile.handle} → ${cached ? "cached" : "ingested"}`);
+          assets.push(asset);
+        } catch (e) {
+          logger?.verbose(`[learn] social post @${profile.handle} failed: ${(e as Error).message}`);
+        }
       }
     }
   }
@@ -296,7 +325,10 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
   if (scrapedProfiles.length > 0) {
     logger.info(`[learn] Scraped ${scrapedProfiles.length} social profile(s): ${scrapedProfiles.map((p) => p.platform).join(", ")}`);
     for (const p of scrapedProfiles) {
-      logger.verbose(`[learn] ${p.platform} @${p.handle}: profileImage=${p.profileImage ? "yes" : "no"}, postImages=${p.postImages?.length ?? 0}`);
+      const imgSummary = (p.capturedImages?.length ?? 0) > 0
+        ? `capturedImages=${p.capturedImages!.length}`
+        : `postImages=${p.postImages?.length ?? 0}`;
+      logger.verbose(`[learn] ${p.platform} @${p.handle}: profileImage=${p.profileImage ? "yes" : "no"}, ${imgSummary}`);
     }
   }
 
@@ -325,6 +357,15 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
 
   // --- Step 8: write docs
   await store.putJson("identity.json", identity);
+  // reviews.json: raw reviews separate from identity so they're easy to query/display later
+  if (identity.reviews?.length) {
+    await store.putJson("reviews.json", {
+      fetchedAt: opts.discoveredAt,
+      rating: identity.rating,
+      reviewCount: identity.reviewCount,
+      reviews: identity.reviews,
+    });
+  }
   await store.putJson("brand.json", brand);
   await store.putJson("business.json", business);
   await store.putJson("context.json", context);

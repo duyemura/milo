@@ -85,9 +85,10 @@ export const IdentityCrawl = z.object({
     heightPx: z.number().optional(),
     authorAttributions: z.array(z.object({ displayName: z.string(), uri: z.string().optional() })).optional(),
   })).optional(),
-  /** Google Place reviews returned by Places API. */
+  /** Google Place reviews returned by Places API, sorted newest-first. */
   reviews: z.array(z.object({
     name: z.string(),
+    publishTime: z.string().optional(),
     relativePublishTimeDescription: z.string().optional(),
     rating: z.number().optional(),
     text: z.object({ text: z.string(), languageCode: z.string().optional() }).optional(),
