@@ -5,6 +5,7 @@ import { BusinessDoc, IntegrationsDoc } from "./schemas.ts";
 import type { BusinessDoc as BusinessDocT, IntegrationsDoc as IntegrationsDocT } from "./schemas.ts";
 import { llmJson, type ChatFn } from "@milo/llm";
 import { budgetGmbReviews } from "./gmb-budget.ts";
+import type { Asset } from "@milo/storage";
 
 /** Deterministic: brand signals -> IntegrationsDoc. No LLM. */
 export function buildIntegrations(brand: BrandCrawl): IntegrationsDocT {
@@ -51,7 +52,7 @@ export interface ClassifyBusinessInput {
   pages: PageDoc[];
   brand: BrandCrawl;
   identity?: IdentityCrawlType;
-  gmbAssets?: { localPath: string; widthPx?: number; heightPx?: number; attribution?: string }[];
+  assets?: Asset[];
 }
 
 export async function classifyBusiness(input: ClassifyBusinessInput): Promise<BusinessDocT> {
@@ -77,7 +78,7 @@ export async function classifyBusiness(input: ClassifyBusinessInput): Promise<Bu
     gmbReviewHighlights: budgetGmbReviews(gmb?.reviews, { maxReviews: 5, maxChars: 2000 })
       .map((r) => r.text?.text)
       .filter((t): t is string => Boolean(t)),
-    gmbPhotoCount: input.gmbAssets?.length ?? 0,
+    gmbPhotoCount: input.assets?.length ?? 0,
   };
   const system = [
     "You assess a gym's business from detected tech signals + page content.",
@@ -94,7 +95,7 @@ export async function classifyBusiness(input: ClassifyBusinessInput): Promise<Bu
     model: input.model,
     messages: [
       { role: "system", content: system },
-      { role: "user", content: `DETECTED SIGNALS: ${JSON.stringify(signals)}\n\nPAGES: ${input.pages.map((p) => `${p.slug}: ${p.bodyText.slice(0, 500)}`).join("\n")}\n\nGMB REVIEWS: ${JSON.stringify(budgetGmbReviews(gmb?.reviews, { maxReviews: 8, maxChars: 4000 }).map((r) => ({ rating: r.rating, text: r.text?.text })))}\n\nGMB ASSETS: ${JSON.stringify(input.gmbAssets?.map((a) => ({ localPath: a.localPath, widthPx: a.widthPx, heightPx: a.heightPx, attribution: a.attribution })) ?? [])}` },
+      { role: "user", content: `DETECTED SIGNALS: ${JSON.stringify(signals)}\n\nPAGES: ${input.pages.map((p) => `${p.slug}: ${p.bodyText.slice(0, 500)}`).join("\n")}\n\nGMB REVIEWS: ${JSON.stringify(budgetGmbReviews(gmb?.reviews, { maxReviews: 8, maxChars: 4000 }).map((r) => ({ rating: r.rating, text: r.text?.text })))}\n\nGMB ASSETS: ${JSON.stringify(input.assets?.map((a) => ({ file: a.file, widthPx: a.dimensions.w, heightPx: a.dimensions.h, attribution: a.attribution })) ?? [])}` },
     ],
     maxRetries: 3,
   });

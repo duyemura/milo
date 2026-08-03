@@ -35,6 +35,10 @@ export class DocStore {
     await this.storage.put(this.key(rel), await readFile(absPath));
   }
 
+  async exists(rel: string): Promise<boolean> {
+    return this.storage.exists(this.key(rel));
+  }
+
   async getJson(rel: string): Promise<unknown | null> {
     const buf = await this.storage.get(this.key(rel));
     return buf ? JSON.parse(buf.toString("utf8")) : null;

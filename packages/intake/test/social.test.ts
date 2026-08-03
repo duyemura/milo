@@ -22,15 +22,15 @@ describe("extractInstagramPosts", () => {
         },
       })};</script>
     `;
-    const posts = extractInstagramPosts(html);
-    expect(posts).toHaveLength(2);
-    expect(posts[0]).toBe("First post caption");
-    expect(posts[1].length).toBeLessThanOrEqual(280);
+    const result = extractInstagramPosts(html);
+    expect(result.captions).toHaveLength(2);
+    expect(result.captions[0]).toBe("First post caption");
+    expect(result.captions[1].length).toBeLessThanOrEqual(280);
   });
 
-  it("returns empty array when _sharedData is missing or malformed", () => {
-    expect(extractInstagramPosts("<html></html>")).toEqual([]);
-    expect(extractInstagramPosts(`<script>window._sharedData = { notProfile: true };</script>`)).toEqual([]);
-    expect(extractInstagramPosts(`<script>window._sharedData = not valid json;</script>`)).toEqual([]);
+  it("returns empty arrays when _sharedData is missing or malformed", () => {
+    expect(extractInstagramPosts("<html></html>")).toEqual({ captions: [], images: [] });
+    expect(extractInstagramPosts(`<script>window._sharedData = { notProfile: true };</script>`)).toEqual({ captions: [], images: [] });
+    expect(extractInstagramPosts(`<script>window._sharedData = not valid json;</script>`)).toEqual({ captions: [], images: [] });
   });
 });

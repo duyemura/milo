@@ -10,6 +10,8 @@ export interface SocialProfile {
   profileImage?: string;
   /** Up to a few recent public post captions (best-effort; often empty). */
   recentPosts: string[];
+  /** Up to a few recent post image URLs (best-effort; often empty). */
+  postImages?: string[];
   /** Public follower count as a string if parseable. */
   followerCount?: string;
 }
@@ -39,20 +41,39 @@ function decodeEntities(s: string): string {
     .replace(/&#39;/g, "'");
 }
 
-/** Extract recent post captions from Instagram's embedded sharedData if present. */
-export function extractInstagramPosts(html: string): string[] {
-  const posts: string[] = [];
+/** Extract recent post captions + image URLs from whatever Instagram embeds in the page. */
+export function extractInstagramPosts(html: string): { captions: string[]; images: string[] } {
+  const captions: string[] = [];
+  const images: string[] = [];
+
+  // Pattern 1: window._sharedData (legacy, largely dead but still worth trying)
   for (const m of html.matchAll(/<script type="text\/javascript">window\._sharedData = ([\s\S]*?);<\/script>/g)) {
     try {
       const data = JSON.parse(m[1]);
       const edges = data?.entry_data?.ProfilePage?.[0]?.graphql?.user?.edge_owner_to_timeline_media?.edges ?? [];
       for (const edge of edges.slice(0, 6)) {
         const text = edge?.node?.edge_media_to_caption?.edges?.[0]?.node?.text ?? "";
-        if (text) posts.push(text.slice(0, 280));
+        if (text) captions.push(text.slice(0, 280));
+        const img = edge?.node?.display_url ?? edge?.node?.thumbnail_src ?? "";
+        if (img && images.length < 5) images.push(img);
       }
-    } catch { /* ignore malformed embedded data */ }
+    } catch { /* ignore */ }
   }
-  return posts;
+
+  // Pattern 2: display_url / thumbnail_src scattered in any embedded JSON
+  if (images.length === 0) {
+    for (const m of html.matchAll(/"display_url":"(https:\\u002F\\u002F[^"]+)"/g)) {
+      try {
+        const url = JSON.parse(`"${m[1]}"`) as string;
+        if (url.includes("cdninstagram") || url.includes("fbcdn")) {
+          images.push(url);
+          if (images.length >= 5) break;
+        }
+      } catch { /* ignore */ }
+    }
+  }
+
+  return { captions, images };
 }
 
 /** Best-effort public Instagram profile scrape from meta tags. */
@@ -66,13 +87,15 @@ async function scrapeInstagram(url: string): Promise<SocialProfile | null> {
     const image = metaContent(html, "property", "og:image");
     // Description often contains follower stats + bio, separated by newlines/pipes.
     const bio = description ? decodeEntities(description.split("\n")[0].split("|")[0].trim()) : "";
+    const { captions, images } = extractInstagramPosts(html);
     return {
       platform: "instagram",
       url,
       handle: handleFromUrl(url),
       bio: bio || title || "",
       profileImage: image || undefined,
-      recentPosts: extractInstagramPosts(html),
+      recentPosts: captions,
+      postImages: images.length > 0 ? images : undefined,
     };
   } catch (err) {
     console.warn(`[intake] social scrape failed ${url}: ${(err as Error).message}`);

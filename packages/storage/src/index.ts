@@ -22,6 +22,15 @@ export type { StorageAdapter } from "./adapter.ts";
 export { LocalFsAdapter } from "./local.ts";
 export { S3Adapter } from "./s3.ts";
 export type { S3AdapterOpts } from "./s3.ts";
+export {
+  emptyLibrary, loadLibrary, saveLibrary, addAsset, getAsset,
+  updateAssetTags, archiveAsset, recordUsage, findByHash, findBySourceRef,
+} from "./asset-library.ts";
+export type { Asset, AssetTags, AssetUsage, AssetLibrary } from "./asset-library.ts";
+export { ingestAsset, ingestFromUrl, sniffImage } from "./asset-ingest.ts";
+export type { IngestOpts, IngestResult, IngestFromUrlOpts } from "./asset-ingest.ts";
+export { findAsset } from "./asset-find.ts";
+export type { FindQuery } from "./asset-find.ts";
 
 export function getStorage(env: NodeJS.ProcessEnv = process.env): StorageAdapter {
   if (env.STORAGE_BUCKET) {

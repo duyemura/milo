@@ -3,8 +3,7 @@
  * milo — operator CLI for the Milo v2 pipeline.
  *
  *   milo studio   --url <url> [--out <dir>]
- *   milo learn    --url <url> --name <gym-name> --city <city> --state <state> [--out <dir>] [--verbose]
- *   milo intake   --url <website-url> --name <gym-name> --city <city> --state <state> [--country <country>] [--out <dir>]
+ *   milo learn    --url <url> [--name <name>] [--city <city>] [--state <state>] [--out <dir>] [--verbose]
  *   milo generate --docs <dir> [--out <dir>]
  *   milo build      --gym <path> [--theme modern|blackout] [--site-url <url>] [--out <dir>]
  *   milo publish  staging    [--gym <path>] [--dist <path>]
@@ -88,30 +87,12 @@ const HELP: Record<string, string> = {
   --verbose            Stream LLM reasoning to stderr
 `.trim(),
 
-  intake: `
-  milo intake --url <url> --name <name> --city <city> --state <state> [options]
-
-  Legacy intake pipeline (prefer \`milo learn\`). Crawl + extract to ./intake-output.
-
-  --url <url>          Gym website URL (required)
-  --name <name>        Gym name (required)
-  --city <city>        City (required)
-  --state <state>      State abbreviation (required)
-  --country <country>  Country code (default: US)
-  --out <dir>          Output directory (default: ./intake-output)
-  --max-pages <n>      Max pages to crawl (default: 25)
-  --concurrency <n>    Parallel crawl workers (default: 3)
-  --rules <path>       Custom crawl rules JSON file
-  --include-ugc        Include user-generated content pages
-  --skip-crawl         Skip crawl, re-process already-fetched pages
-`.trim(),
-
   generate: `
   milo generate --docs <dir> [--out <dir>]
 
-  Run the generate pipeline over a learn/intake output directory to produce gym.json.
+  Generate gym.json from a learn docs directory.
 
-  --docs <dir>   Input docs directory from \`milo learn\` or \`milo intake\` (default: ./intake-output)
+  --docs <dir>   Input docs directory from \`milo learn\` (default: ./intake-output)
   --out <dir>    Output directory for gym.json (default: same as --docs)
 `.trim(),
 
@@ -129,17 +110,14 @@ const HELP: Record<string, string> = {
   clone: `
   milo clone <url> [options]
 
-  DOM-clone a live gym website and optionally deploy to staging.
+  DOM-clone a live gym website. Automatically runs \`milo learn\` first if no
+  learn docs are found for this URL.
 
-  <url>                 Website to clone (required)
-  --out <dir>           Output directory (also used as deploy root with --deploy)
-  --mode <mode>         Clone mode: core | full (default: core)
-  --deploy              Publish the built site to staging after a successful build
-                        Requires --out and CLOUDFRONT_KVS_ARN env var on first run
-  --refresh-docs        Re-run \`milo learn\` before cloning (requires --name/--city/--state)
-    --name <name>       Gym name (for --refresh-docs)
-    --city <city>       City (for --refresh-docs)
-    --state <state>     State (for --refresh-docs)
+  <url>          Website to clone (required)
+  --out <dir>    Output directory (also used as deploy root with --deploy)
+  --mode <mode>  Clone mode: core | full (default: core)
+  --deploy       Publish the built site to staging after a successful build
+                 Requires --out and CLOUDFRONT_KVS_ARN env var on first run
 `.trim(),
 
   publish: `
@@ -177,12 +155,11 @@ milo — site-building CLI
 Usage: milo <command> [options]
 
 Commands:
-  learn      Crawl a gym website and produce structured docs
-  clone      DOM-clone a live website and optionally deploy
+  learn      Learn about a business from its website (GMB, brand, ICP, tone)
+  clone      DOM-clone a live website (auto-runs learn if no docs found)
   build      Build a static site from gym.json
-  generate   Generate gym.json from learn/intake docs
+  generate   Generate gym.json from learn docs
   publish    Deploy a built site to staging or production
-  intake     Legacy intake pipeline (prefer learn)
   studio     Capture a website snapshot
 
 Run \`milo help <command>\` for details on any command.
@@ -304,60 +281,6 @@ switch (command) {
     break;
   }
 
-  case "intake": {
-    // intake has no subcommand — combine subcommand + rest so flags after "intake" are all visible
-    const intakeArgs = subcommand ? [subcommand, ...rest] : rest;
-    try {
-      const websiteUrl = requireFlag("url", intakeArgs);
-      if (!/^https?:\/\//i.test(websiteUrl)) {
-        console.error("--url must be a valid http or https URL");
-        process.exit(1);
-      }
-      const gymName = requireFlag("name", intakeArgs);
-      const city = requireFlag("city", intakeArgs);
-      const state = requireFlag("state", intakeArgs);
-      const country = flag("country", intakeArgs) ?? "US";
-      const outDir = path.resolve(flag("out", intakeArgs) ?? "./intake-output");
-      const placesKey = process.env.GOOGLE_PLACES_API_KEY;
-      if (!placesKey) { console.error("GOOGLE_PLACES_API_KEY is required for intake"); process.exit(1); }
-      const openrouterKey = process.env.OPENROUTER_API_KEY;
-      if (!openrouterKey) { console.error("OPENROUTER_API_KEY is required for intake"); process.exit(1); }
-
-      const { runIntake, createRealPlacesClient, createRealPageFetcher, loadCrawlRules } = await import("@milo/intake");
-      const { chatCompletion } = await import("@milo/llm");
-      const llmConfig = {
-        provider: "openrouter" as const,
-        openrouterBaseUrl: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
-        openrouterApiKey: openrouterKey,
-      };
-
-      const rulesPath = flag("rules", intakeArgs);
-      await runIntake({
-        url: websiteUrl,
-        gymName,
-        city,
-        state,
-        country,
-        outDir,
-        maxPages: Number(flag("max-pages", intakeArgs) ?? 25),
-        includeUgc: intakeArgs.includes("--include-ugc"),
-        concurrency: Number(flag("concurrency", intakeArgs) ?? 3),
-        skipCrawl: intakeArgs.includes("--skip-crawl"),
-        places: createRealPlacesClient(placesKey),
-        fetcher: createRealPageFetcher(),
-        chat: (o) => chatCompletion(o, llmConfig),
-        capableModel: process.env.MILO_CAPABLE_MODEL ?? "anthropic/claude-sonnet-4-6",
-        fastModel: process.env.MILO_FAST_MODEL ?? "google/gemini-2.5-flash",
-        discoveredAt: new Date().toISOString(),
-        ...(rulesPath ? { rules: loadCrawlRules(path.resolve(rulesPath)) } : {}),
-      });
-    } catch (err: unknown) {
-      console.error(err instanceof Error ? err.message : String(err));
-      process.exit(1);
-    }
-    break;
-  }
-
   case "generate": {
     const generateArgs = subcommand ? [subcommand, ...rest] : rest;
     const docsDir = path.resolve(flag("docs", generateArgs) ?? "./intake-output");
@@ -390,7 +313,7 @@ switch (command) {
     const buildArgs = subcommand ? [subcommand, ...rest] : rest;
     const gymJsonPath = path.resolve(flag("gym", buildArgs) ?? "./gym.json");
     if (!existsSync(gymJsonPath)) {
-      console.error(`gym.json not found at ${gymJsonPath}. Run \`milo intake\` or \`milo generate\` first.`);
+      console.error(`gym.json not found at ${gymJsonPath}. Run \`milo generate\` first.`);
       process.exit(1);
     }
     const template = flag("theme", buildArgs) ?? process.env.TEMPLATE ?? "modern";
@@ -425,8 +348,18 @@ switch (command) {
     const cloneUrl = subcommand;
     const cloneArgs = rest;
     if (!cloneUrl || !/^https?:\/\//i.test(cloneUrl)) {
-      console.error("Usage: milo clone <url> [--template <id>] [--refresh-docs] [--deploy] [--out <dir>]");
+      console.error("Usage: milo clone <url> [--mode <core|full>] [--deploy] [--out <dir>]");
       process.exit(1);
+    }
+
+    // Auto-run learn if no docs are present for this URL
+    const { getStorage, slugFromUrl } = await import("@milo/storage");
+    const slug = slugFromUrl(cloneUrl);
+    const hasLearnDocs = await getStorage().exists(`gyms/${slug}/docs/identity.json`);
+    if (!hasLearnDocs) {
+      console.log(`[clone] No learn docs found for ${cloneUrl} — running \`milo learn\` first…`);
+      const learnStatus = run("node", [fileURLToPath(import.meta.url), "learn", "--url", cloneUrl], ROOT);
+      if (learnStatus !== 0) { console.error("[clone] learn step failed — aborting"); process.exit(learnStatus); }
     }
 
     // --deploy: opt-in staging publish after a successful build. Validate config
@@ -447,40 +380,16 @@ switch (command) {
           console.error("--deploy: CLOUDFRONT_KVS_ARN is required on first deploy (or place a publish.json in --out)");
           process.exit(1);
         }
-        const { slugFromUrl } = await import("@milo/storage");
         const { writeFileSync, mkdirSync } = await import("node:fs");
         mkdirSync(deployOutAbs, { recursive: true });
-        writeFileSync(publishJsonPath, JSON.stringify({ slug: slugFromUrl(cloneUrl), kvsArn }, null, 2) + "\n");
-        console.log(`[clone] Created publish.json — slug: ${slugFromUrl(cloneUrl)}`);
+        writeFileSync(publishJsonPath, JSON.stringify({ slug, kvsArn }, null, 2) + "\n");
+        console.log(`[clone] Created publish.json — slug: ${slug}`);
       }
-    }
-
-    // --refresh-docs: run learn first, blocking, then proceed with clone
-    if (cloneArgs.includes("--refresh-docs")) {
-      const learnName = flag("name", cloneArgs);
-      const learnCity = flag("city", cloneArgs);
-      const learnState = flag("state", cloneArgs);
-      if (!learnName || !learnCity || !learnState) {
-        console.error("--refresh-docs requires --name, --city, and --state flags");
-        process.exit(1);
-      }
-      const learnOut = path.resolve(flag("out", cloneArgs) ?? `./clone-output/${new URL(cloneUrl).hostname}`);
-      const status = run("node", [
-        fileURLToPath(import.meta.url),
-        "learn",
-        "--url", cloneUrl,
-        "--name", learnName,
-        "--city", learnCity,
-        "--state", learnState,
-        "--out", learnOut,
-      ], ROOT);
-      if (status !== 0) { console.error("[clone] learn step failed — aborting"); process.exit(status); }
     }
 
     const templateId = flag("template", cloneArgs);
     if (templateId) {
-      // Template path: not yet implemented
-      console.error("--template is not yet implemented. Run milo intake + milo generate + milo build for template builds.");
+      console.error("--template is not yet implemented. Run milo learn + milo generate + milo build for template builds.");
       process.exit(1);
     }
 
@@ -496,17 +405,14 @@ switch (command) {
     ];
     if (outDir) engineArgs.push("--cwd", path.resolve(outDir));
 
-    // Pass through any extra flags (ugc-limit, concurrency, emit-events, etc.)
-    // Strip flags we already handled so they don't get double-passed
-    // Flags we've already processed — don't pass to the engine
-    const handledFlags = new Set(["--refresh-docs", "--template", "--out", "--mode", "--name", "--city", "--state", "--url", "--deploy"]);
-    // Boolean flags (no value argument follows them)
-    const booleanFlags = new Set(["--refresh-docs", "--deploy"]);
+    // Pass through extra flags; strip ones already handled
+    const handledFlags = new Set(["--template", "--out", "--mode", "--deploy"]);
+    const booleanFlags = new Set(["--deploy"]);
     let i = 0;
     while (i < cloneArgs.length) {
       const arg = cloneArgs[i];
       if (handledFlags.has(arg)) {
-        i += booleanFlags.has(arg) ? 1 : 2; // boolean flags don't consume a value
+        i += booleanFlags.has(arg) ? 1 : 2;
       } else if (arg.startsWith("--")) {
         engineArgs.push(arg);
         if (i + 1 < cloneArgs.length && !cloneArgs[i + 1].startsWith("--")) {
@@ -538,7 +444,7 @@ switch (command) {
   }
 
   default: {
-    console.log("Usage: milo <studio|learn|intake|generate|build|clone|publish> [flags]");
+    console.log("Usage: milo <learn|clone|generate|build|publish|studio> [flags]");
     process.exit(command ? 1 : 0);
   }
 }
