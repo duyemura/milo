@@ -10,6 +10,7 @@
  * DO NOT call this function without human authorization — it writes to S3.
  */
 import { publishStaging, createRealS3Adapter, createRealKvsAdapter } from "@milo/publish";
+import fs from "node:fs";
 
 export interface DeployOpts {
   distDir: string;
@@ -43,6 +44,11 @@ export async function deploy(opts: DeployOpts): Promise<void> {
   });
 
   await publishStaging({ config, distDir: opts.distDir, s3, kvs });
+
+  // The assembled site lives in S3/CloudFront now — the on-disk dist dir is
+  // ephemeral. Remove it immediately so builds don't accumulate full-site/
+  // copies on the host. Kept on publish failure (retry/debug).
+  fs.rmSync(opts.distDir, { recursive: true, force: true });
 
   console.log(`\n→ clone:   https://${config.slug}-staging.${config.siteDomain}/`);
   console.log(`→ compare: https://${config.slug}-staging.${config.siteDomain}/compare.html`);
