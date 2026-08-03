@@ -76,29 +76,69 @@ export function extractInstagramPosts(html: string): { captions: string[]; image
   return { captions, images };
 }
 
-/** Best-effort public Instagram profile scrape from meta tags. */
+/** Best-effort public Instagram profile scrape using Playwright (JS-rendered page). */
 async function scrapeInstagram(url: string): Promise<SocialProfile | null> {
   try {
-    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT }, redirect: "follow" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const html = await res.text();
-    const title = metaContent(html, "property", "og:title");
-    const description = metaContent(html, "property", "og:description");
-    const image = metaContent(html, "property", "og:image");
-    // Description often contains follower stats + bio, separated by newlines/pipes.
-    const bio = description ? decodeEntities(description.split("\n")[0].split("|")[0].trim()) : "";
-    const { captions, images } = extractInstagramPosts(html);
-    return {
-      platform: "instagram",
-      url,
-      handle: handleFromUrl(url),
-      bio: bio || title || "",
-      profileImage: image || undefined,
-      recentPosts: captions,
-      postImages: images.length > 0 ? images : undefined,
-    };
+    const { chromium } = await import("playwright");
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const context = await browser.newContext({
+        userAgent: USER_AGENT,
+        viewport: { width: 1280, height: 900 },
+        locale: "en-US",
+      });
+      const page = await context.newPage();
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+      // Give React time to hydrate and images to load
+      await page.waitForTimeout(2000);
+      // Dismiss cookie banner or login modal if present
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(300);
+
+      const profileImage = await page.$eval(
+        'meta[property="og:image"]',
+        (el) => el.getAttribute("content"),
+      ).catch(() => null);
+
+      const description = await page.$eval(
+        'meta[property="og:description"]',
+        (el) => el.getAttribute("content"),
+      ).catch(() => null);
+
+      const title = await page.$eval(
+        'meta[property="og:title"]',
+        (el) => el.getAttribute("content"),
+      ).catch(() => null);
+
+      // Post thumbnail CDN URLs from the rendered DOM
+      const postImages = await page.evaluate((): string[] => {
+        return Array.from(document.querySelectorAll("img"))
+          .map((img) => img.src)
+          .filter((src) => (src.includes("cdninstagram") || src.includes("fbcdn")) && src.startsWith("http"))
+          .slice(0, 6);
+      }).catch(() => [] as string[]);
+
+      const { captions, images: patternImages } = extractInstagramPosts(await page.content());
+      const allImages = [...new Set([...postImages, ...patternImages])].slice(0, 5);
+
+      const bio = description
+        ? decodeEntities(description.split("\n")[0].split("|")[0].trim())
+        : "";
+
+      return {
+        platform: "instagram",
+        url,
+        handle: handleFromUrl(url),
+        bio: bio || title || "",
+        profileImage: profileImage || undefined,
+        recentPosts: captions,
+        postImages: allImages.length > 0 ? allImages : undefined,
+      };
+    } finally {
+      await browser.close();
+    }
   } catch (err) {
-    console.warn(`[intake] social scrape failed ${url}: ${(err as Error).message}`);
+    console.warn(`[intake] Instagram scrape failed ${url}: ${(err as Error).message}`);
     return null;
   }
 }

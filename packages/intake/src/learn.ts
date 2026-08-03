@@ -295,6 +295,9 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
   enrichHomepageWithSocial(pageDocs, scrapedProfiles);
   if (scrapedProfiles.length > 0) {
     logger.info(`[learn] Scraped ${scrapedProfiles.length} social profile(s): ${scrapedProfiles.map((p) => p.platform).join(", ")}`);
+    for (const p of scrapedProfiles) {
+      logger.verbose(`[learn] ${p.platform} @${p.handle}: profileImage=${p.profileImage ? "yes" : "no"}, postImages=${p.postImages?.length ?? 0}`);
+    }
   }
 
   const gmbAssets = await ingestGmbPhotos(
