@@ -284,6 +284,80 @@ switch (command) {
     break;
   }
 
+  case "clone": {
+    // subcommand holds the URL when invoked as: milo clone <url> [flags]
+    const cloneUrl = subcommand;
+    const cloneArgs = rest;
+    if (!cloneUrl || !/^https?:\/\//i.test(cloneUrl)) {
+      console.error("Usage: milo clone <url> [--template <id>] [--refresh-docs] [--out <dir>]");
+      process.exit(1);
+    }
+
+    // --refresh-docs: run learn first, blocking, then proceed with clone
+    if (cloneArgs.includes("--refresh-docs")) {
+      const learnName = flag("name", cloneArgs);
+      const learnCity = flag("city", cloneArgs);
+      const learnState = flag("state", cloneArgs);
+      if (!learnName || !learnCity || !learnState) {
+        console.error("--refresh-docs requires --name, --city, and --state flags");
+        process.exit(1);
+      }
+      const learnOut = path.resolve(flag("out", cloneArgs) ?? `./clone-output/${new URL(cloneUrl).hostname}`);
+      const status = run("node", [
+        fileURLToPath(import.meta.url),
+        "learn",
+        "--url", cloneUrl,
+        "--name", learnName,
+        "--city", learnCity,
+        "--state", learnState,
+        "--out", learnOut,
+      ], ROOT);
+      if (status !== 0) { console.error("[clone] learn step failed — aborting"); process.exit(status); }
+    }
+
+    const templateId = flag("template", cloneArgs);
+    if (templateId) {
+      // Template path: not yet implemented
+      console.error("--template is not yet implemented. Run milo intake + milo generate + milo build for template builds.");
+      process.exit(1);
+    }
+
+    // DOM clone path: subprocess to the existing clone-engine CLI
+    const cloneCli = path.join(ROOT, "packages/clone-engine/src/cli.ts");
+    const outDir = flag("out", cloneArgs);
+    const mode = flag("mode", cloneArgs) ?? "core";
+    const engineArgs = [
+      cloneCli,
+      "build-auto",
+      "--site", cloneUrl,
+      "--mode", mode,
+    ];
+    if (outDir) engineArgs.push("--cwd", path.resolve(outDir));
+
+    // Pass through any extra flags (ugc-limit, concurrency, emit-events, etc.)
+    // Strip flags we already handled so they don't get double-passed
+    const handledFlags = new Set(["--refresh-docs", "--template", "--out", "--mode", "--name", "--city", "--state"]);
+    let i = 0;
+    while (i < cloneArgs.length) {
+      const arg = cloneArgs[i];
+      if (handledFlags.has(arg)) {
+        i += 2; // skip flag and its value
+      } else if (arg.startsWith("--") && !handledFlags.has(arg)) {
+        engineArgs.push(arg);
+        if (i + 1 < cloneArgs.length && !cloneArgs[i + 1].startsWith("--")) {
+          engineArgs.push(cloneArgs[i + 1]);
+          i += 2;
+        } else {
+          i += 1;
+        }
+      } else {
+        i += 1;
+      }
+    }
+
+    process.exit(run("node", engineArgs, ROOT));
+  }
+
   default: {
     console.log("Usage: milo <studio|learn|intake|generate|build|clone|publish> [flags]");
     process.exit(command ? 1 : 0);
