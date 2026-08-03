@@ -379,6 +379,8 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
   // Mirror asset files to the storage backend (MinIO in production).
   // Assets are written locally first by the asset library; this step syncs
   // them to gyms/<slug>/images/ so they're visible in the object browser.
+  // Mirror assets to storage backend: gyms/<slug>/assets/images/ for image files,
+  // gyms/<slug>/assets/library.json for the index.
   const allAssets = [...gmbAssets, ...socialAssets];
   if (allAssets.length > 0) {
     let uploaded = 0;
@@ -388,12 +390,14 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
         logger.warn(`[learn] asset file missing locally, skipping upload: ${localPath}`);
         continue;
       }
-      // asset.file = "library/ast_uuid.jpg" → store under images/ast_uuid.jpg
-      const filename = path.basename(asset.file);
-      const remoteKey = `gyms/${slug}/assets/images/${filename}`;
+      const remoteKey = `gyms/${slug}/assets/images/${path.basename(asset.file)}`;
       await store.storage.put(remoteKey, fs.readFileSync(localPath));
       logger.verbose(`[learn] uploaded ${remoteKey}`);
       uploaded++;
+    }
+    const libraryJsonPath = path.join(businessDir, "library.json");
+    if (fs.existsSync(libraryJsonPath)) {
+      await store.storage.put(`gyms/${slug}/assets/library.json`, fs.readFileSync(libraryJsonPath));
     }
     if (uploaded > 0) logger.info(`[learn] Uploaded ${uploaded} asset(s) to gyms/${slug}/assets/images/`);
   }
