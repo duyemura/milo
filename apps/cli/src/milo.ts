@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S node --experimental-strip-types
 /**
  * milo — operator CLI for the Milo v2 pipeline.
  *
