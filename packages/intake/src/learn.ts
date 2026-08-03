@@ -390,12 +390,12 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
       }
       // asset.file = "library/ast_uuid.jpg" → store under images/ast_uuid.jpg
       const filename = path.basename(asset.file);
-      const remoteKey = `gyms/${slug}/images/${filename}`;
+      const remoteKey = `gyms/${slug}/assets/images/${filename}`;
       await store.storage.put(remoteKey, fs.readFileSync(localPath));
       logger.verbose(`[learn] uploaded ${remoteKey}`);
       uploaded++;
     }
-    if (uploaded > 0) logger.info(`[learn] Uploaded ${uploaded} asset(s) to gyms/${slug}/images/`);
+    if (uploaded > 0) logger.info(`[learn] Uploaded ${uploaded} asset(s) to gyms/${slug}/assets/images/`);
   }
 
   logger.info(`[learn] Done — ${pageDocs.length} page(s) of context, GMB data, brand + voice docs at ${store.uri()}`);
