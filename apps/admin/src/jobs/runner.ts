@@ -89,7 +89,7 @@ export async function runJob(opts: {
         throw new Error("Template seed requires payload sourceUrl, name, city, state.");
       }
       await run([
-        "intake",
+        "learn",
         "--url", url,
         "--name", payload["name"],
         "--city", payload["city"],
