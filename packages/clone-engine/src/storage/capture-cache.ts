@@ -7,14 +7,22 @@
  * fs calls are sync to match orchestrate.ts's existing idiom; only the
  * storage hop is async.
  */
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { StorageAdapter } from "./adapter.ts";
 
-/** Cache key for a page URL: `capture/<urlSlug>.json` (slug capped at 80 chars). */
+/**
+ * Cache key for a page URL: `capture/<slug>-<hash12>.json`.
+ * The slug is human-readable (capped at 60 chars); the 12-char hash of the
+ * full normalized URL prevents collisions between URLs that share a long
+ * prefix or differ only in case.
+ */
 export function captureCacheKey(url: string): string {
-  const slug = url.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase().slice(0, 80);
-  return `capture/${slug}.json`;
+  const normalized = url.toLowerCase();
+  const hash = crypto.createHash("sha256").update(normalized).digest("hex").slice(0, 12);
+  const slug = normalized.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 60);
+  return `capture/${slug}-${hash}.json`;
 }
 
 /**

@@ -15,16 +15,31 @@ function tmp(): string {
 }
 
 describe("captureCacheKey", () => {
-  it("slugs the URL under the capture/ prefix", () => {
-    expect(captureCacheKey("https://speakeasyofstrength.com/about/")).toBe(
-      "capture/https-speakeasyofstrength-com-about.json",
-    );
+  it("slugs the URL under the capture/ prefix with a hash suffix", () => {
+    const key = captureCacheKey("https://speakeasyofstrength.com/about/");
+    expect(key).toMatch(/^capture\/https-speakeasyofstrength-com-about-[0-9a-f]{12}\.json$/);
   });
 
-  it("caps the slug at 80 chars", () => {
+  it("is stable — same URL always produces the same key", () => {
+    const url = "https://example.com/programs/";
+    expect(captureCacheKey(url)).toBe(captureCacheKey(url));
+  });
+
+  it("is case-insensitive — /About and /about map to the same key", () => {
+    expect(captureCacheKey("https://x.com/About")).toBe(captureCacheKey("https://x.com/about"));
+  });
+
+  it("keeps distinct URLs distinct even when the slug prefix is identical", () => {
+    const base = "https://example.com/" + "a".repeat(100);
+    expect(captureCacheKey(base + "/page-a")).not.toBe(captureCacheKey(base + "/page-b"));
+  });
+
+  it("caps the readable slug portion at 60 chars (hash appended after)", () => {
     const key = captureCacheKey(`https://example.com/${"a".repeat(200)}`);
-    const slug = key.slice("capture/".length, -".json".length);
-    expect(slug.length).toBeLessThanOrEqual(80);
+    // key format: capture/<slug>-<12hexchars>.json
+    const inner = key.slice("capture/".length, -".json".length);
+    const slugPart = inner.slice(0, inner.lastIndexOf("-"));
+    expect(slugPart.length).toBeLessThanOrEqual(60);
   });
 });
 
