@@ -9,13 +9,16 @@ dist-modern/
 dist-blackout/
 cf-*-intake/
 
-burnin-*/
-
-# local admin dev/test data + sqlite (never commit)
+# local run data — never commit
 admin-data/
 admin-smoke-data/
 admin-smoke.db
 declutter-data/
+regress-data/
+.poc-import/
 *.db
 *.db-shm
 *.db-wal
+
+# tool/agent state
+.superpowers/

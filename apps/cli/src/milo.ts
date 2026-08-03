@@ -62,7 +62,149 @@ async function resolvePublishConfig() {
   });
 }
 
+const HELP: Record<string, string> = {
+  studio: `
+  milo studio --url <url> [--out <dir>]
+
+  Capture a website screenshot/snapshot for reference.
+
+  --url <url>    Website to capture (required)
+  --out <dir>    Output directory (default: ./studio-output)
+`.trim(),
+
+  learn: `
+  milo learn --url <url> --name <name> --city <city> --state <state> [options]
+
+  Crawl a gym's website and produce structured page docs (the "learn" phase).
+  Output is a directory of JSON docs used by \`milo clone\` or \`milo generate\`.
+
+  --url <url>          Gym website URL (required)
+  --name <name>        Gym name (required)
+  --city <city>        City (required)
+  --state <state>      State abbreviation (required)
+  --country <country>  Country code (default: US)
+  --out <dir>          Output directory (default: ./<hostname>)
+  --max-pages <n>      Max pages to crawl (default: 25)
+  --concurrency <n>    Parallel crawl workers (default: 3)
+  --rules <path>       Custom crawl rules JSON file
+  --include-ugc        Include user-generated content pages
+  --skip-crawl         Skip crawl, re-process already-fetched pages
+  --verbose            Stream LLM reasoning to stderr
+`.trim(),
+
+  intake: `
+  milo intake --url <url> --name <name> --city <city> --state <state> [options]
+
+  Legacy intake pipeline (prefer \`milo learn\`). Crawl + extract to ./intake-output.
+
+  --url <url>          Gym website URL (required)
+  --name <name>        Gym name (required)
+  --city <city>        City (required)
+  --state <state>      State abbreviation (required)
+  --country <country>  Country code (default: US)
+  --out <dir>          Output directory (default: ./intake-output)
+  --max-pages <n>      Max pages to crawl (default: 25)
+  --concurrency <n>    Parallel crawl workers (default: 3)
+  --rules <path>       Custom crawl rules JSON file
+  --include-ugc        Include user-generated content pages
+  --skip-crawl         Skip crawl, re-process already-fetched pages
+`.trim(),
+
+  generate: `
+  milo generate --docs <dir> [--out <dir>]
+
+  Run the generate pipeline over a learn/intake output directory to produce gym.json.
+
+  --docs <dir>   Input docs directory from \`milo learn\` or \`milo intake\` (default: ./intake-output)
+  --out <dir>    Output directory for gym.json (default: same as --docs)
+`.trim(),
+
+  build: `
+  milo build [--gym <path>] [options]
+
+  Build a static site from a gym.json file using the renderer.
+
+  --gym <path>       Path to gym.json (default: ./gym.json)
+  --theme <id>       Theme: modern | blackout (default: modern)
+  --site-url <url>   Public site URL baked into the build (default: https://example.com)
+  --out <dir>        Output directory for the built site (default: apps/renderer/dist)
+`.trim(),
+
+  clone: `
+  milo clone <url> [options]
+
+  DOM-clone a live gym website and optionally deploy to staging.
+
+  <url>                 Website to clone (required)
+  --out <dir>           Output directory (also used as deploy root with --deploy)
+  --mode <mode>         Clone mode: core | full (default: core)
+  --deploy              Publish the built site to staging after a successful build
+                        Requires --out and CLOUDFRONT_KVS_ARN env var on first run
+  --refresh-docs        Re-run \`milo learn\` before cloning (requires --name/--city/--state)
+    --name <name>       Gym name (for --refresh-docs)
+    --city <city>       City (for --refresh-docs)
+    --state <state>     State (for --refresh-docs)
+`.trim(),
+
+  publish: `
+  milo publish <staging|production|rollback|status> [options]
+
+  Deploy a built site to CloudFront / manage publish state.
+
+  milo publish staging    [--gym <path>] [--dist <path>]   Push dist to staging
+  milo publish production [--gym <path>]                    Promote staging → production
+  milo publish rollback   --env <staging|production> [--version <id>]  Roll back
+  milo publish status     [--gym <path>]                    Show publish history
+
+  --gym <path>       Path to gym.json (default: ./gym.json)
+  --dist <path>      Path to built dist dir (default: apps/renderer/dist)
+  --env <env>        Environment to roll back: staging | production
+  --version <id>     Specific version to roll back to (default: previous)
+  --kvs-arn <arn>    Override KVS ARN
+  --bucket <name>    Override S3 bucket
+  --region <region>  Override AWS region
+  --profile <name>   AWS profile to use
+`.trim(),
+};
+
+function printHelp(cmd?: string) {
+  if (cmd && HELP[cmd]) {
+    console.log(HELP[cmd]);
+  } else if (cmd) {
+    console.error(`Unknown command: ${cmd}`);
+    console.error(`Available: ${Object.keys(HELP).join(", ")}`);
+    process.exit(1);
+  } else {
+    console.log(`
+milo — site-building CLI
+
+Usage: milo <command> [options]
+
+Commands:
+  learn      Crawl a gym website and produce structured docs
+  clone      DOM-clone a live website and optionally deploy
+  build      Build a static site from gym.json
+  generate   Generate gym.json from learn/intake docs
+  publish    Deploy a built site to staging or production
+  intake     Legacy intake pipeline (prefer learn)
+  studio     Capture a website snapshot
+
+Run \`milo help <command>\` for details on any command.
+`.trim());
+  }
+}
+
+if (process.argv.includes("--help") || process.argv.includes("-h")) {
+  const helpTarget = command && !command.startsWith("-") ? command : undefined;
+  printHelp(helpTarget);
+  process.exit(0);
+}
+
 switch (command) {
+  case "help": {
+    printHelp(subcommand);
+    process.exit(0);
+  }
   case "studio": {
     const url = requireFlag("url", rest);
     const args = ["src/capture.mjs", "--url", url];
