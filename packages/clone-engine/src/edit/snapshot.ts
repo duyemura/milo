@@ -26,6 +26,7 @@ import path from "node:path";
 import type { Browser } from "playwright";
 import type { SiteRef } from "./types.ts";
 import type { SiteManifest } from "../types.ts";
+import { findAstroModules as sharedFindAstroModules, findAstroJs } from "../astro.ts";
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".mjs": "text/javascript",
@@ -71,21 +72,8 @@ export interface RenderSnapshot {
 }
 
 /** Locate a shared astro@^4 node_modules to symlink into the emitted project. */
-function findAstroModules(): string | null {
-  const here = path.dirname(new URL(import.meta.url).pathname);
-  const pkg = path.resolve(here, "../..");
-  const repo = path.resolve(pkg, "../..");
-  const candidates = [
-    process.env.ASTRO_MODULES,
-    path.join(repo, "page-clone-spike/out-project-page/astro/node_modules"),
-    path.join(pkg, "node_modules"),
-    path.join(repo, "node_modules"),
-  ].filter((c): c is string => Boolean(c));
-  for (const c of candidates) {
-    if (fs.existsSync(path.join(c, ".bin/astro")) || fs.existsSync(path.join(c, "astro"))) return c;
-  }
-  return null;
-}
+// Use the shared findAstroModules from src/astro.ts (which checks ASTRO_MODULES env + engine node_modules).
+const findAstroModules = sharedFindAstroModules;
 
 /**
  * Build the emitted astro/ project in `site.dir` and return the fresh dist path.
@@ -94,14 +82,13 @@ function findAstroModules(): string | null {
  */
 export function astroBuild(site: SiteRef): string {
   const astroDir = path.join(site.dir, "astro");
+  const astroJs = findAstroJs();
   const mods = findAstroModules();
   if (!mods) throw new Error("snapshot: no astro node_modules found (set ASTRO_MODULES)");
+  // Symlink engine's node_modules into the per-page project so astro/config resolves.
   const link = path.join(astroDir, "node_modules");
   if (!fs.existsSync(link)) fs.symlinkSync(mods, link, "dir");
-  const astroBin = fs.existsSync(path.join(mods, ".bin/astro"))
-    ? path.join(mods, ".bin/astro")
-    : path.join(mods, "astro/astro.js");
-  const build = spawnSync("node", [astroBin, "build"], { cwd: astroDir, encoding: "utf8", env: process.env });
+  const build = spawnSync("node", [astroJs, "build"], { cwd: astroDir, encoding: "utf8", env: process.env });
   if (build.status !== 0) throw new Error(`snapshot: astro build failed:\n${build.stdout}\n${build.stderr}`);
   const dist = path.join(astroDir, "dist");
   if (!fs.existsSync(path.join(dist, "index.html"))) throw new Error("snapshot: dist/index.html not produced");

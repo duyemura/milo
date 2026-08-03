@@ -13,6 +13,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { findAstroJs, findAstroModules } from "./astro.ts";
 import type { Browser } from "playwright";
 import { injectTrackerIntoSite } from "./pagegoal.ts";
 import { migrateExistingAssets } from "./assets/migrate.ts";
@@ -239,16 +240,18 @@ async function buildOnePage(ctx: {
     projectMs = Date.now() - tProject;
     emit({ type: "page.project.done", route: p.route });
 
-    // astro build shells out (external tool). node_modules is symlinked from the
-    // spike's canonical Astro install via an absolute path so this works from any cwd.
+    // astro build: the engine owns astro@^4.16. Symlink the engine's node_modules into
+    // the per-page project so astro can find astro/config and its peer deps, then run
+    // astro.js by absolute path. pnpm's node_modules resolves through the symlink fine.
     const astroDir = path.join(cwd, p.out, "astro");
-    const astroNodeModules = path.resolve(
-      import.meta.dirname,
-      "../../../page-clone-spike/out-project-page/astro/node_modules",
-    );
+    const astroJs = findAstroJs();
+    const mods = findAstroModules();
+    if (!mods) throw new Error("astro node_modules not found — install astro@^4.16 or set ASTRO_MODULES");
+    const link = path.join(astroDir, "node_modules");
+    if (!fs.existsSync(link)) fs.symlinkSync(mods, link, "dir");
     emit({ type: "page.build.started", route: p.route });
     const tBuild = Date.now();
-    await run(`ln -sf "${astroNodeModules}" node_modules && ./node_modules/.bin/astro build`, astroDir);
+    await run(`node "${astroJs}" build`, astroDir);
     buildMs = Date.now() - tBuild;
     emit({ type: "page.build.done", route: p.route });
 
