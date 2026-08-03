@@ -27,7 +27,7 @@ import { project } from "./project.ts";
 import { label, heuristicLabels } from "./labels.ts";
 import type { LabelSource } from "./labels.ts";
 import { llmCostAccumulator } from "@milo/llm";
-import type { CaptureJson, Labels } from "./types.ts";
+import type { CaptureJson, Labels, SiteManifest } from "./types.ts";
 import { originSlug, pageDir, discoverPages } from "./discover.ts";
 import type { DiscoverOpts } from "./discover.ts";
 import { mapPool, autoConcurrency } from "./concurrency.ts";
@@ -415,6 +415,25 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
     assembled.push(p);
   }
 
+  // Merge per-page site.json manifests into full-site/site.json so buildReport and
+  // migrateExistingAssets have a site-wide manifest to read.
+  {
+    const mergedPages: SiteManifest["pages"] = [];
+    let brand = "";
+    for (const p of assembled) {
+      const siteJsonPath = path.join(cwd, p.out, "site.json");
+      if (!fs.existsSync(siteJsonPath)) continue;
+      try {
+        const m = JSON.parse(fs.readFileSync(siteJsonPath, "utf8")) as SiteManifest;
+        brand = brand || m.brand;
+        mergedPages.push(...m.pages);
+      } catch { /* skip malformed page manifest */ }
+    }
+    if (mergedPages.length > 0) {
+      fs.writeFileSync(path.join(fullSite, "site.json"), JSON.stringify({ brand, pages: mergedPages }, null, 2) + "\n");
+    }
+  }
+
   // Copy gym-specific assets (GMB photos, social images) ingested by `milo learn`
   // into full-site/assets/images/ so the built site owns and serves them directly.
   // The capture step already re-hosts the site's original images; this adds the
@@ -499,6 +518,10 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
   console.log(
     `\n✓ assembled full-site/ with ${assembled.length}/${augmented.length} pages (${ok.length} built ok): ${assembled.map((p) => p.route).join("  ")}`,
   );
+  const siteSlug = slugFromUrl(origin);
+  const siteDomain = process.env.SITE_DOMAIN ?? "mygymseo.com";
+  console.log(`\n  Staging: https://${siteSlug}-staging.${siteDomain}`);
+  console.log(`  Deploy:  milo clone ${origin} --deploy --out <dir>\n`);
   emit({ type: "assemble.done", pages: assembled.length, fullSiteDir: fullSite });
 
   if (opts.reportOut && pageReports.length > 0) {
