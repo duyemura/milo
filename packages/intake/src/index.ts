@@ -1,5 +1,7 @@
 export { runIntake } from "./intake.ts";
 export type { RunIntakeOptions } from "./intake.ts";
+export { runLearn } from "./intake.ts";
+export type { RunLearnResult, RunLearnOptions } from "./intake.ts";
 export { createRealPlacesClient } from "./places.ts";
 export { createRealPageFetcher } from "./crawl.ts";
 export { loadCrawlRules, compileCrawlRules, CrawlRules } from "./rules.ts";

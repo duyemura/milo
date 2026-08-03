@@ -16,6 +16,18 @@ import type { ChatFn } from "@milo/llm";
 import { loadCrawlRules, type CompiledCrawlRules } from "./rules.ts";
 import { createRealSocialScraper, type SocialScraper, type SocialProfile } from "./social.ts";
 
+export interface RunLearnResult {
+  context: Record<string, unknown>;
+  business: Record<string, unknown>;
+  identity: IdentityCrawl;
+  brand: BrandCrawl;
+  pageDocs: PageDocument[];
+  gmbAssets: { localPath: string; widthPx?: number; heightPx?: number; attribution?: string }[];
+  placeholderArchetypes: string[];
+  budgets: Map<string, string>;
+  integrations: Record<string, unknown>;
+}
+
 export interface RunIntakeOptions {
   url: string;
   /** Gym name as supplied by operator. Used for GMB query and as identity fallback. */
@@ -51,6 +63,8 @@ export interface RunIntakeOptions {
   /** Injectable social scraper. Defaults to createRealSocialScraper. */
   socialScraper?: SocialScraper;
 }
+
+export type RunLearnOptions = RunIntakeOptions;
 
 async function exists(p: string): Promise<boolean> {
   try { await access(p); return true; } catch { return false; }
@@ -200,7 +214,53 @@ function enrichHomepageWithSocial(pageDocs: PageDocument[], profiles: SocialProf
   home.bodyText = `${home.bodyText}\n\n--- Social profiles ---\n${socialText}`.trim();
 }
 
-export async function runIntake(opts: RunIntakeOptions): Promise<void> {
+function contextToMarkdown(gymName: string, ctx: Record<string, unknown>): string {
+  const lines: string[] = [`# Context: ${gymName}`, ""];
+  const icp = ctx["icp"] as Record<string, unknown> | undefined;
+  if (icp) {
+    lines.push("## Ideal customer profile");
+    if (icp["fitnessLevel"]) lines.push(`- Fitness level: ${icp["fitnessLevel"]}`);
+    if (icp["ageRange"]) lines.push(`- Age range: ${icp["ageRange"]}`);
+    if (Array.isArray(icp["primaryGoals"]) && icp["primaryGoals"].length) lines.push(`- Goals: ${icp["primaryGoals"].join(", ")}`);
+    lines.push("");
+  }
+  const voice = ctx["brandVoice"] as Record<string, unknown> | undefined;
+  if (voice) {
+    lines.push("## Brand voice");
+    if (voice["tone"]) lines.push(`- Tone: ${voice["tone"]}`);
+    if (voice["communicationStyle"]) lines.push(`- Style: ${voice["communicationStyle"]}`);
+    if (Array.isArray(voice["emphasizes"]) && voice["emphasizes"].length) lines.push(`- Emphasizes: ${voice["emphasizes"].join(", ")}`);
+    if (Array.isArray(voice["avoids"]) && voice["avoids"].length) lines.push(`- Avoids: ${voice["avoids"].join(", ")}`);
+    lines.push("");
+  }
+  if (ctx["primaryOffer"]) lines.push(`**Primary offer:** ${ctx["primaryOffer"]}\n`);
+  if (ctx["pricingTier"]) lines.push(`**Pricing tier:** ${ctx["pricingTier"]}\n`);
+  return lines.join("\n");
+}
+
+function businessToMarkdown(gymName: string, biz: Record<string, unknown>): string {
+  const lines: string[] = [`# Business: ${gymName}`, ""];
+  const tech = biz["techStack"] as Record<string, unknown> | undefined;
+  if (tech) {
+    lines.push("## Tech stack");
+    if (tech["websiteBuilder"]) lines.push(`- Website builder: ${tech["websiteBuilder"]}`);
+    if (tech["gymSoftware"]) lines.push(`- Gym software: ${tech["gymSoftware"]}`);
+    if (tech["bookingMethod"]) lines.push(`- Booking: ${tech["bookingMethod"]}`);
+    lines.push("");
+  }
+  const mkt = biz["marketingMaturity"] as Record<string, unknown> | undefined;
+  if (mkt) {
+    lines.push("## Marketing");
+    if (Array.isArray(mkt["socialPlatforms"]) && mkt["socialPlatforms"].length) lines.push(`- Social: ${mkt["socialPlatforms"].join(", ")}`);
+    if (mkt["runsPaidAds"]) lines.push(`- Runs paid ads: ${mkt["runsPaidAds"]}`);
+    if (mkt["hasEmailList"]) lines.push(`- Email list: ${mkt["hasEmailList"]}`);
+    lines.push("");
+  }
+  if (biz["assessment"]) lines.push(`**Assessment:** ${biz["assessment"]}\n`);
+  return lines.join("\n");
+}
+
+export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
   const rules = opts.rules ?? loadCrawlRules();
   const crawlDir = path.join(opts.outDir, "crawl");
   const pagesDir = path.join(crawlDir, "pages");
@@ -382,26 +442,34 @@ export async function runIntake(opts: RunIntakeOptions): Promise<void> {
   if (placeholderArchetypes.length > 0) {
     console.warn(`[intake] Thin input — creating placeholder pages for: ${placeholderArchetypes.join(", ")}`);
   }
-  const { gym } = await generateSite({
-    chat: opts.chat,
-    model: opts.capableModel,
-    pages: pageDocs,
-    budgets,
-    identity,
-    brand,
-    context,
-    business,
-    placeholderArchetypes,
-    gmbAssets,
-  });
 
-  // --- write outputs
-  // gym was already deep-validated by generateSite() against GymDocumentsStrict;
-  // no need to re-parse here.
-  await writeJson(path.join(opts.outDir, "gym.json"), gym);
+  // Write docs in both JSON (template compat) and Markdown (new format)
   await writeJson(path.join(opts.outDir, "context.json"), context);
   await writeJson(path.join(opts.outDir, "business.json"), business);
   await writeJson(path.join(opts.outDir, "integrations.json"), integrations);
+  await writeFile(path.join(opts.outDir, "context.md"), contextToMarkdown(opts.gymName, context), "utf8");
+  await writeFile(path.join(opts.outDir, "business.md"), businessToMarkdown(opts.gymName, business), "utf8");
 
-  console.log(`[intake] Wrote gym.json + context.json + business.json + integrations.json to ${opts.outDir}`);
+  console.log(`[learn] Wrote context.json + business.json + context.md + business.md to ${opts.outDir}`);
+
+  return { context, business, identity, brand, pageDocs, gmbAssets, placeholderArchetypes, budgets, integrations };
+}
+
+/** Backward-compat wrapper: runs runLearn then generates gym.json. */
+export async function runIntake(opts: RunLearnOptions): Promise<void> {
+  const result = await runLearn(opts);
+  const { gym } = await generateSite({
+    chat: opts.chat,
+    model: opts.capableModel,
+    pages: result.pageDocs,
+    budgets: result.budgets,
+    identity: result.identity,
+    brand: result.brand,
+    context: result.context,
+    business: result.business,
+    placeholderArchetypes: result.placeholderArchetypes,
+    gmbAssets: result.gmbAssets,
+  });
+  await writeJson(path.join(opts.outDir, "gym.json"), gym);
+  console.log(`[intake] Wrote gym.json to ${opts.outDir}`);
 }

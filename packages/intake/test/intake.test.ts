@@ -3,7 +3,7 @@ import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { GymDocuments } from "@milo/schema";
-import { runIntake } from "../src/intake.ts";
+import { runIntake, runLearn } from "../src/intake.ts";
 import { FakePlacesClient, FakePageFetcher, fakeChat, fakeChatWithCapture, fakeSocialScraper } from "./fakes.ts";
 import { sanitizeAssetName } from "../src/crawl.ts";
 
@@ -290,5 +290,65 @@ describe("runIntake", () => {
     expect(indexDoc.bodyText).toContain("--- Social profiles ---");
     expect(indexDoc.bodyText).toContain(IG_PROFILE.bio);
     expect(indexDoc.bodyText).toContain(IG_PROFILE.recentPosts[0]);
+  });
+});
+
+describe("runLearn", () => {
+  it("writes crawl bundle + context.json + business.json but NOT gym.json", async () => {
+    const places = new FakePlacesClient({ displayName: { text: "Iron Anchor" }, formattedAddress: "1 Dock St, Denver, CO 80202, USA" });
+    const fetcher = new FakePageFetcher({ "https://ironanchor.com/": HOME, "/about": ABOUT, "/pricing": PRICING });
+    // 3 page classifications + BUSINESS + CONTEXT (no GYM call)
+    const chat = fakeChat([CLASS, CLASS, CLASS, JSON.stringify(BUSINESS), JSON.stringify(CONTEXT)]);
+
+    await runLearn({
+      url: "https://ironanchor.com", gymName: "Iron Anchor", city: "Denver", state: "CO", country: "US",
+      outDir: out, maxPages: 25, includeUgc: false, concurrency: 3,
+      places, fetcher, chat, capableModel: "capable", fastModel: "fast",
+      normalizeFetch: async () => ({ url: "https://ironanchor.com/" }) as unknown as Response,
+      discoveredAt: "2026-07-28T00:00:00Z",
+      captureFonts: fakeFonts,
+      downloadOne: fakeDownload,
+      socialScraper: fakeSocialScraper([]),
+    });
+
+    // crawl bundle written
+    const crawlDir = path.join(out, "crawl");
+    expect(JSON.parse(await readFile(path.join(crawlDir, "identity.json"), "utf8"))).toHaveProperty("found");
+    expect(JSON.parse(await readFile(path.join(crawlDir, "brand.json"), "utf8"))).toHaveProperty("colors");
+    expect(JSON.parse(await readFile(path.join(crawlDir, "pages.json"), "utf8"))).toHaveProperty("pages");
+
+    // LLM doc outputs written
+    expect(await readFile(path.join(out, "context.json"), "utf8")).toBeTruthy();
+    expect(await readFile(path.join(out, "business.json"), "utf8")).toBeTruthy();
+
+    // Markdown docs written
+    expect(await readFile(path.join(out, "context.md"), "utf8")).toMatch(/iron anchor/i);
+    expect(await readFile(path.join(out, "business.md"), "utf8")).toMatch(/iron anchor/i);
+
+    // gym.json NOT written — generateSite was never called
+    await expect(readFile(path.join(out, "gym.json"), "utf8")).rejects.toThrow();
+  });
+
+  it("returns structured data usable by generateSite", async () => {
+    const places = new FakePlacesClient({ displayName: { text: "Iron Anchor" }, formattedAddress: "1 Dock St, Denver, CO 80202, USA" });
+    const fetcher = new FakePageFetcher({ "https://ironanchor.com/": HOME, "/about": ABOUT, "/pricing": PRICING });
+    const chat = fakeChat([CLASS, CLASS, CLASS, JSON.stringify(BUSINESS), JSON.stringify(CONTEXT)]);
+
+    const result = await runLearn({
+      url: "https://ironanchor.com", gymName: "Iron Anchor", city: "Denver", state: "CO", country: "US",
+      outDir: out, maxPages: 25, includeUgc: false, concurrency: 3,
+      places, fetcher, chat, capableModel: "capable", fastModel: "fast",
+      normalizeFetch: async () => ({ url: "https://ironanchor.com/" }) as unknown as Response,
+      discoveredAt: "2026-07-28T00:00:00Z",
+      captureFonts: fakeFonts,
+      downloadOne: fakeDownload,
+      socialScraper: fakeSocialScraper([]),
+    });
+
+    expect(result.context).toHaveProperty("brandVoice");
+    expect(result.business).toHaveProperty("techStack");
+    expect(result.identity).toHaveProperty("found");
+    expect(result.pageDocs.length).toBeGreaterThan(0);
+    expect(result.brand).toHaveProperty("colors");
   });
 });
