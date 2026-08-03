@@ -3,6 +3,7 @@ import { z } from "zod";
 export const LearnJob = z.object({
   type: z.literal("learn"),
   url: z.string().url(),
+  verbose: z.boolean().default(false),
 });
 
 export const CloneJob = z.object({
@@ -14,6 +15,7 @@ export const CloneJob = z.object({
   includeUgc: z.boolean().default(false),
   ugcLimit: z.number().int().positive().optional(),
   concurrency: z.number().int().positive().optional(),
+  deploy: z.boolean().default(false),          // publish to staging after a successful build
 });
 
 export const DeployJob = z.object({
