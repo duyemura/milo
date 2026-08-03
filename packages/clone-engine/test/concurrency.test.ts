@@ -18,6 +18,10 @@ describe("mapPool", () => {
   it("runs with width 1 for an empty list without hanging", async () => {
     expect(await mapPool([], 4, async (x) => x)).toEqual([]);
   });
+  it("falls back to a single worker for a non-finite or zero limit (no dropped items)", async () => {
+    expect(await mapPool([1, 2, 3], Number.NaN, async (n) => n)).toEqual([1, 2, 3]);
+    expect(await mapPool([1, 2, 3], 0, async (n) => n)).toEqual([1, 2, 3]);
+  });
 });
 
 describe("autoConcurrency", () => {

@@ -13,7 +13,10 @@ export async function mapPool<T, R>(
 ): Promise<R[]> {
   const results = new Array<R>(items.length);
   let next = 0;
-  const width = Math.max(1, Math.min(limit, items.length || 1));
+  // Guard against a non-finite/zero limit (e.g. parseInt("abc") → NaN): Math.min(NaN, …)
+  // would yield a NaN width and spawn ZERO workers, silently returning [undefined,…].
+  const safeLimit = Number.isFinite(limit) && limit >= 1 ? Math.floor(limit) : 1;
+  const width = Math.max(1, Math.min(safeLimit, items.length || 1));
   const workers = Array.from({ length: width }, async () => {
     for (let i = next++; i < items.length; i = next++) {
       results[i] = await fn(items[i]!, i);

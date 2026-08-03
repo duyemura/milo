@@ -430,7 +430,13 @@ ${interCss}</style></head><body class="p${CAP.tree.id}"${bodyPageAttrs}>${CAP.tr
   const imports = regions.map((r) => `import ${r.file} from "../components/${r.file}.astro";`).join("\n");
   fs.writeFileSync(path.join(AST, "src/pages/index.astro"), `---\nimport "../styles/global.css";\n${imports}\n---\n<html lang="${escA(head.lang)}">\n<head>\n<meta charset="utf-8" />\n<meta name="viewport" content="width=device-width,initial-scale=1" />\n<title>${esc(head.title)}</title>\n<Fragment set:html={${JSON.stringify(absA(metaTags + "\n" + iconTags))}} />\n</head>\n<body class="p${CAP.tree.id}"${bodyPageAttrs}>\n${CAP.tree.children.map(pageAstro).join("")}\n${interScript.replace("<script>", "<script is:inline>")}\n</body>\n</html>\n`);
   fs.writeFileSync(path.join(AST, "package.json"), JSON.stringify({ name: "page-clone-astro", type: "module", private: true, scripts: { build: "astro build" }, dependencies: { astro: "^4.16.0" } }, null, 2));
-  fs.writeFileSync(path.join(AST, "astro.config.mjs"), `import { defineConfig } from "astro/config";\nexport default defineConfig(${BASE ? `{ base: "${BASE}" }` : "{}"});\n`);
+  // vite.cacheDir is set to a per-project ".vite" (project root, NOT node_modules)
+  // so concurrent builds don't share Vite's dep-optimizer cache. The astro build
+  // symlinks node_modules to one shared install, and Vite's default cache lives at
+  // node_modules/.vite — i.e. shared across all parallel builds through that symlink,
+  // a write race. Redirecting cacheDir out of node_modules isolates each build.
+  const cfgBody = BASE ? `{ base: "${BASE}", vite: { cacheDir: ".vite" } }` : `{ vite: { cacheDir: ".vite" } }`;
+  fs.writeFileSync(path.join(AST, "astro.config.mjs"), `import { defineConfig } from "astro/config";\nexport default defineConfig(${cfgBody});\n`);
   console.log(`  emitted real Astro project → ${AST} (${regions.length} components)`);
 
   // ---- diff assembled vs static clone ----

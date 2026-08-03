@@ -48,6 +48,19 @@ function hasFlag(name: string): boolean {
   return process.argv.includes(`--${name}`);
 }
 
+/** Parse an optional positive-integer arg. Absent → undefined; present but not a
+ *  positive integer → exit with a clear error (rather than silently becoming NaN). */
+function optPosIntArg(name: string): number | undefined {
+  const s = arg(name);
+  if (s === undefined) return undefined;
+  const n = parseInt(s, 10);
+  if (!Number.isInteger(n) || n < 1) {
+    console.error(`Error: --${name} must be a positive integer (got "${s}").`);
+    process.exit(1);
+  }
+  return n;
+}
+
 // ---------------------------------------------------------------------------
 // Default Speakeasy page list (backwards-compat with build-site.mjs behaviour)
 // ---------------------------------------------------------------------------
@@ -165,8 +178,7 @@ switch (subcommand) {
     const site = requireArg("site");
     const reportOut = requireArg("out");
     const buildCwd = arg("cwd", process.cwd());
-    const concStr = arg("concurrency");
-    const concurrency = concStr ? parseInt(concStr, 10) : undefined;
+    const concurrency = optPosIntArg("concurrency");
 
     console.log(`[build-site] Crawling ${site}...`);
     const routes = await crawlSite(site);
@@ -195,8 +207,7 @@ switch (subcommand) {
     const buildCwd = arg("cwd", process.cwd());
     const ugcLimitStr = arg("ugc-limit");
     const ugcLimit = ugcLimitStr ? parseInt(ugcLimitStr, 10) : undefined;
-    const concStr = arg("concurrency");
-    const concurrency = concStr ? parseInt(concStr, 10) : undefined;
+    const concurrency = optPosIntArg("concurrency");
     const emitEvents = hasFlag("emit-events");
     const onEvent: EngineEventSink | undefined = emitEvents
       ? (e) => process.stdout.write(eventToJsonLine(e) + "\n")
