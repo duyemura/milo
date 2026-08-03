@@ -9,6 +9,11 @@ dist-modern/
 dist-blackout/
 cf-*-intake/
 
+# burnin artifacts
+burnin.sh
+burnin-results*.json
+docs/BURNIN-*.md
+
 # local run data — never commit
 admin-data/
 admin-smoke-data/
