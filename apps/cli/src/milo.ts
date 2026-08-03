@@ -83,12 +83,8 @@ const HELP: Record<string, string> = {
   --city <city>        City hint for GMB lookup (optional)
   --state <state>      State hint for GMB lookup (optional)
   --country <country>  Country code (default: US)
-  --out <dir>          Output directory (default: ./<hostname>)
-  --max-pages <n>      Max pages to crawl (default: 25)
-  --concurrency <n>    Parallel crawl workers (default: 3)
-  --rules <path>       Custom crawl rules JSON file
-  --include-ugc        Include user-generated content pages
-  --skip-crawl         Skip crawl, re-process already-fetched pages
+  --out <dir>          Output directory (default: storage backend)
+  --concurrency <n>    Parallel page fetchers (default: 3)
   --verbose            Stream LLM reasoning to stderr
 `.trim(),
 
@@ -276,7 +272,7 @@ switch (command) {
       const openrouterKey = process.env.OPENROUTER_API_KEY;
       if (!openrouterKey) { console.error("OPENROUTER_API_KEY is required for learn"); process.exit(1); }
 
-      const { runLearn, createRealPlacesClient, createRealPageFetcher, loadCrawlRules, verboseConsoleLogger } = await import("@milo/intake");
+      const { runLearn, createRealPlacesClient, createRealPageFetcher, verboseConsoleLogger } = await import("@milo/intake");
       const { chatCompletion } = await import("@milo/llm");
       const llmConfig = {
         provider: "openrouter" as const,
@@ -284,7 +280,6 @@ switch (command) {
         openrouterApiKey: openrouterKey,
       };
 
-      const rulesPath = flag("rules", learnArgs);
       const result = await runLearn({
         url: websiteUrl,
         gymName,
@@ -293,19 +288,15 @@ switch (command) {
         country,
         ...(outFlag ? { outDir: path.resolve(outFlag) } : {}),
         ...(verbose ? { logger: verboseConsoleLogger() } : {}),
-        maxPages: Number(flag("max-pages", learnArgs) ?? 25),
-        includeUgc: learnArgs.includes("--include-ugc"),
         concurrency: Number(flag("concurrency", learnArgs) ?? 3),
-        skipCrawl: learnArgs.includes("--skip-crawl"),
         places: createRealPlacesClient(placesKey),
         fetcher: createRealPageFetcher(),
         chat: (o) => chatCompletion(o, llmConfig),
         capableModel: process.env.MILO_CAPABLE_MODEL ?? "anthropic/claude-sonnet-4-6",
         fastModel: process.env.MILO_FAST_MODEL ?? "google/gemini-2.5-flash",
         discoveredAt: new Date().toISOString(),
-        ...(rulesPath ? { rules: loadCrawlRules(path.resolve(rulesPath)) } : {}),
       });
-      console.log(`[learn] Done. ${result.pageDocs.length} pages documented. Docs at ${result.docsUri}`);
+      console.log(`[learn] Done. Docs at ${result.docsUri}`);
     } catch (err: unknown) {
       console.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
