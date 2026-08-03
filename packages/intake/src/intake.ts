@@ -24,7 +24,7 @@ export interface RunLearnResult {
   pageDocs: PageDocument[];
   gmbAssets: { localPath: string; widthPx?: number; heightPx?: number; attribution?: string }[];
   placeholderArchetypes: string[];
-  budgets: Map<string, string>;
+  budgets: Map<string, "full" | "truncated">;
   integrations: Record<string, unknown>;
 }
 
