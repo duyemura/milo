@@ -5,11 +5,14 @@ import type { Browser } from "playwright";
 import { llmJson } from "@milo/llm";
 import type { ChatFn } from "@milo/llm";
 import type { SiteRef } from "../edit/types.ts";
+import type { DigestLibraryAsset } from "../edit/types.ts";
 import type { SiteManifest } from "../types.ts";
 import { addPage, addNavLink, removeSection } from "../edit/ops.ts";
 import { generateSection } from "../edit/generate.ts";
 import { snapshot, restore } from "../edit/history.ts";
 import { loadSite } from "../edit/target.ts";
+import { loadLibrary } from "../assets/library.ts";
+import { findAsset } from "../assets/find.ts";
 import { BLUEPRINTS, routeOf, slugify, titleFromRoute, type ContentKind } from "./blueprints.ts";
 
 export interface ComposePageArgs {
@@ -27,6 +30,13 @@ export interface ComposePageResult {
   sections: string[];
   siteReport?: { blockerCount: number };
   failures: string[];
+  /**
+   * Library assets that match this page's brief — use placeAsset to add them to the page.
+   * Populated from the library; empty if no library exists or no relevant assets found.
+   * This is the "check library first" answer: we surface matches rather than auto-placing
+   * (auto-placement requires template image-alias support, which is a future task).
+   */
+  suggestedAssets: DigestLibraryAsset[];
 }
 
 const OutlineSchema = z.object({
@@ -90,7 +100,7 @@ export async function composePage(
   const failures: string[] = [];
   const blueprint = BLUEPRINTS[args.kind];
   if (!blueprint) {
-    return { ok: false, route: args.route, sections: [], failures: [`unknown kind "${args.kind}"`] };
+    return { ok: false, route: args.route, sections: [], suggestedAssets: [], failures: [`unknown kind "${args.kind}"`] };
   }
 
   let slug: string;
@@ -99,7 +109,7 @@ export async function composePage(
     slug = slugify(args.route);
     route = routeOf(args.route);
   } catch (err) {
-    return { ok: false, route: args.route, sections: [], failures: [(err as Error).message] };
+    return { ok: false, route: args.route, sections: [], suggestedAssets: [], failures: [(err as Error).message] };
   }
 
   const token = snapshot(site);
@@ -131,7 +141,7 @@ export async function composePage(
       if (!res.ok) {
         failures.push(`section ${i} (${role}) failed: ${res.verifierReport.failures.join(" | ") || "verify failed"}`);
         restore(site, token);
-        return { ok: false, route, sections, failures };
+        return { ok: false, route, sections, suggestedAssets: [], failures };
       }
       sections.push(res.sectionName);
     }
@@ -151,7 +161,7 @@ export async function composePage(
     } else {
       failures.push(`page .astro not found for meta injection: ${astroPath}`);
       restore(site, token);
-      return { ok: false, route, sections, failures };
+      return { ok: false, route, sections, suggestedAssets: [], failures };
     }
 
     // 6. Optional nav link.
@@ -172,12 +182,22 @@ export async function composePage(
 
     if (failures.length > 0) {
       restore(site, token);
-      return { ok: false, route, sections, failures };
+      return { ok: false, route, sections, suggestedAssets: [], failures };
     }
 
-    return { ok: true, route, sections, siteReport: { blockerCount: 0 }, failures };
+    // Search the library for assets relevant to this page brief.
+    // Surfaces real photos so the caller can place them rather than generating AI images.
+    const library = loadLibrary(site.dir, "biz_unknown");
+    const matches = findAsset(library, { text: args.brief, minQuality: "medium" }).slice(0, 5);
+    const suggestedAssets: DigestLibraryAsset[] = matches.map((a) => ({
+      id: a.id, description: a.tags.description, subjects: a.tags.subjects,
+      mood: a.tags.mood, quality: a.tags.quality, hasPeople: a.tags.hasPeople,
+      ...(a.siteOrigin !== undefined ? { siteOrigin: a.siteOrigin } : {}),
+    }));
+
+    return { ok: true, route, sections, siteReport: { blockerCount: 0 }, failures, suggestedAssets };
   } catch (err) {
     restore(site, token);
-    return { ok: false, route, sections, failures: [...failures, (err as Error).message] };
+    return { ok: false, route, sections, suggestedAssets: [], failures: [...failures, (err as Error).message] };
   }
 }

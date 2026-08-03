@@ -15,6 +15,8 @@ export interface IngestOpts {
   chat?: ChatFn;
   model?: string;
   now?: () => Date;
+  /** Which site this asset originated from (e.g. "speakeasy-brooklyn"). Omit for generic assets. */
+  siteOrigin?: string;
 }
 
 export interface IngestResult {
@@ -89,6 +91,7 @@ export async function ingestAsset(businessDir: string, opts: IngestOpts): Promis
     bytes: buf.length, tags: pendingTags(),
     ...(opts.altText !== undefined ? { altText: opts.altText } : {}),
     usages: [], status: "active", createdAt: now.toISOString(),
+    ...(opts.siteOrigin !== undefined ? { siteOrigin: opts.siteOrigin } : {}),
   };
   const businessId = opts.businessId ?? loadLibrary(businessDir, "biz_unknown").businessId;
   const library = addAsset(loadLibrary(businessDir, businessId), asset);

@@ -43,6 +43,7 @@ NEVER invent targets. Only reference:
 - asset aliases from the digest (e.g. "logo")
 - brand slots: primary, accent, surface, text, muted
 - element roles from the digest
+- library asset ids from digest.libraryAssets (e.g. "ast_abc123") — use these with placeAsset
 
 For ADDING A NEW SECTION that doesn't exist yet, use generateSection (not addSection):
   { op: "generateSection", role: "<role>", brief: "<what the section should say/do>" }

@@ -9,6 +9,12 @@ export interface FindQuery {
   embedding?: number[];
   limit?: number;
   /**
+   * Scope results to assets from a specific site or generic (no siteOrigin) assets.
+   * Pass the site slug (e.g. "speakeasy-brooklyn") to exclude other locations' photos.
+   * Generic assets (equipment, food, AI-generated) always pass this filter.
+   */
+  siteId?: string;
+  /**
    * Free-text search across description, subjects, mood, and activity.
    * ALL words must appear somewhere in the combined searchable text (case-insensitive).
    * This bridges semantic gaps (e.g. "members celebrating" matches a description mentioning
@@ -45,6 +51,9 @@ export function findAsset(library: AssetLibrary, query: FindQuery): Asset[] {
     if (query.usableContext === "generated-safe" && a.tags.hasPeople) return false;
     if (query.minQuality !== undefined && QUALITY_ORDER[a.tags.quality] < QUALITY_ORDER[query.minQuality]) return false;
     if (query.text !== undefined && !matchesText(a.tags, query.text)) return false;
+    // Site scoping: generic assets (no siteOrigin) are always included; location-specific
+    // assets only match when their siteOrigin matches the requested siteId.
+    if (query.siteId !== undefined && a.siteOrigin !== undefined && a.siteOrigin !== query.siteId) return false;
     return true;
   });
 

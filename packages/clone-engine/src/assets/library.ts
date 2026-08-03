@@ -14,6 +14,9 @@ export interface Asset {
   usages: AssetUsage[];
   status: "active" | "archived";
   createdAt: string;
+  /** Which site this asset originated from. Undefined = generic (equipment, food, AI).
+   *  Location-specific photos carry their siteOrigin so findAsset can scope them per site. */
+  siteOrigin?: string;
 }
 
 export interface AssetTags {

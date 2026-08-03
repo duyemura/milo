@@ -15,6 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Browser } from "playwright";
 import { injectTrackerIntoSite } from "./pagegoal.ts";
+import { migrateExistingAssets } from "./assets/migrate.ts";
 import { injectSeoFiles } from "./sitemap.ts";
 import { injectGtag } from "@milo/measurement";
 import { buildReport, renderSiteReport } from "./buildreport/index.ts";
@@ -417,6 +418,18 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
     walkHtml(fullSite);
   }
   injectTrackerIntoSite(fullSite);
+
+  // Auto-migrate: on first build for a site that has no library yet, catalog its captured
+  // assets so the planner and composePage can reference them. Idempotent — subsequent builds
+  // are a no-op. Tags are NOT run automatically (no CV cost on build) — assets land pending.
+  const libraryPath = path.join(fullSite, "library.json");
+  if (!fs.existsSync(libraryPath) && ok.length > 0) {
+    const firstOkDir = path.join(cwd, ok[0].dir);
+    const siteRef = { dir: fullSite };
+    migrateExistingAssets(fullSite, siteRef).catch((err) => {
+      console.warn(`[asset-library] migration warning: ${(err as Error).message}`);
+    });
+  }
 
   // Site build report — ship/no-ship gate. Always runs; launches its own browser if not supplied.
   let siteReport: SiteReport | undefined;

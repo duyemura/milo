@@ -118,11 +118,24 @@ export interface DigestBrand {
  * Token-budgeted site view passed to the planner LLM.
  * Keep it small — this goes in the system/user prompt.
  */
+/** Compact library asset entry surfaced in the planner digest — enough to pick one to place. */
+export interface DigestLibraryAsset {
+  id: string;
+  description: string;
+  subjects: string[];
+  mood: string[];
+  quality: "low" | "medium" | "high";
+  hasPeople: boolean;
+  siteOrigin?: string;
+}
+
 export interface SiteDigest {
   pages: DigestPage[];
   brand: DigestBrand;
   /** All asset aliases across all pages (deduplicated). */
   assetAliases: string[];
+  /** Library assets available for placeAsset. Empty if no library exists yet. */
+  libraryAssets: DigestLibraryAsset[];
 }
 
 // ---------------------------------------------------------------------------
