@@ -93,6 +93,7 @@ export async function classifyBusiness(input: ClassifyBusinessInput): Promise<Bu
   return llmJson(BusinessDoc, {
     chat: input.chat,
     model: input.model,
+    maxTokens: 2000,
     messages: [
       { role: "system", content: system },
       { role: "user", content: `DETECTED SIGNALS: ${JSON.stringify(signals)}\n\nPAGES: ${input.pages.map((p) => `${p.slug}: ${p.bodyText.slice(0, 500)}`).join("\n")}\n\nGMB REVIEWS: ${JSON.stringify(budgetGmbReviews(gmb?.reviews, { maxReviews: 8, maxChars: 4000 }).map((r) => ({ rating: r.rating, text: r.text?.text })))}\n\nGMB ASSETS: ${JSON.stringify(input.assets?.map((a) => ({ file: a.file, widthPx: a.dimensions.w, heightPx: a.dimensions.h, attribution: a.attribution })) ?? [])}` },

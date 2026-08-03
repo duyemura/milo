@@ -90,6 +90,7 @@ export async function analyzeContext(input: AnalyzeContextInput): Promise<Contex
     llmJson(ContextDocA, {
       chat: input.chat,
       model: input.model,
+      maxTokens: 8000,
       messages: [
         {
           role: "system",
@@ -118,6 +119,7 @@ export async function analyzeContext(input: AnalyzeContextInput): Promise<Contex
     llmJson(ContextDocB, {
       chat: input.chat,
       model: input.model,
+      maxTokens: 4000,
       messages: [
         {
           role: "system",
