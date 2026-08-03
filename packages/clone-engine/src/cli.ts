@@ -165,6 +165,8 @@ switch (subcommand) {
     const site = requireArg("site");
     const reportOut = requireArg("out");
     const buildCwd = arg("cwd", process.cwd());
+    const concStr = arg("concurrency");
+    const concurrency = concStr ? parseInt(concStr, 10) : undefined;
 
     console.log(`[build-site] Crawling ${site}...`);
     const routes = await crawlSite(site);
@@ -180,18 +182,21 @@ switch (subcommand) {
       pages: sitePages,
       cwd: buildCwd,
       reportOut,
+      concurrency,
     });
     break;
   }
 
   case "build-auto": {
-    // node src/cli.ts build-auto --site <origin> [--mode core|full] [--out <report.html>] [--cwd <dir>] [--ugc-limit <n>] [--emit-events]
+    // node src/cli.ts build-auto --site <origin> [--mode core|full] [--out <report.html>] [--cwd <dir>] [--ugc-limit <n>] [--concurrency <n>] [--emit-events]
     const site = requireArg("site");
     const mode = (arg("mode", "core") as "core" | "full");
     const reportOut = arg("out");
     const buildCwd = arg("cwd", process.cwd());
     const ugcLimitStr = arg("ugc-limit");
     const ugcLimit = ugcLimitStr ? parseInt(ugcLimitStr, 10) : undefined;
+    const concStr = arg("concurrency");
+    const concurrency = concStr ? parseInt(concStr, 10) : undefined;
     const emitEvents = hasFlag("emit-events");
     const onEvent: EngineEventSink | undefined = emitEvents
       ? (e) => process.stdout.write(eventToJsonLine(e) + "\n")
@@ -202,6 +207,7 @@ switch (subcommand) {
       mode,
       reportOut,
       ugcLimit,
+      concurrency,
       onEvent,
     });
     break;
