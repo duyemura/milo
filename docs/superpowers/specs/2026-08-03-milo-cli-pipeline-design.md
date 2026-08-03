@@ -120,6 +120,8 @@ Markdown for narrative content (LLMs read it directly in prompts, no transformat
 
 ## Docs Storage Structure
 
+**Status:** Implemented 2026-08-03 — see `2026-08-03-docs-storage-plumbing-design.md`.
+
 ### Location convention
 
 ```
