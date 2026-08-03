@@ -336,13 +336,16 @@ switch (command) {
 
     // Pass through any extra flags (ugc-limit, concurrency, emit-events, etc.)
     // Strip flags we already handled so they don't get double-passed
-    const handledFlags = new Set(["--refresh-docs", "--template", "--out", "--mode", "--name", "--city", "--state"]);
+    // Flags we've already processed — don't pass to the engine
+    const handledFlags = new Set(["--refresh-docs", "--template", "--out", "--mode", "--name", "--city", "--state", "--url"]);
+    // Boolean flags (no value argument follows them)
+    const booleanFlags = new Set(["--refresh-docs"]);
     let i = 0;
     while (i < cloneArgs.length) {
       const arg = cloneArgs[i];
       if (handledFlags.has(arg)) {
-        i += 2; // skip flag and its value
-      } else if (arg.startsWith("--") && !handledFlags.has(arg)) {
+        i += booleanFlags.has(arg) ? 1 : 2; // boolean flags don't consume a value
+      } else if (arg.startsWith("--")) {
         engineArgs.push(arg);
         if (i + 1 < cloneArgs.length && !cloneArgs[i + 1].startsWith("--")) {
           engineArgs.push(cloneArgs[i + 1]);
