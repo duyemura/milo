@@ -3,6 +3,7 @@ import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { GymDocuments } from "@milo/schema";
+import { LocalFsAdapter } from "@milo/storage";
 import { runIntake, runLearn } from "../src/intake.ts";
 import { FakePlacesClient, FakePageFetcher, fakeChat, fakeChatWithCapture, fakeSocialScraper } from "./fakes.ts";
 import { sanitizeAssetName } from "../src/crawl.ts";
@@ -350,5 +351,67 @@ describe("runLearn", () => {
     expect(result.identity).toHaveProperty("found");
     expect(result.pageDocs.length).toBeGreaterThan(0);
     expect(result.brand).toHaveProperty("colors");
+  });
+});
+
+describe("runLearn storage mode", () => {
+  it("writes docs to gyms/<slug>/docs/ via an injected storage adapter", async () => {
+    const places = new FakePlacesClient({ displayName: { text: "Iron Anchor" }, formattedAddress: "1 Dock St, Denver, CO 80202, USA" });
+    const fetcher = new FakePageFetcher({ "https://ironanchor.com/": HOME, "/about": ABOUT, "/pricing": PRICING });
+    const chat = fakeChat([CLASS, CLASS, CLASS, JSON.stringify(BUSINESS), JSON.stringify(CONTEXT)]);
+    const storage = new LocalFsAdapter(path.join(out, "storage"));
+
+    const result = await runLearn({
+      url: "https://ironanchor.com", gymName: "Iron Anchor", city: "Denver", state: "CO", country: "US",
+      slug: "ironanchor-com",
+      storage,
+      maxPages: 25, includeUgc: false, concurrency: 3,
+      places, fetcher, chat, capableModel: "capable", fastModel: "fast",
+      normalizeFetch: async () => ({ url: "https://ironanchor.com/" }) as unknown as Response,
+      discoveredAt: "2026-07-28T00:00:00Z",
+      captureFonts: fakeFonts,
+      downloadOne: fakeDownload,
+      socialScraper: fakeSocialScraper([]),
+    });
+
+    const docsRoot = path.join(out, "storage", "gyms", "ironanchor-com", "docs");
+    // Canonical top-level copies
+    expect(JSON.parse(await readFile(path.join(docsRoot, "brand.json"), "utf8"))).toHaveProperty("colors");
+    expect(JSON.parse(await readFile(path.join(docsRoot, "pages.json"), "utf8"))).toHaveProperty("pages");
+    // Deprecated crawl/ duplicates (kept for the generate path)
+    expect(JSON.parse(await readFile(path.join(docsRoot, "crawl", "brand.json"), "utf8"))).toHaveProperty("colors");
+    expect(JSON.parse(await readFile(path.join(docsRoot, "crawl", "pages.json"), "utf8"))).toHaveProperty("pages");
+    // Crawl bundle + markdown + structured docs
+    expect(JSON.parse(await readFile(path.join(docsRoot, "crawl", "identity.json"), "utf8"))).toHaveProperty("found");
+    expect(await readFile(path.join(docsRoot, "context.md"), "utf8")).toMatch(/iron anchor/i);
+    expect(await readFile(path.join(docsRoot, "business.md"), "utf8")).toMatch(/iron anchor/i);
+    expect(JSON.parse(await readFile(path.join(docsRoot, "context.json"), "utf8"))).toBeTruthy();
+    // docsUri reported on the result; gym.json NOT written by runLearn
+    expect(result.docsUri).toContain("gyms/ironanchor-com/docs");
+    await expect(readFile(path.join(docsRoot, "gym.json"), "utf8")).rejects.toThrow();
+  });
+
+  it("emits verbose events to the injected logger", async () => {
+    const places = new FakePlacesClient({ displayName: { text: "Iron Anchor" }, formattedAddress: "1 Dock St, Denver, CO 80202, USA" });
+    const fetcher = new FakePageFetcher({ "https://ironanchor.com/": HOME, "/about": ABOUT, "/pricing": PRICING });
+    const chat = fakeChat([CLASS, CLASS, CLASS, JSON.stringify(BUSINESS), JSON.stringify(CONTEXT)]);
+    const verboseMsgs: string[] = [];
+    const logger = { info: () => {}, warn: () => {}, verbose: (m: string) => verboseMsgs.push(m) };
+
+    await runLearn({
+      url: "https://ironanchor.com", gymName: "Iron Anchor", city: "Denver", state: "CO", country: "US",
+      outDir: out,
+      logger,
+      maxPages: 25, includeUgc: false, concurrency: 3,
+      places, fetcher, chat, capableModel: "capable", fastModel: "fast",
+      normalizeFetch: async () => ({ url: "https://ironanchor.com/" }) as unknown as Response,
+      discoveredAt: "2026-07-28T00:00:00Z",
+      captureFonts: fakeFonts,
+      downloadOne: fakeDownload,
+      socialScraper: fakeSocialScraper([]),
+    });
+
+    expect(verboseMsgs.some((m) => m.includes("crawled"))).toBe(true);
+    expect(verboseMsgs.some((m) => m.includes("classified"))).toBe(true);
   });
 });

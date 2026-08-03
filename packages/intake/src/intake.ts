@@ -1,5 +1,9 @@
-import { mkdir, writeFile, readFile, access } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
+import { type StorageAdapter } from "@milo/storage";
+import { DocStore, resolveDocStore } from "./doc-store.ts";
+import { consoleLogger, type MiloLogger } from "./logger.ts";
 import { PagesJson, PageDocument, BrandCrawl, IdentityCrawl } from "@milo/schema";
 import type { PlacesClient } from "./places.ts";
 import { placesToIdentity } from "./places.ts";
@@ -26,6 +30,8 @@ export interface RunLearnResult {
   placeholderArchetypes: string[];
   budgets: Map<string, "full" | "truncated">;
   integrations: Record<string, unknown>;
+  /** URI of the docs root everything was written to, e.g. file:///Users/x/.milo/gyms/<slug>/docs */
+  docsUri: string;
 }
 
 export interface RunIntakeOptions {
@@ -38,7 +44,8 @@ export interface RunIntakeOptions {
   state: string;
   /** Country as supplied by operator. Defaults to US. */
   country: string;
-  outDir: string;
+  /** When set, docs are written directly into this dir (LocalFsAdapter, no key prefix) — preserves pre-storage behavior. */
+  outDir?: string;
   maxPages: number;
   includeUgc: boolean;
   concurrency: number;
@@ -62,18 +69,15 @@ export interface RunIntakeOptions {
   rules?: CompiledCrawlRules;
   /** Injectable social scraper. Defaults to createRealSocialScraper. */
   socialScraper?: SocialScraper;
+  /** Injectable storage backend. Default: outDir mode → LocalFsAdapter(outDir); otherwise getStorage(). */
+  storage?: StorageAdapter;
+  /** Docs key slug. Default: slugFromUrl(url). Ignored in outDir mode. */
+  slug?: string;
+  /** Injectable logger. Default: consoleLogger (verbose suppressed). */
+  logger?: MiloLogger;
 }
 
 export type RunLearnOptions = RunIntakeOptions;
-
-async function exists(p: string): Promise<boolean> {
-  try { await access(p); return true; } catch { return false; }
-}
-
-async function writeJson(file: string, value: unknown): Promise<void> {
-  await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, JSON.stringify(value, null, 2), "utf8");
-}
 
 async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
   const results: R[] = new Array(items.length);
@@ -93,10 +97,12 @@ async function downloadPageAssets(
   pages: PageDocument[],
   assetsDir: string,
   downloadOne: (url: string, assetsDir: string, preferredName?: string) => Promise<string | null> = downloadAsset,
+  logger?: MiloLogger,
 ): Promise<Record<string, string>> {
   const uniqueUrls = [...new Set(pages.flatMap((p) => p.images.map((i) => i.src)))];
   const results = await mapWithConcurrency(uniqueUrls, 5, async (url) => {
     const local = await downloadOne(url, assetsDir);
+    if (local) logger?.verbose(`[learn] asset ${url} → ${local}`);
     return { url, local };
   });
   const map: Record<string, string> = {};
@@ -134,6 +140,7 @@ async function downloadGmbPhotos(
   getPhotoUri: (photoName: string, maxWidthPx?: number) => Promise<string | null>,
   downloadOne: (url: string, assetsDir: string, preferredName?: string) => Promise<string | null> = downloadAsset,
   maxWidthPx = 1600,
+  logger?: MiloLogger,
 ): Promise<DownloadedGmbAsset[]> {
   if (!identity.photos || identity.photos.length === 0) return [];
   // Take top photos by resolution; keep attribution. Don't hammer the API.
@@ -150,6 +157,7 @@ async function downloadGmbPhotos(
     const localName = `gmb-${sanitizeAssetName(`https://places.googleapis.com/v1/${photo.name}`)}`;
     const saved = await downloadOne(uri, assetsDir, localName);
     if (saved) {
+      logger?.verbose(`[learn] gmb photo ${photo.name} → ${saved}`);
       assets.push({
         name: photo.name,
         source: "gmb",
@@ -262,8 +270,9 @@ function businessToMarkdown(gymName: string, biz: Record<string, unknown>): stri
 
 export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
   const rules = opts.rules ?? loadCrawlRules();
-  const crawlDir = path.join(opts.outDir, "crawl");
-  const pagesDir = path.join(crawlDir, "pages");
+  const logger = opts.logger ?? consoleLogger;
+  const docs = resolveDocStore(opts);
+  logger.info(`[learn] Writing docs to ${docs.uri()}`);
 
   let identity: IdentityCrawl;
   let brand: BrandCrawl;
@@ -272,20 +281,21 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
   let gmbAssets: { localPath: string; widthPx?: number; heightPx?: number; attribution?: string }[] = [];
 
   if (opts.skipCrawl) {
-    if (!(await exists(path.join(crawlDir, "pages.json")))) {
-      throw new Error(`No crawl bundle found at ${crawlDir}. Run without --skip-crawl first.`);
+    const pagesJson = await docs.getJson("crawl/pages.json");
+    if (!pagesJson) {
+      throw new Error(`No crawl bundle found at ${docs.uri()}/crawl. Run without --skip-crawl first.`);
     }
-    inventory = PagesJson.parse(JSON.parse(await readFile(path.join(crawlDir, "pages.json"), "utf8")));
-    identity = IdentityCrawl.parse(JSON.parse(await readFile(path.join(crawlDir, "identity.json"), "utf8")));
-    brand = BrandCrawl.parse(JSON.parse(await readFile(path.join(crawlDir, "brand.json"), "utf8")));
+    inventory = PagesJson.parse(pagesJson);
+    identity = IdentityCrawl.parse(await docs.getJson("crawl/identity.json"));
+    brand = BrandCrawl.parse(await docs.getJson("crawl/brand.json"));
     pageDocs = await Promise.all(
       inventory.pages.map(async (p) =>
-        PageDocument.parse(JSON.parse(await readFile(path.join(pagesDir, `${p.slug}.json`), "utf8")))),
+        PageDocument.parse(await docs.getJson(`crawl/pages/${p.slug}.json`))),
     );
     // Re-hydrate GMB assets so prompts still get photo context on re-runs.
     try {
-      const gmbAssetsDoc = JSON.parse(await readFile(path.join(crawlDir, "gmb-assets.json"), "utf8"));
-      gmbAssets = gmbAssetsDoc.assets ?? [];
+      const gmbAssetsDoc = (await docs.getJson("crawl/gmb-assets.json")) as { assets?: typeof gmbAssets } | null;
+      gmbAssets = gmbAssetsDoc?.assets ?? [];
     } catch { /* gmb-assets.json may not exist in older crawl bundles */ }
   } else {
     // --- Step 1: normalize base + fetch homepage
@@ -306,7 +316,7 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
     const placesQuery = `${opts.gymName} ${opts.city} ${opts.state} ${opts.country}`.trim();
     let placesRaw: unknown | null = null;
     try { placesRaw = await opts.places.searchText(placesQuery); }
-    catch (e) { console.warn(`[intake] Places lookup failed: ${(e as Error).message}`); }
+    catch (e) { logger.warn(`[intake] Places lookup failed: ${(e as Error).message}`); }
     identity = placesToIdentity(placesRaw, {
       gymName: opts.gymName,
       city: opts.city,
@@ -314,7 +324,7 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
       country: opts.country,
       websiteUrl: baseUrl,
     });
-    if (!identity.found) console.warn(`[intake] No Places match — using crawl-only identity`);
+    if (!identity.found) logger.warn(`[intake] No Places match — using crawl-only identity`);
 
     // --- Step 2: discovery
     let sitemapUrls: string[] = [];
@@ -324,7 +334,7 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
     } catch { /* no sitemap */ }
     const navUrls = extractNavLinks(homeHtml, baseUrl);
     inventory = buildInventory({ baseUrl, sitemapUrls, navUrls, maxPages: opts.maxPages, discoveredAt: opts.discoveredAt, includeUgc: opts.includeUgc }, rules);
-    if (inventory.capped > 0) console.warn(`Capped at ${opts.maxPages} pages (${inventory.capped} additional pages were skipped)`);
+    if (inventory.capped > 0) logger.warn(`Capped at ${opts.maxPages} pages (${inventory.capped} additional pages were skipped)`);
 
     // --- Step 3: crawl with queue expansion; record the FULL internal link graph.
     // Seed the queue from the inventory. As pages are crawled, every same-origin
@@ -349,11 +359,13 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
           const slug = slugFor(url, baseUrl);
           // Pages found mid-crawl (beyond the priority seed) default to truncated budget.
           const llmBudget = budgetOf.get(url) ?? "truncated";
-          return extractPageDocument({ html: fetched.html, url, slug, baseUrl, fetchMethod: fetched.fetchMethod, llmBudget });
+          const doc = extractPageDocument({ html: fetched.html, url, slug, baseUrl, fetchMethod: fetched.fetchMethod, llmBudget });
+          logger.verbose(`[learn] crawled ${url} (via ${fetched.fetchMethod}, ${doc.images.length} images)`);
+          return doc;
         } catch (e) {
           // Page fetch fails → skip page, log warning, continue. A single bad page
           // (HTTP error, network failure) must never crash the whole run.
-          console.warn(`[intake] skipping ${url}: ${(e as Error).message}`);
+          logger.warn(`[intake] skipping ${url}: ${(e as Error).message}`);
           return null;
         }
       });
@@ -387,7 +399,12 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
     });
 
     // --- Step 3b: per-page LLM classification (fast model)
-    pageDocs = await mapWithConcurrency(rawDocs, opts.concurrency, (doc) => classifyPage(doc, { chat: opts.chat, model: opts.fastModel }));
+    pageDocs = await mapWithConcurrency(rawDocs, opts.concurrency, async (doc) => {
+      const t0 = Date.now();
+      const classified = await classifyPage(doc, { chat: opts.chat, model: opts.fastModel });
+      logger.verbose(`[learn] classified ${doc.slug} (${Date.now() - t0}ms)`);
+      return classified;
+    });
 
     // --- Step 4: brand extraction (homepage)
     const homepageSocialLinks = extractSocialLinks(homeHtml);
@@ -408,14 +425,21 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
     const scrapedProfiles = await scrapeSocialProfiles(homepageSocialLinks, socialScraper);
     enrichHomepageWithSocial(pageDocs, scrapedProfiles);
     if (scrapedProfiles.length > 0) {
-      console.log(`[intake] Scraped ${scrapedProfiles.length} social profile(s): ${scrapedProfiles.map((p) => p.platform).join(", ")}`);
+      logger.info(`[intake] Scraped ${scrapedProfiles.length} social profile(s): ${scrapedProfiles.map((p) => p.platform).join(", ")}`);
     }
 
     // --- Step 4b: download GMB photos + page assets so generated sites don't hot-link source CDNs
-    const assetsDir = path.join(opts.outDir, "assets");
-    gmbAssets = await downloadGmbPhotos(identity, assetsDir, opts.places.getPhotoUri.bind(opts.places), opts.downloadOne, opts.gmbPhotoMaxWidthPx);
-    const assetMap = await downloadPageAssets(pageDocs, assetsDir, opts.downloadOne);
+    // Downloads stage in a tmp dir, then upload through the storage seam — one code
+    // path for local disk and S3. pageDocs keep "/assets/<name>" web paths either way.
+    const assetsDir = await mkdtemp(path.join(os.tmpdir(), "milo-assets-"));
+    gmbAssets = await downloadGmbPhotos(identity, assetsDir, opts.places.getPhotoUri.bind(opts.places), opts.downloadOne, opts.gmbPhotoMaxWidthPx, logger);
+    const assetMap = await downloadPageAssets(pageDocs, assetsDir, opts.downloadOne, logger);
     attachLocalAssetPaths(pageDocs, assetMap);
+
+    for (const f of await readdir(assetsDir)) {
+      await docs.putFile(`assets/${f}`, path.join(assetsDir, f));
+    }
+    await rm(assetsDir, { recursive: true, force: true });
 
     // --- persist crawl bundle
     const gmbAssetsDoc = {
@@ -423,36 +447,44 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
       count: gmbAssets.length,
       assets: gmbAssets,
     };
-    await writeJson(path.join(crawlDir, "identity.json"), identity);
-    await writeJson(path.join(crawlDir, "gmb-assets.json"), gmbAssetsDoc);
-    await writeJson(path.join(crawlDir, "brand.json"), brand);
-    await writeJson(path.join(crawlDir, "pages.json"), inventory);
-    await writeJson(path.join(crawlDir, "links.json"), linkMap);
-    console.log(`[intake] Link map: ${linkMap.nodes.length} internal URLs (${linkMap.nodes.filter((n) => n.crawled).length} crawled, ${linkMap.nodes.filter((n) => !n.crawled).length} mapped-only)`);
-    console.log(`[intake] Downloaded ${gmbAssets.length} GMB photos + ${Object.keys(assetMap).length} page assets to ${assetsDir}`);
-    for (const doc of pageDocs) await writeJson(path.join(pagesDir, `${doc.slug}.json`), doc);
+    await docs.putJson("crawl/identity.json", identity);
+    await docs.putJson("crawl/gmb-assets.json", gmbAssetsDoc);
+    await docs.putJson("crawl/links.json", linkMap);
+    // Canonical top-level copies (Phase 2 readers). crawl/ duplicates kept for the
+    // deprecated generate path — apps/cli/src/generate.ts reads crawl/brand.json + crawl/pages.json.
+    await docs.putJson("brand.json", brand);
+    await docs.putJson("pages.json", inventory);
+    await docs.putJson("crawl/brand.json", brand);
+    await docs.putJson("crawl/pages.json", inventory);
+    logger.info(`[intake] Link map: ${linkMap.nodes.length} internal URLs (${linkMap.nodes.filter((n) => n.crawled).length} crawled, ${linkMap.nodes.filter((n) => !n.crawled).length} mapped-only)`);
+    logger.info(`[intake] Downloaded ${gmbAssets.length} GMB photos + ${Object.keys(assetMap).length} page assets`);
+    for (const doc of pageDocs) await docs.putJson(`crawl/pages/${doc.slug}.json`, doc);
   }
 
   // --- Step 5: project docs into site content
   const budgets = new Map(inventory.pages.map((p) => [p.slug, p.llmBudget] as const));
+  const tBiz = Date.now();
   const business = await classifyBusiness({ chat: opts.chat, model: opts.fastModel, pages: pageDocs, brand, identity, gmbAssets });
+  logger.verbose(`[learn] classifyBusiness model=${opts.fastModel} (${Date.now() - tBiz}ms)`);
   const integrations = buildIntegrations(brand);
+  const tCtx = Date.now();
   const context = await analyzeContext({ chat: opts.chat, model: opts.capableModel, pages: pageDocs, budgets, identity, brand, gmbAssets });
+  logger.verbose(`[learn] analyzeContext model=${opts.capableModel} (${Date.now() - tCtx}ms)`);
   const placeholderArchetypes = missingArchetypes(pageDocs);
   if (placeholderArchetypes.length > 0) {
-    console.warn(`[intake] Thin input — creating placeholder pages for: ${placeholderArchetypes.join(", ")}`);
+    logger.warn(`[intake] Thin input — creating placeholder pages for: ${placeholderArchetypes.join(", ")}`);
   }
 
   // Write docs in both JSON (template compat) and Markdown (new format)
-  await writeJson(path.join(opts.outDir, "context.json"), context);
-  await writeJson(path.join(opts.outDir, "business.json"), business);
-  await writeJson(path.join(opts.outDir, "integrations.json"), integrations);
-  await writeFile(path.join(opts.outDir, "context.md"), contextToMarkdown(opts.gymName, context), "utf8");
-  await writeFile(path.join(opts.outDir, "business.md"), businessToMarkdown(opts.gymName, business), "utf8");
+  await docs.putJson("context.json", context);
+  await docs.putJson("business.json", business);
+  await docs.putJson("integrations.json", integrations);
+  await docs.putText("context.md", contextToMarkdown(opts.gymName, context));
+  await docs.putText("business.md", businessToMarkdown(opts.gymName, business));
 
-  console.log(`[learn] Wrote context.json + business.json + context.md + business.md to ${opts.outDir}`);
+  logger.info(`[learn] Wrote docs to ${docs.uri()}`);
 
-  return { context, business, identity, brand, pageDocs, gmbAssets, placeholderArchetypes, budgets, integrations };
+  return { context, business, identity, brand, pageDocs, gmbAssets, placeholderArchetypes, budgets, integrations, docsUri: docs.uri() };
 }
 
 /** Backward-compat wrapper: runs runLearn then generates gym.json. */
@@ -470,6 +502,8 @@ export async function runIntake(opts: RunLearnOptions): Promise<void> {
     placeholderArchetypes: result.placeholderArchetypes,
     gmbAssets: result.gmbAssets,
   });
-  await writeJson(path.join(opts.outDir, "gym.json"), gym);
-  console.log(`[intake] Wrote gym.json to ${opts.outDir}`);
+  const docs = resolveDocStore(opts);
+  await docs.putJson("gym.json", gym);
+  const logger = opts.logger ?? consoleLogger;
+  logger.info(`[intake] Wrote gym.json to ${docs.uri()}`);
 }

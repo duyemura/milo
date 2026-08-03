@@ -11,3 +11,5 @@ export type { SocialScraper, SocialProfile } from "./social.ts";
 export * from "./schemas.ts";
 export { PagesJson, LinkMap, PageDocument, IdentityCrawl, BrandCrawl } from "@milo/schema";
 export type { PagesJson as PagesJsonType, LinkMap as LinkMapType, PageDocument as PageDocumentType, IdentityCrawl as IdentityCrawlType, BrandCrawl as BrandCrawlType } from "@milo/schema";
+export { consoleLogger, verboseConsoleLogger } from "./logger.ts";
+export type { MiloLogger } from "./logger.ts";
