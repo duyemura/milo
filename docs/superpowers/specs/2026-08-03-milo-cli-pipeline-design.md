@@ -59,7 +59,7 @@ milo status <slug>                  # show current staging/production state
 
 Runs the research pipeline. Produces intelligence documents about the client. **Does not produce HTML.** Does not call `generateSite`. Runs in ~2–3 min.
 
-Output goes to `~/.milo/docs/<domain-slug>/` by default (S3 in production: `gyms/<slug>/docs/`).
+Output goes to `gyms/<slug>/docs/` via the storage seam by default — local disk under `~/.milo` in dev, S3 in production, MinIO for local S3 testing.
 
 ### milo clone `<url>`
 
@@ -123,12 +123,14 @@ Markdown for narrative content (LLMs read it directly in prompts, no transformat
 ### Location convention
 
 ```
-Local (CLI default):   ~/.milo/docs/<domain-slug>/
+Local (CLI default):   ~/.milo/gyms/<slug>/docs/
 S3 (production):       gyms/<slug>/docs/
 MinIO (local dev):     gyms/<slug>/docs/  (same paths, different endpoint)
 ```
 
-Domain slug is derived from the URL: `speakeasyofstrength.com` → `speakeasyofstrength-com`. This is auto-derived from the URL so `milo intake <url>` and `milo clone <url>` resolve to the same docs without any operator configuration.
+Keys are identical locally and in S3 (`gyms/<slug>/docs/...`) — one code path. Local root defaults to `~/.milo`, overridable via `MILO_STORAGE_DIR`. (Revised 2026-08-03 from `~/.milo/docs/<slug>/` — see `2026-08-03-docs-storage-plumbing-design.md`.)
+
+Domain slug is derived from the URL: `speakeasyofstrength.com` → `speakeasyofstrength-com`. This is auto-derived from the URL so `milo learn <url>` and `milo clone <url>` resolve to the same docs without any operator configuration.
 
 ### S3 structure (per client)
 
