@@ -150,7 +150,7 @@ async function ingestSocialImages(
   businessDir: string,
   slug: string,
   logger?: MiloLogger,
-  maxPostImages = 3,
+  maxPostImages = 25,
   fetchFn?: (url: string, init?: RequestInit) => Promise<Response>,
 ): Promise<Asset[]> {
   const assets: Asset[] = [];
