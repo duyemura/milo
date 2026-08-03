@@ -28,6 +28,7 @@ import { verify, renderSnapshot, type EditIntent } from "../../../src/edit/verif
 import { sectionListOf } from "../../../src/edit/snapshot.ts";
 import type { SiteRef } from "../../../src/edit/types.ts";
 import type { SiteManifest } from "../../../src/types.ts";
+import { findAstroModules } from "../../helpers/astro.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const PKG = path.resolve(dir, "../../..");
@@ -35,18 +36,6 @@ const REPO = path.resolve(PKG, "../..");
 const GOLDEN = path.join(dir, "../../golden/speakeasy");
 const WIDTH = 1440;
 
-function findAstroModules(): string | null {
-  const candidates = [
-    process.env.ASTRO_MODULES,
-    path.join(REPO, "page-clone-spike/out-project-page/astro/node_modules"),
-    path.join(PKG, "node_modules"),
-    path.join(REPO, "node_modules"),
-  ].filter((c): c is string => Boolean(c));
-  for (const c of candidates) {
-    if (fs.existsSync(path.join(c, ".bin/astro")) || fs.existsSync(path.join(c, "astro"))) return c;
-  }
-  return null;
-}
 const ASTRO_MODULES = findAstroModules();
 
 async function projectFixture(): Promise<{ out: string; site: SiteRef; manifest: SiteManifest }> {

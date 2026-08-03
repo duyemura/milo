@@ -24,6 +24,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { pixelDiff } from "./helpers/pixel.ts";
 import { project } from "../src/project.ts";
+import { findAstroModules, findAstroJs } from "./helpers/astro.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const PKG = path.resolve(dir, "..");
@@ -31,20 +32,6 @@ const REPO = path.resolve(PKG, "../..");
 const SITE = "speakeasy";
 const GOLDEN = path.join(dir, "golden", SITE);
 const WIDTHS = [1440, 390] as const;
-
-/** A shared astro@^4 node_modules to symlink into the emitted project (env override wins). */
-function findAstroModules(): string | null {
-  const candidates = [
-    process.env.ASTRO_MODULES,
-    path.join(REPO, "page-clone-spike/out-project-page/astro/node_modules"),
-    path.join(PKG, "node_modules"),
-    path.join(REPO, "node_modules"),
-  ].filter((c): c is string => Boolean(c));
-  for (const c of candidates) {
-    if (fs.existsSync(path.join(c, ".bin/astro")) || fs.existsSync(path.join(c, "astro"))) return c;
-  }
-  return null;
-}
 
 const ASTRO_MODULES = findAstroModules();
 
@@ -96,14 +83,12 @@ describe("astro-build pixel oracle (shipped artifact)", () => {
         await project({ dir: GOLDEN, out, trim: true, noDiff: true });
         const ASTRO = path.join(out, "astro");
 
-        // 2. Symlink the shared astro node_modules into the emitted project.
-        fs.symlinkSync(ASTRO_MODULES!, path.join(ASTRO, "node_modules"), "dir");
+        // 2. Symlink engine's node_modules so astro can find astro/config and peers.
+        const link = path.join(ASTRO, "node_modules");
+        if (!fs.existsSync(link)) fs.symlinkSync(ASTRO_MODULES!, link, "dir");
 
-        // 3. astro build.
-        const astroBin = fs.existsSync(path.join(ASTRO_MODULES!, ".bin/astro"))
-          ? path.join(ASTRO_MODULES!, ".bin/astro")
-          : path.join(ASTRO_MODULES!, "astro/astro.js");
-        const build = spawnSync("node", [astroBin, "build"], { cwd: ASTRO, encoding: "utf8", env: process.env });
+        // 3. astro build via absolute path (avoids pnpm shim resolution issues).
+        const build = spawnSync("node", [findAstroJs(), "build"], { cwd: ASTRO, encoding: "utf8", env: process.env });
         expect(build.status, `astro build failed:\n${build.stdout}\n${build.stderr}`).toBe(0);
 
         const DIST = path.join(ASTRO, "dist");

@@ -13,34 +13,14 @@ import { clusterArchetypes } from "../../../src/harvest/library.ts";
 import { ctaLeft, ctaRight } from "../fixtures.ts";
 import type { SiteRef } from "../../../src/edit/types.ts";
 import type { SiteManifest, ManifestSection } from "../../../src/types.ts";
+import { findAstroModules } from "../../helpers/astro.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const PKG = path.resolve(dir, "../../..");
 const REPO = path.resolve(PKG, "../../..");
 
 // snapshot.ts reads process.env.ASTRO_MODULES; set it early so astroBuild finds node_modules.
-// REPO = /Users/dan/pushpress; main checkout is at pushpress/milo/page-clone-spike/out-project-page/.
-if (!process.env.ASTRO_MODULES) {
-  const candidate = path.join(REPO, "milo", "page-clone-spike/out-project-page/astro/node_modules");
-  if (fs.existsSync(path.join(candidate, ".bin/astro"))) {
-    process.env.ASTRO_MODULES = candidate;
-  }
-}
 
-function findAstroModules(): string | null {
-  const candidates = [
-    process.env.ASTRO_MODULES,
-    path.join(REPO, "page-clone-spike/out-project-page/astro/node_modules"),
-    // worktree: REPO resolves to /Users/dan/pushpress; main checkout is pushpress/milo
-    path.join(REPO, "milo", "page-clone-spike/out-project-page/astro/node_modules"),
-    path.join(PKG, "node_modules"),
-    path.join(REPO, "node_modules"),
-  ].filter((c): c is string => Boolean(c));
-  for (const c of candidates) {
-    if (fs.existsSync(path.join(c, ".bin/astro")) || fs.existsSync(path.join(c, "astro"))) return c;
-  }
-  return null;
-}
 const ASTRO_MODULES = findAstroModules();
 
 /** Insert a rendered template the SAME way generate.ts's insertGeneratedSection does. */

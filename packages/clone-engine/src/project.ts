@@ -41,7 +41,7 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   const CAP: CaptureJson = JSON.parse(fs.readFileSync(path.join(DIR, "capture.json"), "utf8"));
   // kill FOUT: source uses font-display:swap (fallback → swap = visible flicker). block paints the correct font once ready (self-hosted → instant).
   CAP.fontCss = (CAP.fontCss || "").replace(/font-display\s*:\s*[a-z-]+/gi, "font-display:block");
-  const OUT = path.resolve(opts.out ?? "out-project-page");
+  const OUT = path.resolve(opts.out ?? "project-out");
   const TRIM = opts.trim !== false;
   const BASE = typeof opts.base === "string" ? opts.base.replace(/\/$/, "") : "";
   const linkMap: Record<string, string> = typeof opts.links === "string" ? JSON.parse(fs.readFileSync(path.resolve(opts.links), "utf8")) : {};

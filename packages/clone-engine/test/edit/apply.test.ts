@@ -31,6 +31,7 @@ import { apply, reviseOps } from "../../src/edit/apply.ts";
 import type { SiteRef, EditOp } from "../../src/edit/types.ts";
 import type { SiteManifest } from "../../src/types.ts";
 import type { ChatFn, ChatResponse } from "@milo/llm";
+import { findAstroModules } from "../helpers/astro.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const PKG = path.resolve(dir, "../..");
@@ -39,19 +40,6 @@ const GOLDEN = path.join(dir, "../golden/speakeasy");
 const WIDTH = 1440;
 const MODEL = "test-model";
 
-/** A shared astro@^4 node_modules must exist to build the artifact; else the suite skips. */
-function findAstroModules(): string | null {
-  const candidates = [
-    process.env.ASTRO_MODULES,
-    path.join(REPO, "page-clone-spike/out-project-page/astro/node_modules"),
-    path.join(PKG, "node_modules"),
-    path.join(REPO, "node_modules"),
-  ].filter((c): c is string => Boolean(c));
-  for (const c of candidates) {
-    if (fs.existsSync(path.join(c, ".bin/astro")) || fs.existsSync(path.join(c, "astro"))) return c;
-  }
-  return null;
-}
 const ASTRO_MODULES = findAstroModules();
 
 /**

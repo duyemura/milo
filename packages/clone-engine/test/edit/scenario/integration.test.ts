@@ -29,6 +29,7 @@ import { revert, snapshot } from "../../../src/edit/history.ts";
 import type { SiteRef, EditOp, ConversationTurn, PlanResult } from "../../../src/edit/types.ts";
 import type { SiteManifest } from "../../../src/types.ts";
 import type { ChatFn, ChatResponse } from "@milo/llm";
+import { findAstroModules } from "../../helpers/astro.ts";
 
 /** Narrow a PlanResult to its ready (needsInfo:false) branch, failing the test otherwise. */
 function ready(r: PlanResult): Extract<PlanResult, { needsInfo: false }> {
@@ -48,18 +49,6 @@ const MODEL = "test-model";
 // Shared infra — browser + Astro modules
 // ---------------------------------------------------------------------------
 
-function findAstroModules(): string | null {
-  const candidates = [
-    process.env.ASTRO_MODULES,
-    path.join(REPO, "page-clone-spike/out-project-page/astro/node_modules"),
-    path.join(PKG, "node_modules"),
-    path.join(REPO, "node_modules"),
-  ].filter((c): c is string => Boolean(c));
-  for (const c of candidates) {
-    if (fs.existsSync(path.join(c, ".bin/astro")) || fs.existsSync(path.join(c, "astro"))) return c;
-  }
-  return null;
-}
 const ASTRO_MODULES = findAstroModules();
 
 let browser: Browser;

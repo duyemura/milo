@@ -40,7 +40,7 @@ const MIME = {
 function findAstroModules() {
   const candidates = [
     process.env.ASTRO_MODULES,
-    path.join(REPO, "page-clone-spike/out-project-page/astro/node_modules"),
+    path.join(PKG, "node_modules"),
     path.join(PKG, "node_modules"),
     path.join(REPO, "node_modules"),
   ].filter(Boolean);

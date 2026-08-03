@@ -7,19 +7,11 @@ import { fileURLToPath } from "node:url";
 import { buildReport } from "../../src/buildreport/inspector.ts";
 import { project } from "../../src/project.ts";
 import { makeSiteDir, makeCaptureDir } from "./fixtures.ts";
+import { findAstroModules } from "../helpers/astro.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const PKG = path.resolve(dir, "../..");
 const REPO = path.resolve(PKG, "../../..");
-
-if (!process.env.ASTRO_MODULES) {
-  const candidate = path.join(REPO, "milo", "page-clone-spike/out-project-page/astro/node_modules");
-  if (fs.existsSync(path.join(candidate, ".bin/astro"))) process.env.ASTRO_MODULES = candidate;
-}
-function findAstroModules(): string | null {
-  const c = process.env.ASTRO_MODULES;
-  return c && fs.existsSync(path.join(c, ".bin/astro")) ? c : null;
-}
 const ASTRO_MODULES = findAstroModules();
 
 let browser: Browser;

@@ -34,6 +34,7 @@ import { renderSnapshot } from "../../../src/edit/verify.ts";
 import type { ChatFn } from "@milo/llm";
 import type { SiteRef } from "../../../src/edit/types.ts";
 import type { SiteManifest } from "../../../src/types.ts";
+import { findAstroModules } from "../../helpers/astro.ts";
 
 /**
  * Content hash of every editable file under the site — the byte-identical rollback oracle
@@ -72,18 +73,6 @@ const GOLDEN = path.join(dir, "../../golden/speakeasy");
 const WIDTH = 1440;
 const MODEL = "mock-model";
 
-function findAstroModules(): string | null {
-  const candidates = [
-    process.env.ASTRO_MODULES,
-    path.join(REPO, "page-clone-spike/out-project-page/astro/node_modules"),
-    path.join(PKG, "node_modules"),
-    path.join(REPO, "node_modules"),
-  ].filter((c): c is string => Boolean(c));
-  for (const c of candidates) {
-    if (fs.existsSync(path.join(c, ".bin/astro")) || fs.existsSync(path.join(c, "astro"))) return c;
-  }
-  return null;
-}
 const ASTRO_MODULES = findAstroModules();
 
 /** A ChatFn that returns queued responses in order (one per call) — mirrors the intake fake. */

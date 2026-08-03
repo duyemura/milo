@@ -11,6 +11,7 @@ import { BLUEPRINTS, routeOf } from "../../src/ugc/blueprints.ts";
 import type { ChatFn } from "@milo/llm";
 import type { SiteRef } from "../../src/edit/types.ts";
 import type { SiteManifest } from "../../src/types.ts";
+import { findAstroModules } from "../helpers/astro.ts";
 
 function editableHash(siteDir: string): string {
   const files: string[] = [];
@@ -39,21 +40,7 @@ const GOLDEN = path.join(PKG, "test/golden/speakeasy");
 const WIDTH = 1440;
 const MODEL = "mock-model";
 
-// Set ASTRO_MODULES for renderSnapshot (same pattern as emit-integration.test.ts)
-if (!process.env.ASTRO_MODULES) {
-  const candidate = path.join(REPO, "milo", "page-clone-spike/out-project-page/astro/node_modules");
-  if (fs.existsSync(path.join(candidate, ".bin/astro"))) process.env.ASTRO_MODULES = candidate;
-}
 
-function findAstroModules(): string | null {
-  const candidates = [
-    process.env.ASTRO_MODULES,
-    path.join(REPO, "page-clone-spike/out-project-page/astro/node_modules"),
-    path.join(PKG, "node_modules"),
-  ].filter(Boolean) as string[];
-  for (const c of candidates) if (fs.existsSync(path.join(c, ".bin/astro"))) return c;
-  return null;
-}
 const ASTRO_MODULES = findAstroModules();
 
 function fakeChat(responses: string[]): ChatFn {

@@ -44,7 +44,7 @@ function arg(name, def) {
 const SITE = arg("site", "speakeasy");
 const GOLDEN = path.join(PKG, "test/golden", SITE);
 const ASTRO_MODULES = path.resolve(
-  arg("astro-modules", path.join(REPO, "page-clone-spike/out-project-page/astro/node_modules")),
+  arg("astro-modules", path.join(PKG, "node_modules")),
 );
 const WIDTHS = [1440, 390];
 
