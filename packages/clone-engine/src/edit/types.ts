@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { PageType, PageGoal } from "../types.ts";
+import type { SafeImageCategory } from "../assets/safety.ts";
 
 export interface SiteRef { dir: string; }              // a projected OUT dir (from project())
 
@@ -11,7 +12,12 @@ export type EditOp =
   | { op: "removeSection"; section: string }            // section = data-section role or component name
   | { op: "reorderSection"; section: string; toIndex: number }
   | { op: "addSection"; cloneOf: string; afterSection?: string }
-  | { op: "addPage"; route: string; cloneOfPage?: string; pageType?: PageType };  // cloneOfPage optional → auto-pick nearest-type; pageType optional → classify from route
+  | { op: "addPage"; route: string; cloneOfPage?: string; pageType?: PageType }   // cloneOfPage optional → auto-pick nearest-type; pageType optional → classify from route
+  | { op: "generateSection"; role: string; brief: string; afterSection?: string; targetRoute?: string | string[] | "all" } // role must be in TEMPLATE_LIBRARY; targetRoute: "/" | "/about/" | ["/","/about/"] | "all"
+  | { op: "addNavLink"; text: string; href: string } // add a link to the site nav
+  | { op: "generateAsset"; alias: string; brief: string; category?: SafeImageCategory; aspectRatio?: "16:9" | "1:1" | "4:3" } // safe AI image generation
+  | { op: "placeAsset"; alias: string; assetId: string }                 // place a library asset into a slot
+  | { op: "uploadAsset"; file: string; alias: string; altText?: string }; // owner photo → library → slot
 
 export interface OpResult { op: EditOp; changedFiles: string[]; targetSections: string[]; }
 
@@ -112,11 +118,24 @@ export interface DigestBrand {
  * Token-budgeted site view passed to the planner LLM.
  * Keep it small — this goes in the system/user prompt.
  */
+/** Compact library asset entry surfaced in the planner digest — enough to pick one to place. */
+export interface DigestLibraryAsset {
+  id: string;
+  description: string;
+  subjects: string[];
+  mood: string[];
+  quality: "low" | "medium" | "high";
+  hasPeople: boolean;
+  siteOrigin?: string;
+}
+
 export interface SiteDigest {
   pages: DigestPage[];
   brand: DigestBrand;
   /** All asset aliases across all pages (deduplicated). */
   assetAliases: string[];
+  /** Library assets available for placeAsset. Empty if no library exists yet. */
+  libraryAssets: DigestLibraryAsset[];
 }
 
 // ---------------------------------------------------------------------------
@@ -150,11 +169,29 @@ export const EditOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("reorderSection"), section: z.string(), toIndex: z.number().int().nonnegative() }),
   z.object({ op: z.literal("addSection"), cloneOf: z.string(), afterSection: z.string().optional() }),
   z.object({
+    op: z.literal("generateSection"),
+    role: z.string().min(1),
+    brief: z.string().min(1),
+    afterSection: z.string().optional(),
+    // targetRoute: single route string, array of routes, or "all". Defaults to "/" (homepage).
+    targetRoute: z.union([z.string(), z.array(z.string())]).optional(),
+  }),
+  z.object({
     op: z.literal("addPage"),
     route: z.string(),
     cloneOfPage: z.string().optional(),
     pageType: z.enum(["home", "pillar", "content", "conversion", "utility"]).optional(),
   }),
+  z.object({ op: z.literal("addNavLink"), text: z.string().min(1), href: z.string().min(1) }),
+  z.object({
+    op: z.literal("generateAsset"),
+    alias: z.string().min(1),
+    brief: z.string().min(1),
+    category: z.enum(["equipment", "food", "texture", "architecture", "nature", "product"]).optional(),
+    aspectRatio: z.enum(["16:9", "1:1", "4:3"]).optional(),
+  }),
+  z.object({ op: z.literal("placeAsset"), alias: z.string().min(1), assetId: z.string().min(1) }),
+  z.object({ op: z.literal("uploadAsset"), file: z.string().min(1), alias: z.string().min(1), altText: z.string().optional() }),
 ]);
 
 /**

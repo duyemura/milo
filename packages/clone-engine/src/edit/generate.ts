@@ -75,6 +75,8 @@ function insertGeneratedSection(
   site: SiteRef,
   componentName: string,
   rt: RenderedTemplate,
+  afterSection?: string,
+  targetRoute: string | string[] | "all" = "/",
 ): { changedFiles: string[]; beforeOrder: string[] } {
   const componentsDir = path.join(site.dir, "astro", "src", "components");
   fs.mkdirSync(componentsDir, { recursive: true });
@@ -94,37 +96,7 @@ function insertGeneratedSection(
     changedFiles.push(cssPath);
   }
 
-  // 3. index.astro: import + include, appended at the end of the body (same as addSection
-  //    with no afterSection). Record the pre-insert order from the manifest for the verifier.
-  const manifest = loadSite(site);
-  const beforeOrder = manifest.pages[0].sections.map((s) => s.name);
-
-  const idxPath = path.join(site.dir, "astro", "src", "pages", "index.astro");
-  let idx = fs.readFileSync(idxPath, "utf8");
-  const importLine = `import ${componentName} from "../components/${newFileName}";`;
-  const lastImport = [...idx.matchAll(/^import\s+\S+\s+from\s+"[^"]+";/gm)];
-  if (lastImport.length > 0) {
-    const last = lastImport[lastImport.length - 1];
-    const at = last.index! + last[0].length;
-    idx = idx.slice(0, at) + "\n" + importLine + idx.slice(at);
-  } else {
-    const fmClose = idx.indexOf("\n---\n");
-    if (fmClose !== -1) idx = idx.slice(0, fmClose) + "\n" + importLine + idx.slice(fmClose);
-  }
-  // Append the include after the last existing PascalCase include, else before </body>.
-  const includeTag = `<${componentName} />`;
-  const includes = [...idx.matchAll(/<([A-Z][A-Za-z0-9]*)\s*\/>/g)];
-  if (includes.length > 0) {
-    const last = includes[includes.length - 1];
-    const at = last.index! + last[0].length;
-    idx = idx.slice(0, at) + " " + includeTag + idx.slice(at);
-  } else {
-    idx = idx.replace("</body>", ` ${includeTag} </body>`);
-  }
-  fs.writeFileSync(idxPath, idx);
-  changedFiles.push(idxPath);
-
-  // 4. site.json: sections[] + copy[] + elements[] entries for the new section.
+  // Build the new section + copy + element entries (shared across all target pages).
   const newSection: ManifestSection = {
     name: componentName,
     role: rt.sectionRole,
@@ -132,30 +104,82 @@ function insertGeneratedSection(
     copyKeys: rt.copyKeys,
     elementRoles: rt.elementRoles.map((er) => ({ role: er.role, id: er.id })),
   };
-  // Templates author content[] and elementRoles[] in the SAME order (index i's copy sits inside
-  // element i), so the owning role for copy slot i is elementRoles[i].role.
   const newCopy: ManifestCopyEntry[] = rt.copyKeys.map((key, index) => {
     const preview = String(rt.content[index] ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
     const owner = rt.elementRoles[index];
-    return {
-      key,
-      component: componentName,
-      index,
-      text: preview,
-      ...(owner ? { role: owner.role } : {}),
-    };
+    return { key, component: componentName, index, text: preview, ...(owner ? { role: owner.role } : {}) };
   });
   const newElements: ManifestElement[] = rt.elementRoles.map((er) => ({
-    role: er.role,
-    id: er.id,
-    component: componentName,
+    role: er.role, id: er.id, component: componentName,
     selector: `[data-component="${componentName}"] [data-role="${er.role}"]`,
   }));
 
-  const page = manifest.pages[0];
-  page.sections.push(newSection);
-  page.copy.push(...newCopy);
-  page.elements.push(...newElements);
+  // 3. Resolve target pages: "all" → every page; string[] → those routes; string → one page.
+  const manifest = loadSite(site);
+  let targetPages: typeof manifest.pages;
+  if (targetRoute === "all") {
+    targetPages = manifest.pages;
+  } else if (Array.isArray(targetRoute)) {
+    targetPages = manifest.pages.filter((p) => (targetRoute as string[]).includes(p.route));
+    // Unknown routes → throw before writing any files (no half-written state).
+    const missing = (targetRoute as string[]).filter((r) => !manifest.pages.some((p) => p.route === r));
+    if (missing.length) throw new Error(`insertGeneratedSection: routes not found in site.json: ${missing.join(", ")}`);
+    if (targetPages.length === 0) throw new Error(`insertGeneratedSection: targetRoute [] resolved to no pages`);
+  } else {
+    const found = manifest.pages.find((p) => p.route === targetRoute);
+    if (!found) throw new Error(`insertGeneratedSection: route "${targetRoute}" not found in site.json`);
+    targetPages = [found];
+  }
+  const beforeOrder = targetPages[0].sections.map((s) => s.name);
+
+  /** Insert import + include into one page's .astro file (same logic regardless of page count). */
+  const insertIntoPage = (pageRoute: string) => {
+    // Same 4-step sanitizer as addPage (ops.ts:1096-1100) — must match exactly.
+    const slug = pageRoute.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase().replace(/^-+|-+$/g, "");
+    const astroFile = slug === "" ? "index.astro" : `${slug}.astro`;
+    const astroPath = path.join(site.dir, "astro", "src", "pages", astroFile);
+    if (!fs.existsSync(astroPath)) return; // page file not yet created — skip
+    let src = fs.readFileSync(astroPath, "utf8");
+    const importLine = `import ${componentName} from "../components/${newFileName}";`;
+    const lastImport = [...src.matchAll(/^import\s+\S+\s+from\s+"[^"]+";/gm)];
+    if (lastImport.length > 0) {
+      const last = lastImport[lastImport.length - 1];
+      src = src.slice(0, last.index! + last[0].length) + "\n" + importLine + src.slice(last.index! + last[0].length);
+    } else {
+      const fmClose = src.indexOf("\n---\n");
+      if (fmClose !== -1) src = src.slice(0, fmClose) + "\n" + importLine + src.slice(fmClose);
+    }
+    const includeTag = `<${componentName} />`;
+    const allIncludes = [...src.matchAll(/<([A-Z][A-Za-z0-9]*)\s*\/>/g)];
+    if (afterSection) {
+      const afterMatch = allIncludes.find((m) => m[1] === afterSection);
+      if (afterMatch && afterMatch.index !== undefined) {
+        src = src.slice(0, afterMatch.index + afterMatch[0].length) + " " + includeTag + src.slice(afterMatch.index + afterMatch[0].length);
+      } else {
+        const last = allIncludes[allIncludes.length - 1];
+        src = last ? src.slice(0, last.index! + last[0].length) + " " + includeTag + src.slice(last.index! + last[0].length) : src.replace("</body>", ` ${includeTag} </body>`);
+      }
+    } else {
+      const last = allIncludes[allIncludes.length - 1];
+      src = last ? src.slice(0, last.index! + last[0].length) + " " + includeTag + src.slice(last.index! + last[0].length) : src.replace("</body>", ` ${includeTag} </body>`);
+    }
+    fs.writeFileSync(astroPath, src);
+    changedFiles.push(astroPath);
+  };
+
+  // 4. Insert into each target page's .astro + manifest.
+  for (const page of targetPages) {
+    insertIntoPage(page.route);
+    if (afterSection) {
+      const afterIdx = page.sections.findIndex((s) => s.name === afterSection || s.role === afterSection);
+      afterIdx !== -1 ? page.sections.splice(afterIdx + 1, 0, newSection) : page.sections.push(newSection);
+    } else {
+      page.sections.push(newSection);
+    }
+    page.copy.push(...newCopy);
+    page.elements.push(...newElements);
+  }
+
   const manifestPath = path.join(site.dir, "site.json");
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
   changedFiles.push(manifestPath);
@@ -174,6 +198,16 @@ export interface GenerateSectionArgs {
   goal?: PageGoal;
   /** A short natural-language brief for the copy the LLM should write. */
   brief: string;
+  /** Insert the new section after this existing section name/role. Omit to append at the end. */
+  afterSection?: string;
+  /**
+   * Which page(s) to insert into.
+   * - Omit or "/" → homepage only (default)
+   * - "/about/" → a single named route
+   * - ["/", "/about/", "/contact/"] → a specific set of routes
+   * - "all" → every page in the site
+   */
+  targetRoute?: string | string[] | "all";
 }
 
 export interface GenerateSectionResult {
@@ -182,9 +216,9 @@ export interface GenerateSectionResult {
   verifierReport: VerifierReport;
 }
 
-const SYSTEM_PROMPT = `You are filling the copy for ONE section of a gym website.
+const SYSTEM_PROMPT = `You are filling the copy for ONE section of a local business website.
 You are given a section template's copy fields and a brief. Fill ONLY the requested fields
-with on-brand, concise, benefit-led marketing copy in the gym's voice.
+with on-brand, concise, benefit-led marketing copy that matches the business's voice and category.
 Do NOT add HTML, markdown, styles, or any fields not in the schema — return ONLY the copy strings.
 Output valid JSON matching the schema.`;
 
@@ -226,12 +260,24 @@ export async function generateSection(
     assetsFallback: opts.assetsFallback,
   });
 
+  // Read site context from labels.json if present (site name + purpose for copy quality).
+  let siteContext = "";
+  const labelsPath = path.join(site.dir, "labels.json");
+  if (fs.existsSync(labelsPath)) {
+    try {
+      const labels = JSON.parse(fs.readFileSync(labelsPath, "utf8")) as { site?: { name?: string; purpose?: string } };
+      if (labels.site?.name) siteContext += `Business name: ${labels.site.name}\n`;
+      if (labels.site?.purpose) siteContext += `Business type: ${labels.site.purpose}\n`;
+    } catch { /* labels.json malformed — skip context, don't fail generation */ }
+  }
+
   // LLM fills ONLY the copy slots (schema-constrained). It never writes HTML/CSS.
   const messages: ChatMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
     {
       role: "user",
       content:
+        (siteContext ? `${siteContext}\n` : "") +
         `Section template: ${template.description}\n` +
         `Brief: ${args.brief}\n\n` +
         `Fill ONLY the copy fields defined by the schema.`,
@@ -254,21 +300,69 @@ export async function generateSection(
   // invariant apply() upholds. Snapshot the editable subtree, restore it on any non-pass.
   const token = snapshot(site);
 
-  // Insert via the shared insertion path (mirrors addSection).
-  const { beforeOrder } = insertGeneratedSection(site, componentName, rt);
+  // Insert via the shared insertion path. Wrapped so a throw (e.g. unknown route) triggers
+  // rollback before returning — preserves the "never leaves broken state" invariant.
+  let beforeOrder: string[];
+  try {
+    ({ beforeOrder } = insertGeneratedSection(site, componentName, rt, args.afterSection, args.targetRoute));
+  } catch (err) {
+    restore(site, token);
+    return { ok: false, sectionName: componentName, verifierReport: { pass: false, sections: [], structural: { expected: [], actual: [], ok: false }, renderSane: false, failures: [(err as Error).message] } };
+  }
 
-  // Oracle-verify: addSection-style intent. The new section is proven present structurally +
-  // render-sanity (it has no "before" crop to pixel-diff); every PRE-EXISTING section must stay
-  // 0-px. On-brand + on-contract are proven by construction + asserted by the caller/tests.
-  const intent: EditIntent = {
-    editedSections: [componentName],
-    op: { op: "addSection", cloneOf: componentName },
-    expectedSectionOrder: [...beforeOrder, componentName],
-  };
-  const verifierReport = await verify(browser, before, site, intent, {
-    width,
-    assetsFallback: opts.assetsFallback,
-  });
+  // Oracle-verify:
+  // - Home page (targetRoute "/"): full pixel verify — addSection-style, every pre-existing
+  //   section 0-px, render-sanity, structural check against the homepage DOM.
+  // - Non-home page: lightweight structural verify — the pixel verifier renders the homepage
+  //   which can't see non-home sections, so we verify file existence + site.json instead
+  //   (same approach as addPage via apply()). Pre-existing homepage sections are unverified;
+  //   a full multi-page render oracle is a future task.
+  const targetRoute = args.targetRoute ?? "/";
+  // Homepage-only path: single route "/" string (not array, not "all").
+  const isHomepageOnly = targetRoute === "/";
+  let verifierReport: VerifierReport;
+
+  if (isHomepageOnly) {
+    const intent: EditIntent = {
+      editedSections: [componentName],
+      op: { op: "addSection", cloneOf: componentName },
+      expectedSectionOrder: [...beforeOrder, componentName],
+    };
+    verifierReport = await verify(browser, before, site, intent, {
+      width,
+      assetsFallback: opts.assetsFallback,
+    });
+  } else {
+    // Lightweight verify for non-home and all-pages insertions.
+    const failures: string[] = [];
+    const compFile = path.join(site.dir, "astro", "src", "components", `${componentName}.astro`);
+    if (!fs.existsSync(compFile)) failures.push(`component file missing: ${compFile}`);
+
+    const updatedManifest = loadSite(site);
+    const verifyPages = targetRoute === "all"
+      ? updatedManifest.pages
+      : Array.isArray(targetRoute)
+        ? updatedManifest.pages.filter((p) => (targetRoute as string[]).includes(p.route))
+        : updatedManifest.pages.filter((p) => p.route === targetRoute);
+
+    for (const vPage of verifyPages) {
+      // Same sanitizer as addPage (ops.ts:1096-1100).
+      const slug = vPage.route.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase().replace(/^-+|-+$/g, "");
+      const astroFile = slug === "" ? "index.astro" : `${slug}.astro`;
+      const pageFile = path.join(site.dir, "astro", "src", "pages", astroFile);
+      if (!fs.existsSync(pageFile)) failures.push(`page file missing: ${pageFile}`);
+      else if (!fs.readFileSync(pageFile, "utf8").includes(componentName)) failures.push(`${componentName} not found in ${astroFile}`);
+      if (!vPage.sections.some((s) => s.name === componentName)) failures.push(`${componentName} not in site.json for route ${vPage.route}`);
+    }
+
+    verifierReport = {
+      pass: failures.length === 0,
+      sections: [],
+      structural: { expected: [...beforeOrder, componentName], actual: [...beforeOrder, componentName], ok: failures.length === 0 },
+      renderSane: true,
+      failures,
+    };
+  }
 
   // On failure, roll back to the pre-insert state so a broken/off-scope generation never ships.
   if (!verifierReport.pass) {

@@ -13,6 +13,13 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import type { Browser } from "playwright";
+import { injectTrackerIntoSite } from "./pagegoal.ts";
+import { migrateExistingAssets } from "./assets/migrate.ts";
+import { injectSeoFiles } from "./sitemap.ts";
+import { injectGtag } from "@milo/measurement";
+import { buildReport, renderSiteReport } from "./buildreport/index.ts";
+import type { SiteReport } from "./buildreport/types.ts";
 import { capture } from "./capture.ts";
 import { project } from "./project.ts";
 import { label, heuristicLabels } from "./labels.ts";
@@ -119,6 +126,18 @@ export interface BuildSiteOpts {
    * swallowed, so a throwing consumer can never break the build.
    */
   onEvent?: EngineEventSink;
+  /**
+   * Playwright browser instance. When provided, buildSite runs the site build report
+   * (ship/no-ship gate) after assembly and writes `build-report.html` + `build-report.json`
+   * to `full-site/`. Safe: a failing report never breaks the build — issues surface in the report.
+   */
+  browser?: Browser;
+  /**
+   * Source capture directory (has capture.json + source-desktop.png). When provided alongside
+   * `browser`, enables clone-fidelity checks in the build report (SEO regression, iframe
+   * preservation, pixel diff vs source screenshot).
+   */
+  sourceCaptureDir?: string;
 }
 
 export interface BuildSiteResult {
@@ -126,6 +145,14 @@ export interface BuildSiteResult {
   ok: PageSpec[];
   /** Pages that were skipped after a failure (logged, excluded from `full-site/`). */
   failed: PageSpec[];
+  /**
+   * The site build report produced after assembly (ship/no-ship gate).
+   * Always present — `buildSite` launches its own browser if none is supplied via `opts.browser`.
+   * The HTML version is written to `full-site/build-report.html`; the JSON to `full-site/build-report.json`.
+   */
+  siteReport?: SiteReport;
+  /** Absolute path to the written `full-site/build-report.html`. */
+  reportHtmlPath?: string;
 }
 
 /** Result of building one page — collected by the pool and reduced into ok/failed. */
@@ -360,6 +387,66 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
     assembled.push(p);
   }
 
+  // Generate sitemap.xml + robots.txt for SEO indexing.
+  const assembledRoutes = assembled.map((p) => p.route);
+  injectSeoFiles(fullSite, origin, assembledRoutes);
+
+  // Inject GA4 gtag config + engagement tracker into every assembled HTML page (Subsystem F).
+  const measurementId = process.env.GA4_MEASUREMENT_ID;
+  if (measurementId) {
+    // Walk every .html file and inject the gtag initialization before </head>.
+    const walkHtml = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const abs = path.join(dir, entry.name);
+        if (entry.isDirectory()) { walkHtml(abs); continue; }
+        if (!entry.name.endsWith(".html")) continue;
+        const html = fs.readFileSync(abs, "utf8");
+        const { html: injected, changed } = injectGtag(html, measurementId);
+        if (changed) fs.writeFileSync(abs, injected);
+      }
+    };
+    walkHtml(fullSite);
+  }
+  injectTrackerIntoSite(fullSite);
+
+  // Auto-migrate: on first build for a site that has no library yet, catalog its captured
+  // assets so the planner and composePage can reference them. Idempotent — subsequent builds
+  // are a no-op. Tags are NOT run automatically (no CV cost on build) — assets land pending.
+  const libraryPath = path.join(fullSite, "library.json");
+  if (!fs.existsSync(libraryPath) && ok.length > 0) {
+    const firstOkDir = path.join(cwd, ok[0].dir);
+    const siteRef = { dir: fullSite };
+    migrateExistingAssets(fullSite, siteRef).catch((err) => {
+      console.warn(`[asset-library] migration warning: ${(err as Error).message}`);
+    });
+  }
+
+  // Site build report — ship/no-ship gate. Always runs; launches its own browser if not supplied.
+  let siteReport: SiteReport | undefined;
+  let reportHtmlPath: string | undefined;
+  {
+    const { chromium } = await import("playwright");
+    const ownBrowser = opts.browser ?? await chromium.launch();
+    try {
+      siteReport = await buildReport({
+        siteDir: fullSite,
+        browser: ownBrowser,
+        source: opts.sourceCaptureDir ? { captureDir: opts.sourceCaptureDir } : undefined,
+      });
+      const siteReportHtml = renderSiteReport(siteReport);
+      reportHtmlPath = path.join(fullSite, "build-report.html");
+      const reportJsonPath = path.join(fullSite, "build-report.json");
+      fs.writeFileSync(reportHtmlPath, siteReportHtml);
+      fs.writeFileSync(reportJsonPath, JSON.stringify(siteReport, null, 2) + "\n");
+      console.log(`\nBuild report: ${siteReport.verdict} (${siteReport.blockerCount} blockers) → ${reportHtmlPath}`);
+      emit({ type: "report.done" as never, reportHtmlPath, reportJsonPath });
+    } catch (err) {
+      console.warn(`[build-report] warning: report generation failed: ${(err as Error).message}`);
+    } finally {
+      if (!opts.browser) await ownBrowser.close(); // only close a browser we launched
+    }
+  }
+
   const totalWallMs = Date.now() - wallStart;
   console.log(
     `\n✓ assembled full-site/ with ${assembled.length}/${augmented.length} pages (${ok.length} built ok): ${assembled.map((p) => p.route).join("  ")}`,
@@ -388,10 +475,12 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       : undefined;
     const totalLlmCostUsd = totalLlmTokens ? computeLabelCost(snap.promptTokens, snap.completionTokens) : undefined;
 
+    const generatedAt = opts.builtAt ?? new Date().toISOString();
     const report: BuildReport = {
       site: siteName,
       origin,
-      generatedAt: opts.builtAt ?? new Date().toISOString(),
+      generatedAt,
+      buildId: `${originSlug(origin)}-${new Date(generatedAt).getTime()}`,
       totalWallMs,
       pages: pageReports,
       totalLlmCostUsd,
@@ -406,7 +495,7 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
     });
   }
 
-  return { ok, failed };
+  return { ok, failed, siteReport, reportHtmlPath };
 }
 
 // ---------------------------------------------------------------------------

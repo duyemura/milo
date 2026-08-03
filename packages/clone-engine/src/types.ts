@@ -156,7 +156,7 @@ export interface ManifestSection {
 export interface ManifestElement { role: string; id: string; component: string; selector: string; }
 
 /** One rehosted asset: the semantic alias (e.g. "logo") and its disk path relative to OUT (e.g. "assets/a1.png"). */
-export interface ManifestAsset { alias: string; file: string; }
+export interface ManifestAsset { alias: string; file: string; assetId?: string; }
 
 /** All manifest data for a single projected page. */
 export interface ManifestPage {

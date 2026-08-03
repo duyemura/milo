@@ -39,7 +39,7 @@ export function residualScore(styles: StyleMap, brandCanons: Set<string>): numbe
     const props = styles[id];
     for (const [prop, value] of Object.entries(props)) {
       if (BESPOKE_SET.has(prop)) {
-        // background-image:none / gradients with only brand colors are not bespoke art.
+        // Skip background-image:none — it is the computed default, not bespoke art.
         if (prop === "background-image" && /^none$/i.test(value.trim())) continue;
         total += 1;
         residual += 1;

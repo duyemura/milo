@@ -39,3 +39,15 @@ export type { EngineEvent, EngineEventSink, EnginePhase, RunState } from "./even
 // Subsystem C — LLM-driven per-site edit operations, verifier-gated, self-correcting, reversible.
 // Namespaced under `edit` to avoid collisions with engine-level types (SiteManifest, BrandDoc, etc.).
 export * as edit from "./edit/index.ts";
+// Subsystem F — Goal measurement: tracker injection + goal evaluation against GA4 data.
+export { evaluateGoal, injectTrackerIntoSite, TRACKER_MARKER } from "./pagegoal.ts";
+export type { GoalReport } from "./pagegoal.ts";
+// Site build report — ship/no-ship gate. Call buildReport({ siteDir: fullSiteDir, browser })
+// after buildSiteAuto completes to produce a SiteReport + render it with renderSiteReport.
+export { buildReport, renderSiteReport } from "./buildreport/index.ts";
+export type { SiteReport, Issue, PageReport as SitePageReport, IssueSeverity, InspectOpts } from "./buildreport/types.ts";
+// UGC content-page composition — composePage builds a full on-brand content page from a brief.
+export { composePage, BLUEPRINTS as UGC_BLUEPRINTS } from "./ugc/index.ts";
+export type { ComposePageArgs, ComposePageResult, ContentKind } from "./ugc/index.ts";
+// Safe AI image generation — generateAsset + the safe-image prompt layer.
+export * as assets from "./assets/index.ts";

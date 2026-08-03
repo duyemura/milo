@@ -12,6 +12,8 @@
  */
 import type { SiteRef, EditOp, PlanResult, ConversationTurn } from "./types.ts";
 import { PlanSchema, EditOpSchema } from "./types.ts";
+import { isGenerateRole } from "./templates.ts";
+import { loadLibrary, getAsset } from "../assets/library.ts";
 import { digest } from "./digest.ts";
 import {
   resolveCopy,
@@ -24,7 +26,7 @@ import {
 import { llmJson } from "@milo/llm";
 import type { ChatFn, ChatMessage } from "@milo/llm";
 
-const SYSTEM_PROMPT = `You edit ONE gym website. Given the site digest and the conversation, determine the user's intent.
+const SYSTEM_PROMPT = `You edit ONE local business website. Given the site digest and the conversation, determine the user's intent.
 
 If the request is CLEAR and SPECIFIC:
 - Output a list of edit ops from the schema (1–5 ops), each targeting a REAL identifier from the digest.
@@ -41,6 +43,32 @@ NEVER invent targets. Only reference:
 - asset aliases from the digest (e.g. "logo")
 - brand slots: primary, accent, surface, text, muted
 - element roles from the digest
+- library asset ids from digest.libraryAssets (e.g. "ast_abc123") — use these with placeAsset
+
+For ADDING A NEW SECTION that doesn't exist yet, use generateSection (not addSection):
+  { op: "generateSection", role: "<role>", brief: "<what the section should say/do>" }
+  Valid roles: hero, faq, coach-grid, program-cards, testimonials, pricing, stats-band,
+               schedule, logo-strip, media-block, content-block, contact-form, lead-form,
+               location-map, cta-band, feature-grid
+  Optional: afterSection: "<existing section name>" to control placement.
+
+For ADDING A NEW PAGE use addPage:
+  { op: "addPage", route: "<route>", pageType?: "home|pillar|content|conversion|utility" }
+
+For ADDING A LINK TO THE NAV use addNavLink (call after addPage when the page should be in nav):
+  { op: "addNavLink", text: "<link label>", href: "<route e.g. /about/>" }
+
+For PLACING AN EXISTING LIBRARY IMAGE into a slot use placeAsset (preferred over generateAsset when a suitable image already exists):
+  { op: "placeAsset", alias: "<existing asset alias>", assetId: "<ast_… id from the library>" }
+
+For UPLOADING AN OWNER PHOTO into a slot use uploadAsset:
+  { op: "uploadAsset", file: "<absolute path to the photo>", alias: "<existing asset alias>", altText?: "<description>" }
+
+For REPLACING AN IMAGE with a freshly generated one use generateAsset (targets an existing asset alias):
+  { op: "generateAsset", alias: "<existing asset alias>", brief: "<what the image should show>" }
+  SAFE subjects ONLY: gym equipment, food/nutrition, textures, architectural details, nature, generic products.
+  NEVER request people, faces, bodies, workout poses, or identifiable gym interiors — those are refused.
+  Optional: category ("equipment"|"food"|"texture"|"architecture"|"nature"|"product"), aspectRatio ("16:9"|"1:1"|"4:3", default 16:9).
 
 Output valid JSON matching the schema. No markdown, no prose outside the JSON.`;
 
@@ -81,7 +109,7 @@ export async function plan(
 
   for (const op of raw.ops) {
     try {
-      validateOpTarget(site, op);
+      await validateOpTarget(site, op);
       validated.push(op as EditOp);
     } catch (err) {
       // Only a TargetError means the op referenced something not on the site (a hallucination
@@ -127,7 +155,7 @@ export async function plan(
  * Validate that an op's targets exist in the real site.json.
  * Throws `TargetError` if any target is missing (hallucinated).
  */
-function validateOpTarget(site: SiteRef, op: unknown): void {
+async function validateOpTarget(site: SiteRef, op: unknown): Promise<void> {
   // Cast through EditOpSchema to get a typed op.
   const parsed = EditOpSchema.parse(op);
 
@@ -176,6 +204,21 @@ function validateOpTarget(site: SiteRef, op: unknown): void {
       }
       break;
 
+    case "generateSection": {
+      // Validate role is in the template library (bounded vocabulary).
+      if (!isGenerateRole(parsed.role)) {
+        throw new TargetError(`generateSection: role "${parsed.role}" is not in the template library`);
+      }
+      if (parsed.afterSection !== undefined) {
+        try {
+          resolveSection(site, parsed.afterSection);
+        } catch {
+          console.warn(`[plan] generateSection.afterSection "${parsed.afterSection}" not found — will append at end`);
+        }
+      }
+      break;
+    }
+
     case "addPage": {
       // route must be non-empty (Zod already checks z.string(), we add a runtime guard).
       if (!parsed.route || parsed.route.trim() === "") {
@@ -193,5 +236,25 @@ function validateOpTarget(site: SiteRef, op: unknown): void {
       }
       break;
     }
+
+    case "addNavLink":
+      break; // no additional target validation needed beyond Zod (text + href are free strings)
+
+    case "generateAsset":
+      resolveAsset(site, parsed.alias);
+      break;
+
+    case "placeAsset": {
+      resolveAsset(site, parsed.alias);
+      const lib = loadLibrary(site.dir, "biz_unknown");
+      const a = getAsset(lib, parsed.assetId);
+      if (!a) throw new TargetError(`placeAsset: asset id not in library: ${parsed.assetId}`);
+      if (a.status === "archived") throw new TargetError(`placeAsset: asset is archived: ${parsed.assetId}`);
+      break;
+    }
+
+    case "uploadAsset":
+      resolveAsset(site, parsed.alias);
+      break;
   }
 }

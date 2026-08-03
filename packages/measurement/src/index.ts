@@ -1,4 +1,4 @@
-export { loadServiceAccount, accessToken, decodeUnverifiedJwt } from "./googleAuth.ts";
+export { loadServiceAccount, loadServiceAccountFromEnv, accessToken, decodeUnverifiedJwt } from "./googleAuth.ts";
 export type { ServiceAccount, TokenFetchFn } from "./googleAuth.ts";
 export { apiCall, requireOk, ApiError } from "./http.ts";
 export type { FetchLike, HttpResponse } from "./http.ts";
@@ -9,6 +9,6 @@ export type { Ga4Asset } from "./ga4.ts";
 export { fetchPlaceMetrics } from "./places.ts";
 export type { PlaceMetrics } from "./places.ts";
 export { gbpStatus } from "./gbp.ts";
-export { injectTracker, trackerScript } from "./tracker.ts";
+export { injectTracker, trackerScript, TRACKER_MARKER } from "./tracker.ts";
 export { fetchGa4Rollup, GA_READONLY } from "./ga4data.ts";
 export type { Ga4Rollup } from "./ga4data.ts";

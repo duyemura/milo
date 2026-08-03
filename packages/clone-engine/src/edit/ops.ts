@@ -24,6 +24,7 @@ import { resolveCopy, resolveAsset, resolveSection, loadSite, TargetError } from
 import { flattenRoot, canon } from "../brand.ts";
 import type { BrandDoc, BrandColorSlot, SiteManifest, ManifestSection, ManifestCopyEntry, ManifestPage, ManifestElement, PageType } from "../types.ts";
 import { classifyPage, GOAL_OF_TYPE } from "../pagemodel.ts";
+import { generatePageMeta } from "./seo-meta.ts";
 
 // ---------------------------------------------------------------------------
 // editCopy
@@ -692,9 +693,7 @@ export function removeSection(site: SiteRef, sectionName: string): OpResult {
   // 1. Resolve — throws TargetError if the section is not found.
   const { file: componentFile, name } = resolveSection(site, sectionName);
 
-  const idxPath = path.join(site.dir, "astro", "src", "pages", "index.astro");
   const manifestPath = path.join(site.dir, "site.json");
-
   const changedFiles: string[] = [];
 
   // 2. Delete the component file.
@@ -703,7 +702,14 @@ export function removeSection(site: SiteRef, sectionName: string): OpResult {
     changedFiles.push(componentFile);
   }
 
-  // 3. Strip import + include from index.astro.
+  // Resolve the owning page's .astro file from the manifest so we edit the right page.
+  // Falls back to index.astro for legacy callers where the section is on pages[0].
+  const ownerManifest = loadSite(site);
+  const ownerPage = ownerManifest.pages.find((p) => p.sections.some((s) => s.name === name));
+  const ownerSlug = ownerPage ? ownerPage.route.replace(/^\/+|\/+$/g, "") : "";
+  const idxPath = path.join(site.dir, "astro", "src", "pages", ownerSlug === "" ? "index.astro" : `${ownerSlug}.astro`);
+
+  // 3. Strip import + include from the owning page's .astro file.
   if (fs.existsSync(idxPath)) {
     let idx = fs.readFileSync(idxPath, "utf8");
 
@@ -1114,8 +1120,9 @@ export function addPage(
     templatePage = pickTemplatePage(manifest, route);
   }
 
-  // Namespace prefix for new components: capitalize the route segment (e.g. "about" → "About").
-  const prefix = cleanRoute.charAt(0).toUpperCase() + cleanRoute.slice(1);
+  // PascalCase prefix so hyphens (from nested routes) never break JS identifiers.
+  // "about" → "About"; "blog-best-crossfit-brooklyn" → "BlogBestCrossfit Brooklyn"
+  const prefix = cleanRoute.split("-").filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join("");
 
   const changedFiles: string[] = [];
   const addedSectionNames: string[] = [];
@@ -1193,15 +1200,17 @@ export function addPage(
   const newPageType = pageType ?? classified.type;
   const newPageGoal = GOAL_OF_TYPE[newPageType];
 
-  // Emit a minimal page wrapper — we can't byte-copy index.astro because it references
-  // the original component names. Head meta from the template page would be stale
-  // (references the source route), so we emit a neutral wrapper with a placeholder title.
+  // Emit a minimal page wrapper with real SEO meta derived from the route.
   // data-page-role + data-goal are render-neutral attributes stamped on <body> (subsystem D).
+  const seoMeta = generatePageMeta(newRoute, "", prefix);
   const pageAstroContent =
     `---\nimport "../styles/global.css";\n${imports}\n---\n` +
     `<html lang="en">\n<head>\n<meta charset="utf-8" />\n` +
     `<meta name="viewport" content="width=device-width,initial-scale=1" />\n` +
-    `<title>${prefix} | Clone</title>\n</head>\n` +
+    `<title>${seoMeta.title}</title>\n` +
+    `<meta name="description" content="${seoMeta.description.replace(/"/g, "&quot;")}" />\n` +
+    `<link rel="canonical" href="${seoMeta.canonical}" />\n` +
+    `</head>\n` +
     `<body data-page-role="${newPageType}" data-goal="${newPageGoal}">\n${includes}\n</body>\n</html>\n`;
 
   const pagesDir = path.join(site.dir, "astro", "src", "pages");
@@ -1233,4 +1242,53 @@ export function addPage(
     ...(pageType ? { pageType } : {}),
   };
   return { op, changedFiles, targetSections: addedSectionNames };
+}
+
+/**
+ * Add a link to the site's nav component. Idempotent — adding the same href twice is a no-op.
+ * Finds the nav section by looking for a section with role "navbar" or name containing "Nav".
+ * Inserts a new <li><a href="...">text</a></li> before the closing </ul> tag.
+ */
+export function addNavLink(
+  site: SiteRef,
+  text: string,
+  href: string,
+): OpResult {
+  const manifest = loadSite(site);
+  const allSections = manifest.pages.flatMap((p) => p.sections);
+  const navSection = allSections.find(
+    (s) => s.role === "navbar" || /nav/i.test(s.name),
+  );
+  if (!navSection) throw new TargetError("addNavLink: no nav section found in site.json");
+
+  const navFile = path.join(site.dir, navSection.file);
+  if (!fs.existsSync(navFile)) throw new TargetError(`addNavLink: nav file not found: ${navSection.file}`);
+
+  let src = fs.readFileSync(navFile, "utf8");
+
+  // Idempotent — skip if href already in the nav
+  if (src.includes(`href="${href}"`)) {
+    return { op: { op: "addNavLink" as never, text, href }, changedFiles: [], targetSections: [navSection.name] };
+  }
+
+  // Copy the last <li> tag structure as a template, substituting href + text.
+  const liMatches = [...src.matchAll(/<li[^>]*>.*?<\/li>/gs)];
+  let newLi: string;
+  if (liMatches.length > 0) {
+    const last = liMatches[liMatches.length - 1][0];
+    // Replace the href and text content of the last <li>
+    newLi = last
+      .replace(/href="[^"]*"/, `href="${href}"`)
+      .replace(/>([^<]+)<\/a>/, `>${text}</a>`);
+  } else {
+    newLi = `<li><a href="${href}">${text}</a></li>`;
+  }
+
+  // Insert before </ul>
+  const ulEnd = src.indexOf("</ul>");
+  if (ulEnd === -1) throw new TargetError("addNavLink: no </ul> found in nav component");
+  src = src.slice(0, ulEnd) + newLi + src.slice(ulEnd);
+  fs.writeFileSync(navFile, src);
+
+  return { op: { op: "addNavLink" as never, text, href }, changedFiles: [navFile], targetSections: [navSection.name] };
 }

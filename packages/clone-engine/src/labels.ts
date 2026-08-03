@@ -75,11 +75,15 @@ function buildTagMap(n: TreeEl, m: Record<number, string> = {}): Record<number, 
 // ---- Section-role keyword matching ----
 // Order matters: more specific first. Hero is special (first section fallback).
 const ROLE_KEYWORDS: Array<[string, string[]]> = [
-  ["testimonials",  ["testimonial", "review", "stories of glory", "story", "what our members", "what people say"]],
+  // faq + feature-grid before coach-grid: FAQ sections and process/how-it-works sections often
+  // mention "coach" incidentally; their explicit signals are stronger and must win first.
+  ["faq",           ["faq", "frequently asked", "question", "q&a"]],
+  ["testimonials",  ["testimonial", "review", "stories of glory", "story", "what our members", "what people say", "loved by", "trusted by"]],
+  // feature-grid before coach-grid: "steps to" / "how it works" beats incidental "coach" in step descriptions.
+  ["feature-grid",  ["features", "why us", "why choose", "benefits", "what we offer", "everything you need", "steps to", "how it works"]],
   ["coach-grid",    ["coach", "trainer", "team", "instructor", "staff"]],
   ["program-cards", ["program", "class", "workout", "training", "membership plan"]],
   ["pricing",       ["price", "pricing", "plan", "membership", "join", "cost", "fee", "subscription"]],
-  ["faq",           ["faq", "frequently asked", "question", "q&a"]],
   ["contact-form",  ["contact", "reach us", "get in touch"]],
   ["lead-form",     ["sign up", "register", "enroll", "get started", "free trial", "start today"]],
   ["location-map",  ["location", "find us", "address", "map", "located", "directions"]],
@@ -87,11 +91,14 @@ const ROLE_KEYWORDS: Array<[string, string[]]> = [
   ["stats-band",    ["members", "years", "classes", "sessions", "pounds", "athletes"]],
   ["cta-band",      ["get started", "try free", "book", "ready to", "join now", "start your", "take the first"]],
   ["logo-strip",    ["as seen in", "featured in", "partners", "sponsors"]],
-  ["feature-grid",  ["features", "why us", "why choose", "benefits", "what we offer", "everything you need"]],
   ["media-block",   ["video", "watch", "reel"]],
 ];
 
 function inferSectionRole(node: TreeEl, isFirst: boolean): typeof SECTION_ROLES[number] {
+  // An h1 is the page's primary heading — it lives in the hero by definition.
+  // Check this BEFORE keyword matching so a hero with "Explore Our Locations" in
+  // its CTA text isn't mislabeled location-map.
+  if (findTag(node, "h1")) return "hero";
   const text = copyOf(node).join(" ").toLowerCase();
   for (const [role, keywords] of ROLE_KEYWORDS) {
     if (keywords.some((kw) => text.includes(kw))) return role as typeof SECTION_ROLES[number];

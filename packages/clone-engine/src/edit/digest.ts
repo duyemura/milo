@@ -7,8 +7,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { loadSite } from "./target.ts";
-import type { SiteRef, SiteDigest, DigestPage, DigestSection, DigestBrand } from "./types.ts";
+import type { SiteRef, SiteDigest, DigestPage, DigestSection, DigestBrand, DigestLibraryAsset } from "./types.ts";
 import type { BrandDoc } from "../types.ts";
+import { loadLibrary } from "../assets/library.ts";
 
 const PREVIEW_LEN = 60;
 
@@ -63,10 +64,26 @@ export function digest(site: SiteRef): SiteDigest {
   // Read brand.json for color slots. Fall back gracefully if absent.
   const brand = loadBrand(site);
 
+  // Load the asset library (if it exists) and include active, tagged assets in the digest
+  // so the planner can reference specific assetIds in placeAsset ops.
+  const lib = loadLibrary(site.dir, "biz_unknown");
+  const libraryAssets: DigestLibraryAsset[] = Object.values(lib.assets)
+    .filter((a) => a.status === "active" && !a.tags.pending)
+    .map((a) => ({
+      id: a.id,
+      description: a.tags.description,
+      subjects: a.tags.subjects,
+      mood: a.tags.mood,
+      quality: a.tags.quality,
+      hasPeople: a.tags.hasPeople,
+      ...(a.siteOrigin !== undefined ? { siteOrigin: a.siteOrigin } : {}),
+    }));
+
   return {
     pages,
     brand,
     assetAliases: [...allAliases],
+    libraryAssets,
   };
 }
 

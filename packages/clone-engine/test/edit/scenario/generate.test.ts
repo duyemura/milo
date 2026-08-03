@@ -28,7 +28,7 @@ import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 import { project } from "../../../src/project.ts";
 import { generateSection } from "../../../src/edit/generate.ts";
-import { editCopy } from "../../../src/edit/ops.ts";
+import { addPage, editCopy } from "../../../src/edit/ops.ts";
 import { resolveCopy } from "../../../src/edit/target.ts";
 import { renderSnapshot } from "../../../src/edit/verify.ts";
 import type { ChatFn } from "@milo/llm";
@@ -343,4 +343,111 @@ describe.skipIf(!ASTRO_MODULES)("subsystem E — bounded on-brand section genera
       ),
     ).rejects.toThrow(/not in the template library/);
   }, 60_000);
+});
+
+describe.skipIf(!ASTRO_MODULES)("generateSection — brand/voice context", () => {
+  it("includes site name in the LLM user message when labels.json has site.name", async () => {
+    const { out, site } = await projectFixture("gen-ctx-");
+    cleanup.add(out);
+
+    // Inject a labels.json with a known site name so we can assert it appears in the prompt.
+    const labelsPath = path.join(out, "labels.json");
+    fs.writeFileSync(labelsPath, JSON.stringify({
+      site: { name: "Iron & Grace Studio", purpose: "boutique fitness studio" },
+      brand: { colors: [], fonts: [] }, sections: [], elements: [], assets: [],
+    }));
+
+    let capturedUserMessage = "";
+    const capturingChat: ChatFn = async (opts) => {
+      const msgs = (opts as { messages?: Array<{ role: string; content: string }> }).messages ?? [];
+      capturedUserMessage = msgs.find((m) => m.role === "user")?.content ?? "";
+      return { content: JSON.stringify({ eyebrow: "Ready?", headline: "Join Us", subcopy: "Start today.", buttonLabel: "Get started" }) };
+    };
+
+    await generateSection(site, { role: "cta-band", brief: "A closing CTA." }, capturingChat, MODEL, browser, { width: WIDTH });
+
+    expect(capturedUserMessage).toContain("Iron & Grace Studio");
+    expect(capturedUserMessage).toContain("boutique fitness studio");
+  }, 120_000);
+});
+
+describe.skipIf(!ASTRO_MODULES)("generateSection — all pages", () => {
+  it("inserts the section into every page when targetRoute is 'all'", async () => {
+    const { out, site } = await projectFixture("gen-allpages-");
+    cleanup.add(out);
+
+    // Add a second page so we have two to insert into.
+    addPage(site, "about");
+    const manifestBefore = JSON.parse(fs.readFileSync(path.join(out, "site.json"), "utf8")) as SiteManifest;
+    expect(manifestBefore.pages.length).toBe(2);
+
+    const chat = fakeChat([JSON.stringify({ eyebrow: "", headline: "Join Us", subcopy: "Start today.", primaryCta: "Get started" })]);
+    const result = await generateSection(
+      site,
+      { role: "hero", brief: "A bold hero for every page.", targetRoute: "all" },
+      chat,
+      MODEL,
+      browser,
+      { width: WIDTH },
+    );
+    expect(result.ok, `generateSection all-pages failed: ${result.verifierReport.failures.join(" | ")}`).toBe(true);
+
+    const manifestAfter = JSON.parse(fs.readFileSync(path.join(out, "site.json"), "utf8")) as SiteManifest;
+
+    // Every page must have the new section in site.json.
+    for (const page of manifestAfter.pages) {
+      expect(page.sections.some((s) => s.name === result.sectionName),
+        `page ${page.route} missing ${result.sectionName} in site.json`).toBe(true);
+    }
+
+    // Every page's .astro file must reference the component.
+    const indexAstro = fs.readFileSync(path.join(out, "astro/src/pages/index.astro"), "utf8");
+    const aboutAstro = fs.readFileSync(path.join(out, "astro/src/pages/about.astro"), "utf8");
+    expect(indexAstro).toContain(result.sectionName);
+    expect(aboutAstro).toContain(result.sectionName);
+
+    // Only ONE component file created — same component shared across pages.
+    const compFile = path.join(out, "astro/src/components", `${result.sectionName}.astro`);
+    expect(fs.existsSync(compFile)).toBe(true);
+  }, 300_000);
+});
+
+describe.skipIf(!ASTRO_MODULES)("generateSection — multi-page target", () => {
+  it("inserts into the specified targetRoute page, not the homepage", async () => {
+    const { out, site } = await projectFixture("gen-multipage-");
+    cleanup.add(out);
+
+    // Add a second page (/about/) so we have two pages in site.json.
+    addPage(site, "about");
+    const manifestBefore = JSON.parse(fs.readFileSync(path.join(out, "site.json"), "utf8")) as SiteManifest;
+    const aboutPage = manifestBefore.pages.find((p) => p.route === "/about/");
+    expect(aboutPage, "about page must exist in site.json after addPage").toBeTruthy();
+    const homeSectionsBefore = manifestBefore.pages.find((p) => p.route === "/")!.sections.length;
+
+    // Generate a section targeting /about/ — it must land there, not on the homepage.
+    const chat = fakeChat([JSON.stringify({ eyebrow: "", headline: "About Us", subcopy: "We are a gym.", primaryCta: "Learn more" })]);
+    const result = await generateSection(
+      site,
+      { role: "hero", brief: "About page hero.", targetRoute: "/about/" },
+      chat,
+      MODEL,
+      browser,
+      { width: WIDTH },
+    );
+    expect(result.ok, `generateSection to /about/ failed: ${result.verifierReport.failures.join(" | ")}`).toBe(true);
+
+    const manifestAfter = JSON.parse(fs.readFileSync(path.join(out, "site.json"), "utf8")) as SiteManifest;
+    const homeSectionsAfter = manifestAfter.pages.find((p) => p.route === "/")!.sections.length;
+    const aboutSectionsAfter = manifestAfter.pages.find((p) => p.route === "/about/")!.sections.length;
+
+    // Homepage must be unchanged — section went to /about/ not to /.
+    expect(homeSectionsAfter).toBe(homeSectionsBefore);
+    // The about page must have gained exactly one section.
+    expect(aboutSectionsAfter).toBeGreaterThan((aboutPage?.sections.length ?? 0));
+    // The generated section's component appears in about.astro, not index.astro.
+    const aboutAstro = fs.readFileSync(path.join(out, "astro", "src", "pages", "about.astro"), "utf8");
+    expect(aboutAstro).toContain(result.sectionName);
+    const indexAstro = fs.readFileSync(path.join(out, "astro", "src", "pages", "index.astro"), "utf8");
+    expect(indexAstro).not.toContain(result.sectionName);
+  }, 300_000);
 });

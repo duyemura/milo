@@ -47,7 +47,18 @@ export async function project(opts: ProjectOpts): Promise<ProjectResult> {
   const linkMap: Record<string, string> = typeof opts.links === "string" ? JSON.parse(fs.readFileSync(path.resolve(opts.links), "utf8")) : {};
   const normUrl = (u: string) => { try { const x = new URL(u); return (x.origin + x.pathname).replace(/\/$/, "") || x.origin; } catch { return u; } };
   const normMap: Record<string, string> = {}; for (const [k, v] of Object.entries(linkMap)) normMap[normUrl(k)] = v;
-  const rewriteHref = (h: string) => normMap[normUrl(h)] ?? h;
+  // Source origins from the capture (e.g. ["https://www.torrancetraininglab.com"]).
+  // Internal absolute links that point back to the source domain are rewritten to root-relative
+  // paths so they work on the cloned domain without pointing back to the original site.
+  const srcOrigins = (CAP.sourceOrigins ?? []).map((o: string) => o.replace(/\/+$/, ""));
+  const rewriteHref = (h: string) => {
+    if (normMap[normUrl(h)]) return normMap[normUrl(h)];
+    // Rewrite absolute internal link → root-relative path (strips source origin)
+    for (const origin of srcOrigins) {
+      if (h.startsWith(origin + "/") || h === origin) return h.slice(origin.length) || "/";
+    }
+    return h;
+  };
   fs.mkdirSync(OUT, { recursive: true });
 
   const VOID = new Set(["img", "br", "hr", "input", "source", "use", "path", "circle", "rect", "line", "polygon", "polyline", "ellipse", "col", "area"]);

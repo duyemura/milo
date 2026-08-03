@@ -33,7 +33,11 @@ import {
   reorderSection,
   addSection,
   addPage,
+  addNavLink,
 } from "./ops.ts";
+import { generateSection } from "./generate.ts";
+import { generateAsset } from "../assets/generate.ts";
+import { placeAsset, uploadAsset } from "./place.ts";
 import { verify } from "./verify.ts";
 import { renderSnapshot, sectionListOf, type RenderSnapshot } from "./snapshot.ts";
 import { snapshot, restore } from "./history.ts";
@@ -54,7 +58,7 @@ export interface ApplyOptions {
 }
 
 /** Structural ops change section membership/order, so the verifier needs an expectedSectionOrder. */
-const STRUCTURAL_OPS = new Set<EditOp["op"]>(["removeSection", "reorderSection", "addSection"]);
+const STRUCTURAL_OPS = new Set<EditOp["op"]>(["removeSection", "reorderSection", "addSection", "generateSection"]);
 
 /**
  * Apply a batch of ops with self-correction, never shipping a broken edit.
@@ -133,7 +137,35 @@ async function applyAndVerify(
   opts: ApplyOptions,
 ): Promise<VerifierReport> {
   try {
-    const results = await applyOpsDeterministically(site, ops);
+    const results = await applyOpsDeterministically(site, ops, opts);
+
+    // addPage adds sections to a NEW page, not the root. The render verifier targets the root
+    // page only, so it can't see the new page's sections in the DOM — a false structural mismatch
+    // by design. For addPage-only batches, skip the pixel render and do a lightweight file check:
+    // the new page .astro exists and site.json has been updated.
+    if (ops.every((o) => o.op === "addPage")) {
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(site.dir, "site.json"), "utf8"),
+      ) as { pages: Array<{ route: string; sections: unknown[] }> };
+      const failures: string[] = [];
+      for (const op of ops) {
+        if (op.op !== "addPage") continue;
+        // Must exactly match ops.ts::addPage sanitizer (all 4 steps) or file/route lookup diverges.
+        const cleanRoute = op.route.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase().replace(/^-+|-+$/g, "");
+        const pageFile = path.join(site.dir, "astro", "src", "pages", `${cleanRoute}.astro`);
+        if (!fs.existsSync(pageFile)) failures.push(`addPage: page file missing: ${pageFile}`);
+        const inManifest = manifest.pages.some((p) => p.route === `/${cleanRoute}/`);
+        if (!inManifest) failures.push(`addPage: route /${cleanRoute}/ missing from site.json`);
+      }
+      return {
+        pass: failures.length === 0,
+        sections: [],
+        structural: { expected: before.order, actual: before.order, ok: failures.length === 0 },
+        renderSane: true,
+        failures,
+      };
+    }
+
     const intent = buildIntent(site, ops, results, brandBefore);
     return await verify(opts.browser, before, site, intent, {
       width: opts.width ?? before.width,
@@ -153,7 +185,7 @@ async function applyAndVerify(
 }
 
 /** Dispatch each op to its deterministic implementation, in order. */
-async function applyOpsDeterministically(site: SiteRef, ops: EditOp[]): Promise<OpResult[]> {
+async function applyOpsDeterministically(site: SiteRef, ops: EditOp[], opts: ApplyOptions): Promise<OpResult[]> {
   const results: OpResult[] = [];
   for (const op of ops) {
     switch (op.op) {
@@ -181,6 +213,41 @@ async function applyOpsDeterministically(site: SiteRef, ops: EditOp[]): Promise<
       case "addPage":
         results.push(addPage(site, op.route, op.cloneOfPage, op.pageType));
         break;
+      case "addNavLink":
+        results.push(addNavLink(site, op.text, op.href));
+        break;
+      case "generateAsset": {
+        const genResult = await generateAsset(site, { alias: op.alias, brief: op.brief, category: op.category, aspectRatio: op.aspectRatio, chat: opts.chat, model: opts.model });
+        if (!genResult.ok) throw new Error(`generateAsset failed: ${genResult.failures.join("; ")}`);
+        results.push({ op, changedFiles: [], targetSections: [] });
+        break;
+      }
+      case "placeAsset":
+        results.push(await placeAsset(site, op.alias, op.assetId));
+        break;
+      case "uploadAsset":
+        results.push(await uploadAsset(site, op.file, op.alias, { altText: op.altText, chat: opts.chat, model: opts.model }));
+        break;
+      case "generateSection": {
+        // generateSection runs its own internal verify. If it fails, throw so apply() can retry.
+        const genResult = await generateSection(
+          site,
+          { role: op.role, brief: op.brief, afterSection: op.afterSection, targetRoute: op.targetRoute },
+          opts.chat,
+          opts.model,
+          opts.browser,
+          { width: opts.width, assetsFallback: opts.assetsFallback },
+        );
+        if (!genResult.ok) {
+          throw new Error(`generateSection failed: ${genResult.verifierReport.failures.join("; ")}`);
+        }
+        results.push({
+          op,
+          changedFiles: [],
+          targetSections: [genResult.sectionName],
+        });
+        break;
+      }
     }
   }
   return results;
@@ -363,6 +430,16 @@ function targetIdentity(op: EditOp): string {
       return `addSection:${op.cloneOf}`;
     case "addPage":
       return `addPage:${op.route}`;
+    case "generateSection":
+      return `generateSection:${op.role}`;
+    case "addNavLink":
+      return `addNavLink:${op.href}`;
+    case "generateAsset":
+      return `generateAsset:${op.alias}`;
+    case "placeAsset":
+      return `placeAsset:${op.alias}`;
+    case "uploadAsset":
+      return `uploadAsset:${op.alias}`;
   }
 }
 

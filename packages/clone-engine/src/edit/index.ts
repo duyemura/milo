@@ -41,3 +41,7 @@ export type { RenderSnapshot } from "./snapshot.ts";
 
 // Verifier (verify, cropDiffPx, currentBrandHex).
 export { verify, cropDiffPx, currentBrandHex } from "./verify.ts";
+
+// Asset Library bridge ops (place a library asset / upload an owner photo into a slot).
+export { placeAsset, uploadAsset } from "./place.ts";
+export type { UploadOpts } from "./place.ts";

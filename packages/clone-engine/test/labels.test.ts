@@ -35,6 +35,55 @@ function fakeChat(responses: string[]): ChatFn {
   return async () => ({ content: responses[Math.min(i++, responses.length - 1)] });
 }
 
+describe("heuristicLabels — hero detection", () => {
+  // Regression: speakeasy's hero has "Explore Our Locations" in its text → was mislabeled
+  // location-map. sweatshed's hero was mislabeled testimonials. The h1 tag is the
+  // authoritative hero signal and must fire before keyword matching.
+  it("speakeasy: section containing h1 is labeled hero, not location-map", () => {
+    const cap = loadCapture("speakeasy");
+    const labels = heuristicLabels(cap);
+    // First section (id 108) has h1 "Awesome for Everyone." — must be hero
+    const first = labels.sections[0];
+    expect(first.role).toBe("hero");
+  });
+
+  it("sweatshed: section containing h1 is labeled hero, not testimonials", () => {
+    const cap = loadCapture("sweatshed");
+    const labels = heuristicLabels(cap);
+    const first = labels.sections[0];
+    expect(first.role).toBe("hero");
+  });
+});
+
+describe("heuristicLabels — role keyword ordering + coverage", () => {
+  // FAQ sections that incidentally mention "coach" must not be mislabeled coach-grid.
+  it("sweatshed: FrequentlyAskedQuestions section is labeled faq, not coach-grid", () => {
+    const cap = loadCapture("sweatshed");
+    const labels = heuristicLabels(cap);
+    const faqSection = labels.sections.find((s) => s.name === "FrequentlyAskedQuestionsSection");
+    expect(faqSection, "FrequentlyAskedQuestionsSection must be labeled").toBeTruthy();
+    expect(faqSection!.role).toBe("faq");
+  });
+
+  // 3-step process sections that mention "coach" must not be mislabeled coach-grid.
+  it("speakeasy: 3-step process section is labeled feature-grid, not coach-grid", () => {
+    const cap = loadCapture("speakeasy");
+    const labels = heuristicLabels(cap);
+    const stepsSection = labels.sections.find((s) => s.name === "S3StepsToSection");
+    expect(stepsSection, "S3StepsToSection must be labeled").toBeTruthy();
+    expect(stepsSection!.role).toBe("feature-grid");
+  });
+
+  // "Trusted and loved by hundreds" = social proof = testimonials.
+  it("torrance: TrustedAndLoved section is labeled testimonials, not unknown", () => {
+    const cap = loadCapture("torrance");
+    const labels = heuristicLabels(cap);
+    const trusted = labels.sections.find((s) => s.name === "TrustedAndLovedSection");
+    expect(trusted, "TrustedAndLovedSection must be labeled").toBeTruthy();
+    expect(trusted!.role).toBe("testimonials");
+  });
+});
+
 describe("heuristicLabels", () => {
   for (const site of SITES) {
     describe(site, () => {

@@ -40,7 +40,7 @@ import { pixelDiff } from "../pixel.ts";
 // EditIntent now lives in ./types.ts (shared by apply.ts + generate.ts). Re-exported below.
 export type { EditIntent } from "./types.ts";
 
-const OVERLAP_TOLERANCE_PX = 2; // sections may share a 1-2px seam (border collapse / sub-pixel).
+export const OVERLAP_TOLERANCE_PX = 2; // sections may share a 1-2px seam (border collapse / sub-pixel).
 
 /**
  * Diff two same-section crops (before vs after) → { px, dimChanged }. 0 px == internally clean.
@@ -185,7 +185,7 @@ function resolveEditedNames(intent: EditIntent, snapshotNames: Set<string>, list
 }
 
 /** Do two boxes overlap by more than tolerance on both axes? */
-function overlaps(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }, tol: number): boolean {
+export function overlaps(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }, tol: number): boolean {
   const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
   const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
   return ox > tol && oy > tol;
