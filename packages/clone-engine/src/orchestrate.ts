@@ -30,7 +30,7 @@ import type { CaptureJson, Labels } from "./types.ts";
 import { originSlug, pageDir, discoverPages } from "./discover.ts";
 import type { DiscoverOpts } from "./discover.ts";
 import { mapPool, autoConcurrency } from "./concurrency.ts";
-import { getStorage, type StorageAdapter } from "./storage/index.ts";
+import { getStorage, type StorageAdapter } from "@milo/storage";
 import { restoreCapture, persistCapture } from "./storage/capture-cache.ts";
 import type { BuildReport, PageReport, PageIssues } from "./report.ts";
 import { generateHtmlReport } from "./report.ts";

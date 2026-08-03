@@ -13,6 +13,11 @@ export class LocalFsAdapter implements StorageAdapter {
     this.resolvedRoot = path.resolve(root);
   }
 
+  /** Absolute root dir — used by describeStorage. */
+  get root(): string {
+    return this.resolvedRoot;
+  }
+
   /** Resolve a key to an absolute path under the root, rejecting traversal. */
   private resolve(key: string): string {
     const abs = path.resolve(this.resolvedRoot, key);

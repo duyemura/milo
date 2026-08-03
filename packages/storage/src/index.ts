@@ -9,7 +9,8 @@
  *   STORAGE_KEY       — access key (omit to use the AWS default credential chain)
  *   STORAGE_SECRET    — secret key
  *   STORAGE_REGION    — optional, defaults to us-east-1
- *   CAPTURE_CACHE_DIR — local backend root override (backwards compat)
+ *   MILO_STORAGE_DIR  — local backend root override
+ *   CAPTURE_CACHE_DIR — deprecated alias for MILO_STORAGE_DIR
  */
 import os from "node:os";
 import path from "node:path";
@@ -20,6 +21,7 @@ import { S3Adapter } from "./s3.ts";
 export type { StorageAdapter } from "./adapter.ts";
 export { LocalFsAdapter } from "./local.ts";
 export { S3Adapter } from "./s3.ts";
+export type { S3AdapterOpts } from "./s3.ts";
 
 export function getStorage(env: NodeJS.ProcessEnv = process.env): StorageAdapter {
   if (env.STORAGE_BUCKET) {
@@ -31,6 +33,19 @@ export function getStorage(env: NodeJS.ProcessEnv = process.env): StorageAdapter
       secretAccessKey: env.STORAGE_SECRET,
     });
   }
-  const root = env.CAPTURE_CACHE_DIR ?? path.join(os.tmpdir(), "milo-storage");
+  const root = env.MILO_STORAGE_DIR ?? env.CAPTURE_CACHE_DIR ?? path.join(os.homedir(), ".milo");
   return new LocalFsAdapter(root);
+}
+
+/** Stable per-site slug derived from a URL: hostname, lowercase, no leading www., dots→dashes. */
+export function slugFromUrl(url: string): string {
+  const host = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+  return host.replace(/\./g, "-");
+}
+
+/** Human-readable URI prefix for a backend, e.g. file:///Users/x/.milo or s3://bucket. */
+export function describeStorage(storage: StorageAdapter): string {
+  if (storage instanceof LocalFsAdapter) return `file://${storage.root}`;
+  if (storage instanceof S3Adapter) return `s3://${storage.bucket}`;
+  return "custom";
 }

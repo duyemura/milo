@@ -7,7 +7,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { LocalFsAdapter } from "../src/storage/local.ts";
+import { LocalFsAdapter } from "@milo/storage";
 import { captureCacheKey, restoreCapture, persistCapture } from "../src/storage/capture-cache.ts";
 
 function tmp(): string {

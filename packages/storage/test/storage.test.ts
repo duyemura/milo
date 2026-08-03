@@ -17,10 +17,10 @@ import {
   HeadObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
-import type { StorageAdapter } from "../src/storage/adapter.ts";
-import { LocalFsAdapter } from "../src/storage/local.ts";
-import { S3Adapter } from "../src/storage/s3.ts";
-import { getStorage } from "../src/storage/index.ts";
+import type { StorageAdapter } from "../src/adapter.ts";
+import { LocalFsAdapter } from "../src/local.ts";
+import { S3Adapter } from "../src/s3.ts";
+import { getStorage, slugFromUrl, describeStorage } from "../src/index.ts";
 
 /** In-memory S3 client double with real command classes, so the adapter's
  *  command wiring (Bucket/Key/Body) is exercised for real. */
@@ -128,7 +128,7 @@ describe("S3Adapter specifics", () => {
 });
 
 describe("getStorage factory", () => {
-  const STORAGE_ENV = ["STORAGE_BUCKET", "STORAGE_ENDPOINT", "STORAGE_KEY", "STORAGE_SECRET", "STORAGE_REGION", "CAPTURE_CACHE_DIR"];
+  const STORAGE_ENV = ["STORAGE_BUCKET", "STORAGE_ENDPOINT", "STORAGE_KEY", "STORAGE_SECRET", "STORAGE_REGION", "MILO_STORAGE_DIR", "CAPTURE_CACHE_DIR"];
   let saved: Record<string, string | undefined>;
 
   beforeEach(() => {
@@ -153,6 +153,11 @@ describe("getStorage factory", () => {
     expect(getStorage()).toBeInstanceOf(LocalFsAdapter);
   });
 
+  it("defaults the local root to ~/.milo when no override is set", () => {
+    const a = getStorage() as LocalFsAdapter;
+    expect(a.root).toBe(path.join(os.homedir(), ".milo"));
+  });
+
   it("roots the local adapter at CAPTURE_CACHE_DIR when set (backwards compat)", async () => {
     const root = tmpRoot();
     process.env.CAPTURE_CACHE_DIR = root;
@@ -170,5 +175,20 @@ describe("getStorage factory", () => {
     expect(a).toBeInstanceOf(S3Adapter);
     // forcePathStyle is required for MinIO; surface it for the assertion.
     expect(a.forcePathStyle).toBe(true);
+  });
+});
+
+describe("slugFromUrl", () => {
+  it("derives stable slugs from URLs", () => {
+    expect(slugFromUrl("https://speakeasyofstrength.com")).toBe("speakeasyofstrength-com");
+    expect(slugFromUrl("https://www.Example-Gym.co.uk/path?q=1")).toBe("example-gym-co-uk");
+  });
+});
+
+describe("describeStorage", () => {
+  it("describes local and s3 backends as URIs", () => {
+    expect(describeStorage(new LocalFsAdapter("/tmp/milo-x"))).toBe("file:///tmp/milo-x");
+    // No network: constructing S3Adapter without a client never sends a request.
+    expect(describeStorage(new S3Adapter({ bucket: "my-bucket" }))).toBe("s3://my-bucket");
   });
 });

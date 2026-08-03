@@ -34,7 +34,8 @@ function isMissingKey(e: unknown): boolean {
 }
 
 export class S3Adapter implements StorageAdapter {
-  private readonly bucket: string;
+  /** Public — used by describeStorage. */
+  readonly bucket: string;
   private readonly client: S3Client;
   /** Exposed for diagnostics/tests — true when talking to a path-style endpoint (MinIO). */
   readonly forcePathStyle: boolean;

@@ -10,7 +10,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import type { StorageAdapter } from "./adapter.ts";
+import type { StorageAdapter } from "@milo/storage";
 
 /**
  * Cache key for a page URL: `capture/<slug>-<hash12>.json`.
