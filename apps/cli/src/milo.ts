@@ -3,6 +3,7 @@
  * milo — operator CLI for the Milo v2 pipeline.
  *
  *   milo studio   --url <url> [--out <dir>]
+ *   milo learn    --url <url> --name <gym-name> --city <city> --state <state> [--out <dir>]
  *   milo intake   --url <website-url> --name <gym-name> --city <city> --state <state> [--country <country>] [--out <dir>]
  *   milo generate --docs <dir> [--out <dir>]
  *   milo build      --gym <path> [--theme modern|blackout] [--site-url <url>] [--out <dir>]
@@ -105,6 +106,61 @@ switch (command) {
         process.exit(subcommand ? 1 : 0);
       }
     }
+    } catch (err: unknown) {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+    break;
+  }
+
+  case "learn": {
+    // learn has no subcommand — combine subcommand + rest so flags after "learn" are all visible
+    const learnArgs = subcommand ? [subcommand, ...rest] : rest;
+    try {
+      const websiteUrl = requireFlag("url", learnArgs);
+      if (!/^https?:\/\//i.test(websiteUrl)) {
+        console.error("--url must be a valid http or https URL");
+        process.exit(1);
+      }
+      const gymName = requireFlag("name", learnArgs);
+      const city = requireFlag("city", learnArgs);
+      const state = requireFlag("state", learnArgs);
+      const country = flag("country", learnArgs) ?? "US";
+      const outDir = path.resolve(flag("out", learnArgs) ?? "./learn-output");
+      const placesKey = process.env.GOOGLE_PLACES_API_KEY;
+      if (!placesKey) { console.error("GOOGLE_PLACES_API_KEY is required for learn"); process.exit(1); }
+      const openrouterKey = process.env.OPENROUTER_API_KEY;
+      if (!openrouterKey) { console.error("OPENROUTER_API_KEY is required for learn"); process.exit(1); }
+
+      const { runLearn, createRealPlacesClient, createRealPageFetcher, loadCrawlRules } = await import("@milo/intake");
+      const { chatCompletion } = await import("@milo/llm");
+      const llmConfig = {
+        provider: "openrouter" as const,
+        openrouterBaseUrl: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+        openrouterApiKey: openrouterKey,
+      };
+
+      const rulesPath = flag("rules", learnArgs);
+      const result = await runLearn({
+        url: websiteUrl,
+        gymName,
+        city,
+        state,
+        country,
+        outDir,
+        maxPages: Number(flag("max-pages", learnArgs) ?? 25),
+        includeUgc: learnArgs.includes("--include-ugc"),
+        concurrency: Number(flag("concurrency", learnArgs) ?? 3),
+        skipCrawl: learnArgs.includes("--skip-crawl"),
+        places: createRealPlacesClient(placesKey),
+        fetcher: createRealPageFetcher(),
+        chat: (o) => chatCompletion(o, llmConfig),
+        capableModel: process.env.MILO_CAPABLE_MODEL ?? "anthropic/claude-sonnet-4-6",
+        fastModel: process.env.MILO_FAST_MODEL ?? "google/gemini-2.5-flash",
+        discoveredAt: new Date().toISOString(),
+        ...(rulesPath ? { rules: loadCrawlRules(path.resolve(rulesPath)) } : {}),
+      });
+      console.log(`[learn] Done. ${result.pageDocs.length} pages documented. Docs at ${outDir}`);
     } catch (err: unknown) {
       console.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
@@ -229,7 +285,7 @@ switch (command) {
   }
 
   default: {
-    console.log("Usage: milo <studio|intake|generate|build|publish> [flags]");
+    console.log("Usage: milo <studio|learn|intake|generate|build|clone|publish> [flags]");
     process.exit(command ? 1 : 0);
   }
 }
