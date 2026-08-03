@@ -166,6 +166,15 @@ describe("getStorage factory", () => {
     expect(fs.existsSync(path.join(root, "probe"))).toBe(true);
   });
 
+  it("prefers MILO_STORAGE_DIR over CAPTURE_CACHE_DIR when both are set", () => {
+    const milo = tmpRoot();
+    const legacy = tmpRoot();
+    process.env.MILO_STORAGE_DIR = milo;
+    process.env.CAPTURE_CACHE_DIR = legacy;
+    const a = getStorage() as LocalFsAdapter;
+    expect(a.root).toBe(milo);
+  });
+
   it("passes STORAGE_ENDPOINT through to the S3 client (MinIO)", () => {
     process.env.STORAGE_BUCKET = "b";
     process.env.STORAGE_ENDPOINT = "http://localhost:9000";
