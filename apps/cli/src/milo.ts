@@ -73,15 +73,15 @@ const HELP: Record<string, string> = {
 `.trim(),
 
   learn: `
-  milo learn --url <url> --name <name> --city <city> --state <state> [options]
+  milo learn --url <url> [options]
 
   Crawl a gym's website and produce structured page docs (the "learn" phase).
   Output is a directory of JSON docs used by \`milo clone\` or \`milo generate\`.
 
   --url <url>          Gym website URL (required)
-  --name <name>        Gym name (required)
-  --city <city>        City (required)
-  --state <state>      State abbreviation (required)
+  --name <name>        Gym name for GMB lookup (default: hostname)
+  --city <city>        City hint for GMB lookup (optional)
+  --state <state>      State hint for GMB lookup (optional)
   --country <country>  Country code (default: US)
   --out <dir>          Output directory (default: ./<hostname>)
   --max-pages <n>      Max pages to crawl (default: 25)
@@ -264,9 +264,10 @@ switch (command) {
         console.error("--url must be a valid http or https URL");
         process.exit(1);
       }
-      const gymName = requireFlag("name", learnArgs);
-      const city = requireFlag("city", learnArgs);
-      const state = requireFlag("state", learnArgs);
+      const hostname = new URL(websiteUrl).hostname.replace(/^www\./, "");
+      const gymName = flag("name", learnArgs) ?? hostname;
+      const city = flag("city", learnArgs) ?? "";
+      const state = flag("state", learnArgs) ?? "";
       const country = flag("country", learnArgs) ?? "US";
       const outFlag = flag("out", learnArgs);
       const verbose = learnArgs.includes("--verbose");
