@@ -3,7 +3,7 @@
  * milo — operator CLI for the Milo v2 pipeline.
  *
  *   milo studio   --url <url> [--out <dir>]
- *   milo learn    --url <url> [--name <name>] [--city <city>] [--state <state>] [--out <dir>] [--verbose]
+ *   milo learn    <url> [--name <name>] [--city <city>] [--state <state>] [--out <dir>] [--verbose]
  *   milo generate --docs <dir> [--out <dir>]
  *   milo build      --gym <path> [--theme modern|blackout] [--site-url <url>] [--out <dir>]
  *   milo publish  staging    [--gym <path>] [--dist <path>]
@@ -72,12 +72,12 @@ const HELP: Record<string, string> = {
 `.trim(),
 
   learn: `
-  milo learn --url <url> [options]
+  milo learn <url> [options]
 
   Crawl a gym's website and produce structured page docs (the "learn" phase).
   Output is a directory of JSON docs used by \`milo clone\` or \`milo generate\`.
 
-  --url <url>          Gym website URL (required)
+  <url>                Gym website URL (required; or use --url <url>)
   --name <name>        Gym name for GMB lookup (default: hostname)
   --city <city>        City hint for GMB lookup (optional)
   --state <state>      State hint for GMB lookup (optional)
@@ -229,10 +229,11 @@ switch (command) {
   }
 
   case "learn": {
-    // learn has no subcommand — combine subcommand + rest so flags after "learn" are all visible
-    const learnArgs = subcommand ? [subcommand, ...rest] : rest;
+    // Accept positional URL: `milo learn <url> [flags]` or legacy `milo learn --url <url>`
+    const learnArgs = subcommand && !subcommand.startsWith("--") ? rest : (subcommand ? [subcommand, ...rest] : rest);
+    const positionalUrl = subcommand && /^https?:\/\//i.test(subcommand) ? subcommand : undefined;
     try {
-      const websiteUrl = requireFlag("url", learnArgs);
+      const websiteUrl = positionalUrl ?? requireFlag("url", learnArgs);
       if (!/^https?:\/\//i.test(websiteUrl)) {
         console.error("--url must be a valid http or https URL");
         process.exit(1);
