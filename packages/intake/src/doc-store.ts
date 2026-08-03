@@ -9,7 +9,7 @@ import { getStorage, LocalFsAdapter, slugFromUrl, describeStorage, type StorageA
 
 export class DocStore {
   constructor(
-    private readonly storage: StorageAdapter,
+    readonly storage: StorageAdapter,
     private readonly prefix: string,
   ) {}
 

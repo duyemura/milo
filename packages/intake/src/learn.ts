@@ -1,5 +1,6 @@
 import os from "node:os";
 import path from "node:path";
+import fs from "node:fs";
 import { type StorageAdapter, type Asset, ingestFromUrl, ingestFromBuffer, loadLibrary, findBySourceRef, slugFromUrl } from "@milo/storage";
 import { resolveDocStore } from "./doc-store.ts";
 import { consoleLogger, type MiloLogger } from "./logger.ts";
@@ -374,6 +375,28 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
   await store.putJson("social-assets.json", { downloadedAt: opts.discoveredAt, count: socialAssets.length, assets: socialAssets.map((a) => ({ id: a.id, file: a.file, dimensions: a.dimensions, altText: a.altText })) });
   await store.putText("context.md", contextToMarkdown(opts.gymName, context));
   await store.putText("business.md", businessToMarkdown(opts.gymName, business));
+
+  // Mirror asset files to the storage backend (MinIO in production).
+  // Assets are always written locally first by the asset library; this step
+  // syncs them to gyms/<slug>/library/ so they're visible in the object browser.
+  const allAssets = [...gmbAssets, ...socialAssets];
+  if (allAssets.length > 0) {
+    const gymKey = (rel: string) => `gyms/${slug}/${rel}`;
+    let uploaded = 0;
+    for (const asset of allAssets) {
+      const localPath = path.join(businessDir, asset.file);
+      if (fs.existsSync(localPath)) {
+        await store.storage.put(gymKey(asset.file), fs.readFileSync(localPath));
+        uploaded++;
+      }
+    }
+    // Also sync library.json so the asset index follows the images
+    const libraryJsonPath = path.join(businessDir, "library.json");
+    if (fs.existsSync(libraryJsonPath)) {
+      await store.storage.put(gymKey("library.json"), fs.readFileSync(libraryJsonPath));
+    }
+    if (uploaded > 0) logger.verbose(`[learn] Uploaded ${uploaded} asset(s) to ${store.storage.constructor.name}`);
+  }
 
   logger.info(`[learn] Done — ${pageDocs.length} page(s) of context, GMB data, brand + voice docs at ${store.uri()}`);
 
