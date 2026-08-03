@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { GymDocuments } from "@milo/schema";
@@ -360,6 +360,13 @@ describe("runLearn storage mode", () => {
     const fetcher = new FakePageFetcher({ "https://ironanchor.com/": HOME, "/about": ABOUT, "/pricing": PRICING });
     const chat = fakeChat([CLASS, CLASS, CLASS, JSON.stringify(BUSINESS), JSON.stringify(CONTEXT)]);
     const storage = new LocalFsAdapter(path.join(out, "storage"));
+    // Unlike fakeDownload (path-only), this fake writes real bytes so the tmp-staging
+    // → storage putFile upload path is exercised.
+    const downloadAndWrite = async (_url: string, assetsDir: string, preferredName?: string) => {
+      const name = preferredName ?? "asset-1.jpg";
+      await writeFile(path.join(assetsDir, name), Buffer.from("fake-bytes"));
+      return `/assets/${name}`;
+    };
 
     const result = await runLearn({
       url: "https://ironanchor.com", gymName: "Iron Anchor", city: "Denver", state: "CO", country: "US",
@@ -370,11 +377,13 @@ describe("runLearn storage mode", () => {
       normalizeFetch: async () => ({ url: "https://ironanchor.com/" }) as unknown as Response,
       discoveredAt: "2026-07-28T00:00:00Z",
       captureFonts: fakeFonts,
-      downloadOne: fakeDownload,
+      downloadOne: downloadAndWrite,
       socialScraper: fakeSocialScraper([]),
     });
 
     const docsRoot = path.join(out, "storage", "gyms", "ironanchor-com", "docs");
+    // Binary assets uploaded through the storage seam, not just JSON docs
+    expect(await readFile(path.join(docsRoot, "assets", "asset-1.jpg"), "utf8")).toBe("fake-bytes");
     // Canonical top-level copies
     expect(JSON.parse(await readFile(path.join(docsRoot, "brand.json"), "utf8"))).toHaveProperty("colors");
     expect(JSON.parse(await readFile(path.join(docsRoot, "pages.json"), "utf8"))).toHaveProperty("pages");

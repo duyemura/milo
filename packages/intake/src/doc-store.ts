@@ -41,6 +41,7 @@ export class DocStore {
   }
 }
 
+/** Precedence: injected storage > outDir > getStorage(). Passing both storage and outDir — storage wins, outDir is ignored. */
 export function resolveDocStore(opts: {
   url: string;
   outDir?: string;

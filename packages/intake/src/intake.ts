@@ -432,14 +432,19 @@ export async function runLearn(opts: RunLearnOptions): Promise<RunLearnResult> {
     // Downloads stage in a tmp dir, then upload through the storage seam — one code
     // path for local disk and S3. pageDocs keep "/assets/<name>" web paths either way.
     const assetsDir = await mkdtemp(path.join(os.tmpdir(), "milo-assets-"));
-    gmbAssets = await downloadGmbPhotos(identity, assetsDir, opts.places.getPhotoUri.bind(opts.places), opts.downloadOne, opts.gmbPhotoMaxWidthPx, logger);
-    const assetMap = await downloadPageAssets(pageDocs, assetsDir, opts.downloadOne, logger);
-    attachLocalAssetPaths(pageDocs, assetMap);
+    let assetMap: Record<string, string> = {};
+    try {
+      gmbAssets = await downloadGmbPhotos(identity, assetsDir, opts.places.getPhotoUri.bind(opts.places), opts.downloadOne, opts.gmbPhotoMaxWidthPx, logger);
+      assetMap = await downloadPageAssets(pageDocs, assetsDir, opts.downloadOne, logger);
+      attachLocalAssetPaths(pageDocs, assetMap);
 
-    for (const f of await readdir(assetsDir)) {
-      await docs.putFile(`assets/${f}`, path.join(assetsDir, f));
+      for (const f of await readdir(assetsDir)) {
+        await docs.putFile(`assets/${f}`, path.join(assetsDir, f));
+      }
+    } finally {
+      // Always clean up staging — a failed download or a loud S3 put must not orphan it.
+      await rm(assetsDir, { recursive: true, force: true });
     }
-    await rm(assetsDir, { recursive: true, force: true });
 
     // --- persist crawl bundle
     const gmbAssetsDoc = {
