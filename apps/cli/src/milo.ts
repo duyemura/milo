@@ -3,7 +3,7 @@
  * milo — operator CLI for the Milo v2 pipeline.
  *
  *   milo studio   --url <url> [--out <dir>]
- *   milo learn    --url <url> --name <gym-name> --city <city> --state <state> [--out <dir>]
+ *   milo learn    --url <url> --name <gym-name> --city <city> --state <state> [--out <dir>] [--verbose]
  *   milo intake   --url <website-url> --name <gym-name> --city <city> --state <state> [--country <country>] [--out <dir>]
  *   milo generate --docs <dir> [--out <dir>]
  *   milo build      --gym <path> [--theme modern|blackout] [--site-url <url>] [--out <dir>]
@@ -126,13 +126,14 @@ switch (command) {
       const city = requireFlag("city", learnArgs);
       const state = requireFlag("state", learnArgs);
       const country = flag("country", learnArgs) ?? "US";
-      const outDir = path.resolve(flag("out", learnArgs) ?? "./learn-output");
+      const outFlag = flag("out", learnArgs);
+      const verbose = learnArgs.includes("--verbose");
       const placesKey = process.env.GOOGLE_PLACES_API_KEY;
       if (!placesKey) { console.error("GOOGLE_PLACES_API_KEY is required for learn"); process.exit(1); }
       const openrouterKey = process.env.OPENROUTER_API_KEY;
       if (!openrouterKey) { console.error("OPENROUTER_API_KEY is required for learn"); process.exit(1); }
 
-      const { runLearn, createRealPlacesClient, createRealPageFetcher, loadCrawlRules } = await import("@milo/intake");
+      const { runLearn, createRealPlacesClient, createRealPageFetcher, loadCrawlRules, verboseConsoleLogger } = await import("@milo/intake");
       const { chatCompletion } = await import("@milo/llm");
       const llmConfig = {
         provider: "openrouter" as const,
@@ -147,7 +148,8 @@ switch (command) {
         city,
         state,
         country,
-        outDir,
+        ...(outFlag ? { outDir: path.resolve(outFlag) } : {}),
+        ...(verbose ? { logger: verboseConsoleLogger() } : {}),
         maxPages: Number(flag("max-pages", learnArgs) ?? 25),
         includeUgc: learnArgs.includes("--include-ugc"),
         concurrency: Number(flag("concurrency", learnArgs) ?? 3),
@@ -160,7 +162,7 @@ switch (command) {
         discoveredAt: new Date().toISOString(),
         ...(rulesPath ? { rules: loadCrawlRules(path.resolve(rulesPath)) } : {}),
       });
-      console.log(`[learn] Done. ${result.pageDocs.length} pages documented. Docs at ${outDir}`);
+      console.log(`[learn] Done. ${result.pageDocs.length} pages documented. Docs at ${result.docsUri}`);
     } catch (err: unknown) {
       console.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
