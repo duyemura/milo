@@ -187,6 +187,22 @@ async function buildOnePage(ctx: {
     emit({ type: "page.capture.started", route: p.route });
     const captureDir = path.join(cwd, p.dir);
     const captureJsonPath = path.join(captureDir, "capture.json");
+
+    // Capture caching: CAPTURE_CACHE_DIR is a persistent directory (survives builds)
+    // that stores capture.json keyed by URL slug. This avoids re-running Playwright on
+    // every build when the source site hasn't changed. The cache is intentionally local-first
+    // (later the storage seam will back it with S3/MinIO for multi-replica).
+    const cacheDir = process.env.CAPTURE_CACHE_DIR;
+    const urlSlug = p.url.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase().slice(0, 80);
+    const cachedCapturePath = cacheDir ? path.join(cacheDir, `${urlSlug}.json`) : null;
+
+    // Populate the build dir from cache if available.
+    if (cachedCapturePath && fs.existsSync(cachedCapturePath) && !fs.existsSync(captureJsonPath)) {
+      fs.mkdirSync(captureDir, { recursive: true });
+      fs.copyFileSync(cachedCapturePath, captureJsonPath);
+      console.log(`\n=== capture: cache hit ${p.route} ===`);
+    }
+
     const captureCached = fs.existsSync(captureJsonPath);
     let freshCaptureMs: number | undefined;
 
@@ -195,7 +211,12 @@ async function buildOnePage(ctx: {
       const t = Date.now();
       await capture({ url: p.url, out: captureDir, verify: false });
       captureMs = Date.now() - t;
-      freshCaptureMs = captureMs; // record for future warm-run reports
+      freshCaptureMs = captureMs;
+      // Persist fresh capture to the cache dir for future builds.
+      if (cachedCapturePath && fs.existsSync(captureJsonPath)) {
+        fs.mkdirSync(cacheDir!, { recursive: true });
+        fs.copyFileSync(captureJsonPath, cachedCapturePath);
+      }
     } else {
       console.log(`\n=== capture cached ${p.route} ===`);
     }
@@ -312,7 +333,9 @@ async function buildOnePage(ctx: {
 
 export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
   const { origin, pages } = opts;
-  const cwd = opts.cwd ?? process.cwd();
+  // BUILD_DIR env var lets a server point the build workspace at a mounted volume
+  // or a pre-configured path rather than process.cwd() (which is the package dir in production).
+  const cwd = opts.cwd ?? process.env.BUILD_DIR ?? process.cwd();
   const wallStart = Date.now();
   const emit = makeEmit(opts.onEvent);
 
@@ -496,6 +519,30 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       reportHtmlPath: opts.reportOut,
       reportJsonPath: opts.reportOut.replace(/\.html?$/i, ".json"),
     });
+  }
+
+  // Clean up ephemeral per-page build artifacts (capture.json, dist/, screenshots).
+  // The projected site (site.json, astro/brand.json, astro/src/) is KEPT — the edit ops
+  // (editCopy, setBrand, generateSection, etc.) need it to function after the build.
+  // Set KEEP_BUILD_ARTIFACTS=1 to skip cleanup (useful for debugging).
+  if (process.env.KEEP_BUILD_ARTIFACTS !== "1") {
+    for (const p of ok) {
+      const pageDir = path.join(cwd, p.dir);
+      // Delete capture.json (large ~13MB), screenshots, and the built dist/.
+      // Keep astro/src/, site.json, brand.json, labels.json, assets/ (the edit state).
+      for (const artifact of [
+        path.join(pageDir, "capture.json"),
+        path.join(pageDir, "source-desktop.png"),
+        path.join(pageDir, "recon-desktop.png"),
+        path.join(pageDir, "source-mobile.png"),
+        path.join(pageDir, "recon-mobile.png"),
+        path.join(pageDir, "astro", "dist"),  // assembled into full-site/
+      ]) {
+        try { fs.rmSync(artifact, { recursive: true, force: true }); } catch { /* ignore */ }
+      }
+    }
+    // Delete the raw links file (already assembled).
+    try { fs.rmSync(path.join(cwd, "links-site.json"), { force: true }); } catch { /* ignore */ }
   }
 
   return { ok, failed, siteReport, reportHtmlPath };
