@@ -10,7 +10,7 @@
  *
  * All crawl/link-map/per-page/assemble logic is otherwise identical to the spike.
  */
-import { execSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { capture } from "./capture.ts";
@@ -24,6 +24,17 @@ import type { DiscoverOpts } from "./discover.ts";
 import type { BuildReport, PageReport, PageIssues, PageLlmUsage } from "./report.ts";
 import { generateHtmlReport } from "./report.ts";
 import { makeEmit, type EngineEventSink } from "./events.ts";
+
+/** Promise over spawn; rejects on non-zero exit. Keeps the event loop free so
+ *  pooled astro builds overlap (execSync would block the single Node thread). */
+function run(cmd: string, cwd: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, [], { cwd, stdio: "inherit", shell: "/bin/bash" });
+    child.on("error", reject);
+    child.on("close", (code: number | null) =>
+      code === 0 ? resolve() : reject(new Error(`command failed (exit ${code}): ${cmd}`)));
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Cost helpers
@@ -254,9 +265,9 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       );
       emit({ type: "page.build.started", route: p.route });
       const tBuild = Date.now();
-      execSync(
+      await run(
         `ln -sf "${astroNodeModules}" node_modules && ./node_modules/.bin/astro build`,
-        { cwd: astroDir, stdio: "inherit", shell: "/bin/bash" },
+        astroDir,
       );
       buildMs = Date.now() - tBuild;
       emit({ type: "page.build.done", route: p.route });
