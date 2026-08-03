@@ -30,6 +30,8 @@ import type { CaptureJson, Labels } from "./types.ts";
 import { originSlug, pageDir, discoverPages } from "./discover.ts";
 import type { DiscoverOpts } from "./discover.ts";
 import { mapPool, autoConcurrency } from "./concurrency.ts";
+import { getStorage, type StorageAdapter } from "./storage/index.ts";
+import { restoreCapture, persistCapture } from "./storage/capture-cache.ts";
 import type { BuildReport, PageReport, PageIssues } from "./report.ts";
 import { generateHtmlReport } from "./report.ts";
 import { makeEmit, type EngineEventSink } from "./events.ts";
@@ -179,27 +181,20 @@ async function buildOnePage(ctx: {
   runLlm: boolean;
   collectReport: boolean;
   reportOut?: string;
+  storage: StorageAdapter;
   emit: ReturnType<typeof makeEmit>;
 }): Promise<PageBuildResult> {
-  const { p, pageIdx, total, cwd, linksFile, runLlm, collectReport, reportOut, emit } = ctx;
+  const { p, pageIdx, total, cwd, linksFile, runLlm, collectReport, reportOut, storage, emit } = ctx;
   let captureMs = 0, labelMs = 0, projectMs = 0, buildMs = 0;
   try {
     emit({ type: "page.capture.started", route: p.route });
     const captureDir = path.join(cwd, p.dir);
     const captureJsonPath = path.join(captureDir, "capture.json");
 
-    // Capture caching: CAPTURE_CACHE_DIR is a persistent directory (survives builds)
-    // that stores capture.json keyed by URL slug. This avoids re-running Playwright on
-    // every build when the source site hasn't changed. The cache is intentionally local-first
-    // (later the storage seam will back it with S3/MinIO for multi-replica).
-    const cacheDir = process.env.CAPTURE_CACHE_DIR;
-    const urlSlug = p.url.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase().slice(0, 80);
-    const cachedCapturePath = cacheDir ? path.join(cacheDir, `${urlSlug}.json`) : null;
-
-    // Populate the build dir from cache if available.
-    if (cachedCapturePath && fs.existsSync(cachedCapturePath) && !fs.existsSync(captureJsonPath)) {
-      fs.mkdirSync(captureDir, { recursive: true });
-      fs.copyFileSync(cachedCapturePath, captureJsonPath);
+    // Capture caching: the storage seam (local fs in dev, S3/MinIO in prod) stores
+    // capture.json keyed by URL slug, so builds skip re-running Playwright when the
+    // source site hasn't changed. A capture.json already in the build dir always wins.
+    if (await restoreCapture(storage, p.url, captureDir)) {
       console.log(`\n=== capture: cache hit ${p.route} ===`);
     }
 
@@ -212,11 +207,8 @@ async function buildOnePage(ctx: {
       await capture({ url: p.url, out: captureDir, verify: false });
       captureMs = Date.now() - t;
       freshCaptureMs = captureMs;
-      // Persist fresh capture to the cache dir for future builds.
-      if (cachedCapturePath && fs.existsSync(captureJsonPath)) {
-        fs.mkdirSync(cacheDir!, { recursive: true });
-        fs.copyFileSync(captureJsonPath, cachedCapturePath);
-      }
+      // Persist the fresh capture for future builds.
+      await persistCapture(storage, p.url, captureDir);
     } else {
       console.log(`\n=== capture cached ${p.route} ===`);
     }
@@ -361,13 +353,14 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
   const collectReport = Boolean(opts.reportOut);
   const runLlm = opts.llm !== false; // default true
   const concurrency = opts.concurrency ?? autoConcurrency();
+  const storage = getStorage(); // capture-cache backend: S3/MinIO when configured, local fs otherwise
   console.log(`[build] concurrency=${concurrency} over ${augmented.length} page(s)`);
 
   // Build every page over a bounded pool sized to the host. buildOnePage never
   // throws — failures come back as status:"failed" — so one bad page can't abort
   // the pool. Results are reduced into ok/failed/pageReports after the barrier.
   const results = await mapPool(augmented, concurrency, (p, pageIdx) =>
-    buildOnePage({ p, pageIdx, total: augmented.length, cwd, linksFile, runLlm, collectReport, reportOut: opts.reportOut, emit }));
+    buildOnePage({ p, pageIdx, total: augmented.length, cwd, linksFile, runLlm, collectReport, reportOut: opts.reportOut, storage, emit }));
 
   const ok: AugmentedPage[] = [];
   const failed: AugmentedPage[] = [];
