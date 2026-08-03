@@ -8,3 +8,14 @@ dist/
 dist-modern/
 dist-blackout/
 cf-*-intake/
+
+burnin-*/
+
+# local admin dev/test data + sqlite (never commit)
+admin-data/
+admin-smoke-data/
+admin-smoke.db
+declutter-data/
+*.db
+*.db-shm
+*.db-wal
