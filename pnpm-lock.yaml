@@ -104,6 +104,9 @@ importers:
       '@milo/schema':
         specifier: workspace:*
         version: link:../../packages/schema
+      '@milo/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
     devDependencies:
       vitest:
         specifier: ^3.0.0
@@ -214,6 +217,9 @@ importers:
       '@milo/schema':
         specifier: workspace:*
         version: link:../schema
+      '@milo/storage':
+        specifier: workspace:*
+        version: link:../storage
       playwright:
         specifier: ^1.49.0
         version: 1.61.1

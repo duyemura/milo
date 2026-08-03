@@ -15,7 +15,8 @@
     "@milo/intake": "workspace:*",
     "@milo/llm": "workspace:*",
     "@milo/publish": "workspace:*",
-    "@milo/schema": "workspace:*"
+    "@milo/schema": "workspace:*",
+    "@milo/storage": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^3.0.0"

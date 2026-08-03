@@ -291,8 +291,34 @@ switch (command) {
     const cloneUrl = subcommand;
     const cloneArgs = rest;
     if (!cloneUrl || !/^https?:\/\//i.test(cloneUrl)) {
-      console.error("Usage: milo clone <url> [--template <id>] [--refresh-docs] [--out <dir>]");
+      console.error("Usage: milo clone <url> [--template <id>] [--refresh-docs] [--deploy] [--out <dir>]");
       process.exit(1);
+    }
+
+    // --deploy: opt-in staging publish after a successful build. Validate config
+    // BEFORE building so a missing KVS ARN fails in seconds, not after a 5-min build.
+    const deploy = cloneArgs.includes("--deploy");
+    let deployOutAbs: string | null = null;
+    if (deploy) {
+      const out = flag("out", cloneArgs);
+      if (!out) {
+        console.error("--deploy requires --out <dir> so the built site location is known");
+        process.exit(1);
+      }
+      deployOutAbs = path.resolve(out);
+      const publishJsonPath = path.join(deployOutAbs, "publish.json");
+      if (!existsSync(publishJsonPath)) {
+        const kvsArn = process.env.CLOUDFRONT_KVS_ARN;
+        if (!kvsArn) {
+          console.error("--deploy: CLOUDFRONT_KVS_ARN is required on first deploy (or place a publish.json in --out)");
+          process.exit(1);
+        }
+        const { slugFromUrl } = await import("@milo/storage");
+        const { writeFileSync, mkdirSync } = await import("node:fs");
+        mkdirSync(deployOutAbs, { recursive: true });
+        writeFileSync(publishJsonPath, JSON.stringify({ slug: slugFromUrl(cloneUrl), kvsArn }, null, 2) + "\n");
+        console.log(`[clone] Created publish.json — slug: ${slugFromUrl(cloneUrl)}`);
+      }
     }
 
     // --refresh-docs: run learn first, blocking, then proceed with clone
@@ -339,9 +365,9 @@ switch (command) {
     // Pass through any extra flags (ugc-limit, concurrency, emit-events, etc.)
     // Strip flags we already handled so they don't get double-passed
     // Flags we've already processed — don't pass to the engine
-    const handledFlags = new Set(["--refresh-docs", "--template", "--out", "--mode", "--name", "--city", "--state", "--url"]);
+    const handledFlags = new Set(["--refresh-docs", "--template", "--out", "--mode", "--name", "--city", "--state", "--url", "--deploy"]);
     // Boolean flags (no value argument follows them)
-    const booleanFlags = new Set(["--refresh-docs"]);
+    const booleanFlags = new Set(["--refresh-docs", "--deploy"]);
     let i = 0;
     while (i < cloneArgs.length) {
       const arg = cloneArgs[i];
@@ -360,7 +386,21 @@ switch (command) {
       }
     }
 
-    process.exit(run("node", engineArgs, ROOT));
+    const buildStatus = run("node", engineArgs, ROOT);
+    if (buildStatus !== 0) process.exit(buildStatus);
+
+    if (deployOutAbs) {
+      try {
+        const config = await resolveOrInitConfig({ gymJsonPath: path.join(deployOutAbs, "gym.json") });
+        const s3 = createRealS3Adapter({ bucket: config.bucket, region: config.region, awsProfile: config.awsProfile });
+        const kvs = createRealKvsAdapter({ kvsArn: config.kvsArn, region: config.region, awsProfile: config.awsProfile });
+        await publishStaging({ config, distDir: path.join(deployOutAbs, "full-site"), s3, kvs });
+      } catch (err: unknown) {
+        console.error(err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      }
+    }
+    process.exit(0);
   }
 
   default: {
