@@ -12,6 +12,7 @@
  *   milo publish  status     [--gym <path>]
  */
 import { spawnSync } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
@@ -114,10 +115,10 @@ const HELP: Record<string, string> = {
   learn docs are found for this URL.
 
   <url>          Website to clone (required)
-  --out <dir>    Output directory (also used as deploy root with --deploy)
+  --out <dir>    Build output directory (default: ~/.milo/builds/<slug>)
   --mode <mode>  Clone mode: core | full (default: core)
   --deploy       Publish the built site to staging after a successful build
-                 Requires --out and CLOUDFRONT_KVS_ARN env var on first run
+                 Requires CLOUDFRONT_KVS_ARN env var on first deploy
 `.trim(),
 
   publish: `
@@ -366,13 +367,12 @@ switch (command) {
     // --deploy: opt-in staging publish after a successful build. Validate config
     // BEFORE building so a missing KVS ARN fails in seconds, not after a 5-min build.
     const deploy = cloneArgs.includes("--deploy");
+    // Default build output: ~/.milo/builds/<slug> — stable and slug-specific so
+    // re-runs accumulate in a predictable place without polluting cwd.
+    const defaultOut = path.join(os.homedir(), ".milo", "builds", slug);
     let deployOutAbs: string | null = null;
     if (deploy) {
-      const out = flag("out", cloneArgs);
-      if (!out) {
-        console.error("--deploy requires --out <dir> so the built site location is known");
-        process.exit(1);
-      }
+      const out = flag("out", cloneArgs) ?? defaultOut;
       deployOutAbs = path.resolve(out);
       const publishJsonPath = path.join(deployOutAbs, "publish.json");
       if (!existsSync(publishJsonPath)) {
@@ -396,7 +396,7 @@ switch (command) {
 
     // DOM clone path: subprocess to the existing clone-engine CLI
     const cloneCli = path.join(ROOT, "packages/clone-engine/src/cli.ts");
-    const outDir = flag("out", cloneArgs);
+    const outDir = flag("out", cloneArgs) ?? (deploy ? defaultOut : undefined);
     const mode = flag("mode", cloneArgs) ?? "core";
     const engineArgs = [
       cloneCli,
