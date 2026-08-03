@@ -164,7 +164,7 @@ async function ingestSocialImages(
           altText: `${profile.platform} profile — @${profile.handle}`,
           fetchFn,
         });
-        logger?.verbose(`[learn] social profile @${profile.handle} → ${cached ? "cached" : "ingested"}`);
+        logger?.verbose(`[learn] social profile @${profile.handle} → ${cached ? "cached" : "ingested"} → ${asset.file}`);
         assets.push(asset);
       } catch (e) {
         logger?.verbose(`[learn] social profile @${profile.handle} failed: ${(e as Error).message}`);
@@ -180,7 +180,7 @@ async function ingestSocialImages(
             siteOrigin: slug,
             altText: altText ?? `${profile.platform} post — @${profile.handle}`,
           });
-          logger?.verbose(`[learn] social post @${profile.handle} → ${cached ? "cached" : "ingested"} (intercepted, ${buffer.length}B)`);
+          logger?.verbose(`[learn] social post @${profile.handle} → ${cached ? "cached" : "ingested"} (intercepted, ${buffer.length}B) → ${asset.file}`);
           assets.push(asset);
         } catch (e) {
           logger?.verbose(`[learn] social post @${profile.handle} failed: ${(e as Error).message}`);
@@ -196,7 +196,7 @@ async function ingestSocialImages(
             altText: `${profile.platform} post — @${profile.handle}`,
             fetchFn,
           });
-          logger?.verbose(`[learn] social post @${profile.handle} → ${cached ? "cached" : "ingested"}`);
+          logger?.verbose(`[learn] social post @${profile.handle} → ${cached ? "cached" : "ingested"} → ${asset.file}`);
           assets.push(asset);
         } catch (e) {
           logger?.verbose(`[learn] social post @${profile.handle} failed: ${(e as Error).message}`);
