@@ -19,6 +19,11 @@ function stripFences(content: string): string {
   return (fenced ? fenced[1] : trimmed).trim();
 }
 
+function looksLikeTruncated(content: string): boolean {
+  const s = content.trim();
+  return (s.startsWith("{") && !s.endsWith("}")) || (s.startsWith("[") && !s.endsWith("]"));
+}
+
 /**
  * Call the LLM in JSON mode and validate against `schema`. On parse/validation
  * failure, retry up to `maxRetries` times, feeding the error back so the model
@@ -45,9 +50,15 @@ export async function llmJson<T extends z.ZodTypeAny>(
     try {
       parsed = JSON.parse(stripFences(res.content));
     } catch {
-      lastError = `Response was not valid JSON: ${res.content.slice(0, 200)}`;
-      messages.push({ role: "assistant", content: res.content });
-      messages.push({ role: "user", content: `That was not valid JSON. ${lastError}. Return ONLY a JSON object.` });
+      if (looksLikeTruncated(res.content)) {
+        // Don't append the giant fragment — it just bloats the context on every retry.
+        // Retry clean; if max_tokens is set high enough this should succeed next attempt.
+        lastError = `Response was truncated (hit output token limit at ${res.content.length} chars)`;
+      } else {
+        lastError = `Response was not valid JSON: ${res.content.slice(0, 200)}`;
+        messages.push({ role: "assistant", content: res.content });
+        messages.push({ role: "user", content: `That was not valid JSON. ${lastError}. Return ONLY a JSON object.` });
+      }
       continue;
     }
 

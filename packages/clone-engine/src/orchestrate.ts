@@ -12,6 +12,7 @@
  */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { findAstroJs, findAstroModules } from "./astro.ts";
 import type { Browser } from "playwright";
@@ -30,7 +31,7 @@ import type { CaptureJson, Labels } from "./types.ts";
 import { originSlug, pageDir, discoverPages } from "./discover.ts";
 import type { DiscoverOpts } from "./discover.ts";
 import { mapPool, autoConcurrency } from "./concurrency.ts";
-import { getStorage, type StorageAdapter } from "@milo/storage";
+import { getStorage, slugFromUrl, type StorageAdapter } from "@milo/storage";
 import { restoreCapture, persistCapture } from "./storage/capture-cache.ts";
 import type { BuildReport, PageReport, PageIssues } from "./report.ts";
 import { generateHtmlReport } from "./report.ts";
@@ -141,6 +142,14 @@ export interface BuildSiteOpts {
    * preservation, pixel diff vs source screenshot).
    */
   sourceCaptureDir?: string;
+  /**
+   * Local asset library directory for this gym (e.g. ~/.milo/gyms/<slug>/).
+   * When present (or auto-derived from origin), gym-specific assets ingested by
+   * `milo learn` (GMB photos, social images) are copied to full-site/assets/images/
+   * so the built site owns and serves them directly.
+   * Defaults to ~/.milo/gyms/<url-slug-of-origin>/.
+   */
+  businessDir?: string;
 }
 
 export interface BuildSiteResult {
@@ -404,6 +413,26 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
     // Copy the built astro dist contents into the assembled site dir (no shell — Node 24 fs.cpSync).
     fs.cpSync(astroDist, dest, { recursive: true });
     assembled.push(p);
+  }
+
+  // Copy gym-specific assets (GMB photos, social images) ingested by `milo learn`
+  // into full-site/assets/images/ so the built site owns and serves them directly.
+  // The capture step already re-hosts the site's original images; this adds the
+  // gym's OWN photo library (GMB, Instagram) that may not appear on the site yet.
+  {
+    const gymDir = opts.businessDir ?? path.join(os.homedir(), ".milo", "gyms", slugFromUrl(origin));
+    const libraryDir = path.join(gymDir, "library");
+    if (fs.existsSync(libraryDir)) {
+      const imagesOut = path.join(fullSite, "assets", "images");
+      fs.mkdirSync(imagesOut, { recursive: true });
+      let copied = 0;
+      for (const file of fs.readdirSync(libraryDir)) {
+        if (!/\.(jpg|jpeg|png|webp|gif)$/i.test(file)) continue;
+        fs.copyFileSync(path.join(libraryDir, file), path.join(imagesOut, file));
+        copied++;
+      }
+      if (copied > 0) console.log(`[build] copied ${copied} gym asset(s) → full-site/assets/images/`);
+    }
   }
 
   // Generate sitemap.xml + robots.txt for SEO indexing.
