@@ -446,7 +446,13 @@ ${interCss}</style></head><body class="p${CAP.tree.id}"${bodyPageAttrs}>${CAP.tr
   // symlinks node_modules to one shared install, and Vite's default cache lives at
   // node_modules/.vite — i.e. shared across all parallel builds through that symlink,
   // a write race. Redirecting cacheDir out of node_modules isolates each build.
-  const cfgBody = BASE ? `{ base: "${BASE}", vite: { cacheDir: ".vite" } }` : `{ vite: { cacheDir: ".vite" } }`;
+  //
+  // onwarn filters the "didn't resolve at build time" warning emitted for font/asset
+  // url() references using the base-prefixed absolute path (e.g. /slug/assets/f42.ttf).
+  // Vite can't find the file on disk (it lives in public/assets/ without the prefix),
+  // but the URL is correct at runtime — the warning is harmless noise.
+  const viteConfig = `{ cacheDir: ".vite", build: { rollupOptions: { onwarn(w, d) { if (w.message?.includes("didn't resolve at build time")) return; d(w); } } } }`;
+  const cfgBody = BASE ? `{ base: "${BASE}", vite: ${viteConfig} }` : `{ vite: ${viteConfig} }`;
   fs.writeFileSync(path.join(AST, "astro.config.mjs"), `import { defineConfig } from "astro/config";\nexport default defineConfig(${cfgBody});\n`);
   console.log(`  emitted real Astro project → ${AST} (${regions.length} components)`);
 
