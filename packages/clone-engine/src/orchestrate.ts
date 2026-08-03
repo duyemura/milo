@@ -477,10 +477,12 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       }
     } catch { /* ignore */ }
 
+    const generatedAt = opts.builtAt ?? new Date().toISOString();
     const report: BuildReport = {
       site: siteName,
       origin,
-      generatedAt: opts.builtAt ?? new Date().toISOString(),
+      generatedAt,
+      buildId: `${originSlug(origin)}-${new Date(generatedAt).getTime()}`,
       totalWallMs,
       pages: pageReports,
     };

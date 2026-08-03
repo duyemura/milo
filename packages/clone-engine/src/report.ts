@@ -95,6 +95,8 @@ export interface BuildReport {
   origin: string;
   /** ISO timestamp when the report was generated (from opts.builtAt or new Date().toISOString()). */
   generatedAt: string;
+  /** Stable build identifier: "<origin-slug>-<generatedAt-epoch>". Useful for correlating logs. */
+  buildId?: string;
   totalWallMs: number;
   pages: PageReport[];
 }
