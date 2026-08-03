@@ -97,6 +97,10 @@ export interface BuildReport {
   generatedAt: string;
   totalWallMs: number;
   pages: PageReport[];
+  /** Whole-run LLM cost. Per-page attribution isn't possible under concurrency, so
+   *  cost is reported at the run level. Present only when the LLM labeler ran. */
+  totalLlmCostUsd?: number;
+  totalLlmTokens?: { prompt: number; completion: number };
 }
 
 // ---------------------------------------------------------------------------

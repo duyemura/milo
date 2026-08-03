@@ -18,10 +18,11 @@ import { project } from "./project.ts";
 import { label, heuristicLabels } from "./labels.ts";
 import type { LabelSource } from "./labels.ts";
 import { llmCostAccumulator } from "@milo/llm";
-import type { CaptureJson } from "./types.ts";
+import type { CaptureJson, Labels } from "./types.ts";
 import { originSlug, pageDir, discoverPages } from "./discover.ts";
 import type { DiscoverOpts } from "./discover.ts";
-import type { BuildReport, PageReport, PageIssues, PageLlmUsage } from "./report.ts";
+import { mapPool, autoConcurrency } from "./concurrency.ts";
+import type { BuildReport, PageReport, PageIssues } from "./report.ts";
 import { generateHtmlReport } from "./report.ts";
 import { makeEmit, type EngineEventSink } from "./events.ts";
 
@@ -102,6 +103,11 @@ export interface BuildSiteOpts {
    */
   llm?: boolean;
   /**
+   * Max pages built concurrently. Defaults to autoConcurrency() — sized to the
+   * host (cgroup-aware, so it's correct locally and on any Railway instance).
+   */
+  concurrency?: number;
+  /**
    * ISO timestamp for the report's generatedAt field. If omitted, new Date().toISOString()
    * is used. Useful for reproducible report output in tests or CI.
    */
@@ -120,6 +126,158 @@ export interface BuildSiteResult {
   ok: PageSpec[];
   /** Pages that were skipped after a failure (logged, excluded from `full-site/`). */
   failed: PageSpec[];
+}
+
+/** Result of building one page — collected by the pool and reduced into ok/failed. */
+interface PageBuildResult {
+  page: AugmentedPage;
+  status: "ok" | "failed";
+  report?: PageReport;
+}
+
+/**
+ * Capture → label → project → astro-build one page. This is the former per-page
+ * loop body, extracted so it can run over a bounded concurrency pool. It never
+ * throws — a per-page failure comes back as status:"failed" so one bad page can't
+ * abort the pool. LLM cost is NOT attributed per page here (it can't be computed
+ * race-free under concurrency); buildSite reports an accurate run-level aggregate.
+ */
+async function buildOnePage(ctx: {
+  p: AugmentedPage;
+  pageIdx: number;
+  total: number;
+  cwd: string;
+  linksFile: string;
+  runLlm: boolean;
+  collectReport: boolean;
+  reportOut?: string;
+  emit: ReturnType<typeof makeEmit>;
+}): Promise<PageBuildResult> {
+  const { p, pageIdx, total, cwd, linksFile, runLlm, collectReport, reportOut, emit } = ctx;
+  let captureMs = 0, labelMs = 0, projectMs = 0, buildMs = 0;
+  try {
+    emit({ type: "page.capture.started", route: p.route });
+    const captureDir = path.join(cwd, p.dir);
+    const captureJsonPath = path.join(captureDir, "capture.json");
+    const captureCached = fs.existsSync(captureJsonPath);
+    let freshCaptureMs: number | undefined;
+
+    if (!captureCached) {
+      console.log(`\n=== Page ${pageIdx + 1}/${total}: CAPTURE ${p.route} ===`);
+      const t = Date.now();
+      await capture({ url: p.url, out: captureDir, verify: false });
+      captureMs = Date.now() - t;
+      freshCaptureMs = captureMs; // record for future warm-run reports
+    } else {
+      console.log(`\n=== capture cached ${p.route} ===`);
+    }
+    emit({ type: "page.capture.done", route: p.route });
+
+    // Label pass: run before project() so it picks up labels.json. LLM is an
+    // enhancement; label() falls back to the heuristic on any error.
+    let lblsForReport: Labels | null = null;
+    let pageLabelSource: LabelSource | "llm-cached" = "heuristic-disabled";
+    let pageLabelFallbackReason: string | undefined;
+    {
+      const tLabel = Date.now();
+      try {
+        const captureJson = JSON.parse(fs.readFileSync(captureJsonPath, "utf8")) as CaptureJson;
+        const labelsJsonPath = path.join(captureDir, "labels.json");
+        if (runLlm) {
+          if (!fs.existsSync(labelsJsonPath)) {
+            const result = await label({ dir: captureDir, out: captureDir, llm: true });
+            lblsForReport = result.labels;
+            pageLabelSource = result.source;
+            pageLabelFallbackReason = result.fallbackReason;
+          } else {
+            console.log(`=== label cached ${p.route} ===`);
+            lblsForReport = JSON.parse(fs.readFileSync(labelsJsonPath, "utf8")) as Labels;
+            pageLabelSource = "llm-cached";
+          }
+        } else {
+          lblsForReport = heuristicLabels(captureJson);
+          pageLabelSource = "heuristic-disabled";
+        }
+      } catch (e) {
+        console.warn(`[orchestrate] label pass failed for ${p.route}: ${(e as Error).message}`);
+      }
+      labelMs = Date.now() - tLabel;
+    }
+
+    const base = p.route === "/" ? "" : p.route.replace(/\/$/, "");
+    emit({ type: "page.project.started", route: p.route });
+    console.log(`=== Page ${pageIdx + 1}/${total}: PROJECT ${p.route} (base='${base}') ===`);
+    const tProject = Date.now();
+    await project({ dir: captureDir, out: path.join(cwd, p.out), base, links: linksFile, noDiff: true });
+    projectMs = Date.now() - tProject;
+    emit({ type: "page.project.done", route: p.route });
+
+    // astro build shells out (external tool). node_modules is symlinked from the
+    // spike's canonical Astro install via an absolute path so this works from any cwd.
+    const astroDir = path.join(cwd, p.out, "astro");
+    const astroNodeModules = path.resolve(
+      import.meta.dirname,
+      "../../../page-clone-spike/out-project-page/astro/node_modules",
+    );
+    emit({ type: "page.build.started", route: p.route });
+    const tBuild = Date.now();
+    await run(`ln -sf "${astroNodeModules}" node_modules && ./node_modules/.bin/astro build`, astroDir);
+    buildMs = Date.now() - tBuild;
+    emit({ type: "page.build.done", route: p.route });
+
+    let report: PageReport | undefined;
+    if (collectReport) {
+      const unknownSections = lblsForReport ? lblsForReport.sections.filter((s) => s.role === "unknown").length : 0;
+      let leftoverSourceRefs = 0;
+      let assetCount: number | undefined;
+      try {
+        const cap = JSON.parse(fs.readFileSync(captureJsonPath, "utf8")) as { sourceOrigins?: string[]; assets?: unknown[] };
+        leftoverSourceRefs = cap.sourceOrigins?.length ?? 0;
+        if (Array.isArray(cap.assets)) assetCount = cap.assets.length;
+      } catch { /* ignore — not critical */ }
+      let pageWeightKb: number | undefined;
+      try {
+        const builtIndex = path.join(cwd, p.out, "astro/dist/index.html");
+        if (fs.existsSync(builtIndex)) pageWeightKb = Math.round(fs.statSync(builtIndex).size / 1024);
+      } catch { /* ignore */ }
+      const thumbAbs = path.join(captureDir, "source-desktop.png");
+      const thumbPath = fs.existsSync(thumbAbs) && reportOut ? path.relative(path.dirname(reportOut), thumbAbs) : undefined;
+      const issues: PageIssues = {
+        assetsFailed: 0,
+        leftoverSourceRefs,
+        labelSource: pageLabelSource,
+        labelFallbackReason: pageLabelFallbackReason,
+        unknownSections,
+        captureRetries: 0,
+        selfContainmentWarnings: 0,
+      };
+      report = {
+        route: p.route,
+        status: "ok",
+        timing: { route: p.route, captureMs, labelMs, projectMs, buildMs, captureCached, freshCaptureMs },
+        llm: undefined, // per-page LLM cost is not attributable under concurrency; see run-level total
+        issues,
+        thumbPath,
+        assetCount,
+        pageWeightKb,
+      };
+    }
+    return { page: p, status: "ok", report };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.log(`!!! FAILED ${p.route}: ${msg.split("\n")[0]}`);
+    emit({ type: "page.failed", route: p.route, error: msg.split("\n")[0] });
+    const report: PageReport | undefined = collectReport
+      ? {
+          route: p.route,
+          status: "failed",
+          error: msg,
+          timing: { route: p.route, captureMs, labelMs, projectMs, buildMs, captureCached: false },
+          issues: { assetsFailed: 0, leftoverSourceRefs: 0, labelSource: "heuristic-disabled", unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
+        }
+      : undefined;
+    return { page: p, status: "failed", report };
+  }
 }
 
 export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
@@ -147,209 +305,23 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
   const linksFile = path.join(cwd, "links-site.json");
   fs.writeFileSync(linksFile, JSON.stringify(links, null, 1));
 
+  const collectReport = Boolean(opts.reportOut);
+  const runLlm = opts.llm !== false; // default true
+  const concurrency = opts.concurrency ?? autoConcurrency();
+  console.log(`[build] concurrency=${concurrency} over ${augmented.length} page(s)`);
+
+  // Build every page over a bounded pool sized to the host. buildOnePage never
+  // throws — failures come back as status:"failed" — so one bad page can't abort
+  // the pool. Results are reduced into ok/failed/pageReports after the barrier.
+  const results = await mapPool(augmented, concurrency, (p, pageIdx) =>
+    buildOnePage({ p, pageIdx, total: augmented.length, cwd, linksFile, runLlm, collectReport, reportOut: opts.reportOut, emit }));
+
   const ok: AugmentedPage[] = [];
   const failed: AugmentedPage[] = [];
-
-  // Collect per-page report data (only if reportOut is set).
   const pageReports: PageReport[] = [];
-  const collectReport = Boolean(opts.reportOut);
-
-  for (const [pageIdx, p] of augmented.entries()) {
-    const t0 = Date.now();
-    let captureMs = 0;
-    let labelMs = 0;
-    let projectMs = 0;
-    let buildMs = 0;
-
-    try {
-      emit({ type: "page.capture.started", route: p.route });
-      const captureDir = path.join(cwd, p.dir);
-      const captureJsonPath = path.join(captureDir, "capture.json");
-      const captureCached = fs.existsSync(captureJsonPath);
-      let freshCaptureMs: number | undefined;
-
-      if (!captureCached) {
-        console.log(`\n=== Page ${pageIdx + 1}/${augmented.length}: CAPTURE ${p.route} ===`);
-        const t = Date.now();
-        await capture({ url: p.url, out: captureDir, verify: false });
-        captureMs = Date.now() - t;
-        freshCaptureMs = captureMs; // record for future warm-run reports
-      } else {
-        console.log(`\n=== capture cached ${p.route} ===`);
-        // Cached: attribute 0ms to capture timing (it ran in a previous session).
-        // freshCaptureMs is left undefined — report will use EST_FRESH_CAPTURE_MS_PER_PAGE.
-        captureMs = 0;
-      }
-      emit({ type: "page.capture.done", route: p.route });
-
-      // Label pass: run before project() so it picks up labels.json.
-      // When llm is on, call label({llm:true}) — it writes labels.json and uses the LLM
-      // if a provider is configured (falls back to heuristic on any error).
-      // When llm is off, use the heuristic-only path and don't write labels.json here
-      // (project() will fall back to its own heuristic if no labels.json exists).
-      const runLlm = opts.llm !== false; // default true
-      let lblsForReport = null;
-      let pageLlmUsage: PageLlmUsage | undefined = undefined;
-      // Honest label source for reporting — set in the block below.
-      let pageLabelSource: LabelSource | "llm-cached" = runLlm ? "heuristic-disabled" : "heuristic-disabled";
-      let pageLabelFallbackReason: string | undefined;
-      {
-        const tLabel = Date.now();
-        try {
-          const captureJson = JSON.parse(fs.readFileSync(captureJsonPath, "utf8")) as CaptureJson;
-          const labelsJsonPath = path.join(captureDir, "labels.json");
-
-          if (runLlm) {
-            // Snapshot accumulator totals before the label call so we can compute delta.
-            const preSnap = accumulatorTotal(llmCostAccumulator.summary());
-
-            if (!fs.existsSync(labelsJsonPath)) {
-              // Not cached — run the label pass (LLM or heuristic fallback).
-              // label()'s `out` is a directory (it writes `labels.json` inside it).
-              const result = await label({ dir: captureDir, out: captureDir, llm: true });
-              lblsForReport = result.labels;
-              pageLabelSource = result.source;
-              pageLabelFallbackReason = result.fallbackReason;
-
-              if (result.source === "llm-fresh") {
-                // Compute per-page token delta from the global accumulator.
-                const postSnap = accumulatorTotal(llmCostAccumulator.summary());
-                const deltaPrompt = postSnap.promptTokens - preSnap.promptTokens;
-                const deltaCompletion = postSnap.completionTokens - preSnap.completionTokens;
-                if (deltaPrompt > 0 || deltaCompletion > 0) {
-                  // Pull model name from the accumulator (new entry since preSnap).
-                  const model = postSnap.model ?? "unknown";
-                  const costUsd = computeLabelCost(deltaPrompt, deltaCompletion);
-                  pageLlmUsage = { model, promptTokens: deltaPrompt, completionTokens: deltaCompletion, costUsd };
-                }
-              }
-            } else {
-              // labels.json already present from a prior run — reuse it (no re-cost).
-              console.log(`=== label cached ${p.route} ===`);
-              lblsForReport = JSON.parse(fs.readFileSync(labelsJsonPath, "utf8")) as typeof lblsForReport;
-              pageLabelSource = "llm-cached";
-            }
-          } else {
-            // llm:false — heuristic only (no labels.json written).
-            lblsForReport = heuristicLabels(captureJson);
-            pageLabelSource = "heuristic-disabled";
-          }
-        } catch (e) {
-          console.warn(`[orchestrate] label pass failed for ${p.route}: ${(e as Error).message}`);
-        }
-        labelMs = Date.now() - tLabel;
-      }
-
-      const base = p.route === "/" ? "" : p.route.replace(/\/$/, "");
-      emit({ type: "page.project.started", route: p.route });
-      console.log(`=== Page ${pageIdx + 1}/${augmented.length}: PROJECT ${p.route} (base='${base}') ===`);
-      const tProject = Date.now();
-      await project({
-        dir: captureDir,
-        out: path.join(cwd, p.out),
-        base,
-        links: linksFile,
-        noDiff: true,
-      });
-      projectMs = Date.now() - tProject;
-      emit({ type: "page.project.done", route: p.route });
-
-      // astro build shells out — it is an external tool, not a TS function.
-      // node_modules comes from the spike's out-project-page/astro tree (the canonical
-      // Astro install for the clone engine). We use an absolute path so this works
-      // from any cwd (not just page-clone-spike/).
-      const astroDir = path.join(cwd, p.out, "astro");
-      const astroNodeModules = path.resolve(
-        import.meta.dirname,
-        "../../../page-clone-spike/out-project-page/astro/node_modules",
-      );
-      emit({ type: "page.build.started", route: p.route });
-      const tBuild = Date.now();
-      await run(
-        `ln -sf "${astroNodeModules}" node_modules && ./node_modules/.bin/astro build`,
-        astroDir,
-      );
-      buildMs = Date.now() - tBuild;
-      emit({ type: "page.build.done", route: p.route });
-
-      ok.push(p);
-
-      if (collectReport) {
-        // Count issues from available data.
-        const unknownSections = lblsForReport
-          ? lblsForReport.sections.filter((s) => s.role === "unknown").length
-          : 0;
-
-        // leftoverSourceRefs: proxy from sourceOrigins length in capture.json.
-        let leftoverSourceRefs = 0;
-        try {
-          const cap = JSON.parse(fs.readFileSync(captureJsonPath, "utf8")) as { sourceOrigins?: string[] };
-          leftoverSourceRefs = cap.sourceOrigins?.length ?? 0;
-        } catch {
-          // ignore — not critical
-        }
-
-        const issues: PageIssues = {
-          assetsFailed: 0, // not surfaced by capture without refactoring
-          leftoverSourceRefs,
-          labelSource: pageLabelSource,
-          labelFallbackReason: pageLabelFallbackReason,
-          unknownSections,
-          captureRetries: 0,
-          selfContainmentWarnings: 0,
-        };
-
-        // Thumbnail: use source-desktop.png from the capture dir.
-        const thumbAbs = path.join(captureDir, "source-desktop.png");
-        const thumbPath = fs.existsSync(thumbAbs)
-          ? path.relative(path.dirname(opts.reportOut!), thumbAbs)
-          : undefined;
-
-        // Asset count: number of rehosted assets recorded in capture.json.
-        let assetCount: number | undefined;
-        try {
-          const cap = JSON.parse(fs.readFileSync(captureJsonPath, "utf8")) as { assets?: unknown[] };
-          if (Array.isArray(cap.assets)) assetCount = cap.assets.length;
-        } catch { /* ignore */ }
-
-        // Page weight: size of the built index.html in KB (dominant output file).
-        let pageWeightKb: number | undefined;
-        try {
-          const builtIndex = path.join(cwd, p.out, "astro/dist/index.html");
-          if (fs.existsSync(builtIndex)) {
-            pageWeightKb = Math.round(fs.statSync(builtIndex).size / 1024);
-          }
-        } catch { /* ignore */ }
-
-        pageReports.push({
-          route: p.route,
-          status: "ok",
-          timing: { route: p.route, captureMs, labelMs, projectMs, buildMs, captureCached, freshCaptureMs },
-          llm: pageLlmUsage,
-          issues,
-          thumbPath,
-          assetCount,
-          pageWeightKb,
-        });
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.log(`!!! FAILED ${p.route}: ${msg.split("\n")[0]}`);
-      emit({ type: "page.failed", route: p.route, error: msg.split("\n")[0] });
-      failed.push(p);
-
-      if (collectReport) {
-        pageReports.push({
-          route: p.route,
-          status: "failed",
-          error: msg,
-          timing: { route: p.route, captureMs, labelMs, projectMs, buildMs, captureCached: false },
-          issues: { assetsFailed: 0, leftoverSourceRefs: 0, labelSource: "heuristic-disabled", unknownSections: 0, captureRetries: 0, selfContainmentWarnings: 0 },
-        });
-      }
-    }
-
-    void t0; // suppress "declared but never read" — used implicitly through captureMs etc.
+  for (const r of results) {
+    (r.status === "ok" ? ok : failed).push(r.page);
+    if (r.report) pageReports.push(r.report);
   }
 
   // Every page failed → don't silently emit an empty full-site/; surface a hard error
@@ -408,12 +380,22 @@ export async function buildSite(opts: BuildSiteOpts): Promise<BuildSiteResult> {
       }
     } catch { /* ignore */ }
 
+    // Run-level LLM cost from the global accumulator (accurate regardless of
+    // concurrency, unlike the old per-page delta which raced under the pool).
+    const snap = accumulatorTotal(llmCostAccumulator.summary());
+    const totalLlmTokens = snap.promptTokens || snap.completionTokens
+      ? { prompt: snap.promptTokens, completion: snap.completionTokens }
+      : undefined;
+    const totalLlmCostUsd = totalLlmTokens ? computeLabelCost(snap.promptTokens, snap.completionTokens) : undefined;
+
     const report: BuildReport = {
       site: siteName,
       origin,
       generatedAt: opts.builtAt ?? new Date().toISOString(),
       totalWallMs,
       pages: pageReports,
+      totalLlmCostUsd,
+      totalLlmTokens,
     };
     generateHtmlReport(report, opts.reportOut);
     // reportJsonPath mirrors generateHtmlReport's convention (foo.html → foo.json).
